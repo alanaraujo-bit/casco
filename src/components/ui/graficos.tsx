@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { cn } from '@/lib/utils'
+import { cn, moeda } from '@/lib/utils'
 
 /**
  * Gráficos em SVG puro, sem biblioteca.
@@ -18,6 +18,23 @@ import { cn } from '@/lib/utils'
  */
 
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Formato do número, por nome e não por função.
+ *
+ * Poderia ser `formatar: (n) => string`, e era o desenho natural — mas função
+ * não atravessa a fronteira do servidor para o cliente, e o painel inteiro é
+ * Server Component. Passar `formatar={moeda}` compila, passa no TypeScript e
+ * quebra só na hora de gerar a página. Nome resolve no cliente e não tem como
+ * dar errado.
+ */
+export type Formato = 'moeda' | 'numero' | 'inteiro'
+
+const FORMATADORES: Record<Formato, (n: number) => string> = {
+  moeda,
+  numero: (n) => n.toLocaleString('pt-BR'),
+  inteiro: (n) => Math.round(n).toLocaleString('pt-BR'),
+}
 
 export interface PontoSerie {
   rotulo: string
@@ -53,15 +70,16 @@ export function GraficoArea({
   serie,
   cor = 'var(--acento)',
   altura = 160,
-  formatar = (n) => String(n),
+  formato = 'numero',
   className,
 }: {
   serie: PontoSerie[]
   cor?: string
   altura?: number
-  formatar?: (n: number) => string
+  formato?: Formato
   className?: string
 }) {
+  const formatar = FORMATADORES[formato]
   const id = React.useId()
   const [ativo, setAtivo] = React.useState<number | null>(null)
 
@@ -211,16 +229,17 @@ export function GraficoRosca({
   fatias,
   titulo,
   totalRotulo,
-  formatar = (n) => String(n),
+  formato = 'numero',
   className,
 }: {
   fatias: FatiaRosca[]
   titulo: string
   /** Texto pequeno sob o total. Ex.: "galões". */
   totalRotulo?: string
-  formatar?: (n: number) => string
+  formato?: Formato
   className?: string
 }) {
+  const formatar = FORMATADORES[formato]
   const total = fatias.reduce((s, f) => s + f.valor, 0)
   const raio = 42
   const circunferencia = 2 * Math.PI * raio
@@ -300,14 +319,15 @@ export function BarraProgresso({
   valor,
   maximo,
   cor = 'var(--acento)',
-  formatar = (n) => String(n),
+  formato = 'numero',
 }: {
   rotulo: string
   valor: number
   maximo: number
   cor?: string
-  formatar?: (n: number) => string
+  formato?: Formato
 }) {
+  const formatar = FORMATADORES[formato]
   const pct = maximo > 0 ? Math.min(100, (valor / maximo) * 100) : 0
   return (
     <div className="space-y-1.5">
@@ -344,13 +364,14 @@ export function GraficoColunas({
   serie,
   cor = 'var(--acento)',
   altura = 120,
-  formatar = (n) => String(n),
+  formato = 'numero',
 }: {
   serie: PontoSerie[]
   cor?: string
   altura?: number
-  formatar?: (n: number) => string
+  formato?: Formato
 }) {
+  const formatar = FORMATADORES[formato]
   const max = Math.max(...serie.map((p) => p.valor), 1)
   return (
     <div>

@@ -101,7 +101,7 @@ export default function PainelGerencial() {
             <GraficoArea
               serie={FATURAMENTO_MENSAL.slice(-7)}
               altura={44}
-              formatar={moeda}
+              formato="moeda"
             />
           }
         />
@@ -196,7 +196,7 @@ export default function PainelGerencial() {
           href="/relatorios/caixa-mensal"
           className="lg:col-span-2"
         >
-          <GraficoArea serie={FATURAMENTO_MENSAL} altura={200} formatar={moeda} />
+          <GraficoArea serie={FATURAMENTO_MENSAL} altura={200} formato="moeda" />
           <div className="mt-2 flex gap-1">
             {FATURAMENTO_MENSAL.map((p) => (
               <span
@@ -277,7 +277,7 @@ export default function PainelGerencial() {
                 valor={p.valor}
                 maximo={maiorProduto}
                 cor={p.cor}
-                formatar={(n) => n.toLocaleString('pt-BR')}
+                formato="numero"
               />
             ))}
           </div>
@@ -352,7 +352,7 @@ export default function PainelGerencial() {
               valor={c.valor}
               maximo={maiorCliente}
               cor={c.cor}
-              formatar={moeda}
+              formato="moeda"
             />
           ))}
         </div>
