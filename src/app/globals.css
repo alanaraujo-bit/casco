@@ -88,13 +88,18 @@
   /* Categóricas. Diferente das semânticas acima: estas NÃO significam estado,
      só separam séries num gráfico ou categorias num painel. Ter as duas
      famílias evita o erro clássico de pintar "Gás" de vermelho e o dono ler
-     como problema. Mesma luminosidade entre si, para nenhuma dominar. */
-  --cat-1: var(--petroleo-500);
-  --cat-2: oklch(0.624 0.132 258);
-  --cat-3: oklch(0.624 0.128 300);
-  --cat-4: oklch(0.646 0.132 155);
-  --cat-5: oklch(0.694 0.134 75);
-  --cat-6: oklch(0.628 0.155 25);
+     como problema.
+
+     Todas em L=0.60: além de nenhuma dominar, é o ponto em que a cor passa 3:1
+     contra o branco E contra o quase-preto — o mínimo da WCAG 1.4.11 para
+     objeto gráfico. A primeira versão tinha o âmbar em L=0.694, que dava 2.79:1
+     no claro: a fatia da rosca sumia para quem enxerga pouco. */
+  --cat-1: oklch(0.600 0.108 200);
+  --cat-2: oklch(0.600 0.140 258);
+  --cat-3: oklch(0.600 0.150 300);
+  --cat-4: oklch(0.600 0.126 155);
+  --cat-5: oklch(0.600 0.126 75);
+  --cat-6: oklch(0.600 0.170 25);
 }
 
 /* ==========================================================================
@@ -154,6 +159,15 @@
   --info-bg: var(--azul-bg-light);
   --roxo: var(--roxo-light);
   --roxo-bg: var(--roxo-bg-light);
+
+  /* Variante para ÍCONE e TEXTO sobre fundo tênue. A cor de gráfico (L=0.60)
+     não serve de tinta de texto: passa em 1.4.11 e reprova em 1.4.3. */
+  --cat-1-forte: oklch(0.460 0.092 200);
+  --cat-2-forte: oklch(0.460 0.155 258);
+  --cat-3-forte: oklch(0.460 0.165 300);
+  --cat-4-forte: oklch(0.440 0.110 155);
+  --cat-5-forte: oklch(0.450 0.105 75);
+  --cat-6-forte: oklch(0.470 0.180 25);
 
   --foco: var(--petroleo-500);
 
@@ -228,6 +242,13 @@
   --roxo: var(--roxo-dark);
   --roxo-bg: var(--roxo-bg-dark);
 
+  --cat-1-forte: oklch(0.790 0.086 200);
+  --cat-2-forte: oklch(0.790 0.108 258);
+  --cat-3-forte: oklch(0.790 0.112 300);
+  --cat-4-forte: oklch(0.790 0.120 155);
+  --cat-5-forte: oklch(0.800 0.126 75);
+  --cat-6-forte: oklch(0.780 0.130 25);
+
   --foco: var(--petroleo-400);
 
   --sobreposicao: oklch(0 0 0 / 0.68);
@@ -288,6 +309,13 @@
   --color-cat-4: var(--cat-4);
   --color-cat-5: var(--cat-5);
   --color-cat-6: var(--cat-6);
+
+  --color-cat-1-forte: var(--cat-1-forte);
+  --color-cat-2-forte: var(--cat-2-forte);
+  --color-cat-3-forte: var(--cat-3-forte);
+  --color-cat-4-forte: var(--cat-4-forte);
+  --color-cat-5-forte: var(--cat-5-forte);
+  --color-cat-6-forte: var(--cat-6-forte);
 
   --color-foco: var(--foco);
   --color-sobreposicao: var(--sobreposicao);

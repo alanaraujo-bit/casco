@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { PhoneOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
@@ -22,8 +23,13 @@ function Avatar({ nome }: { nome: string }) {
   return (
     <span
       className="grid size-7 shrink-0 place-items-center rounded-full text-2xs font-semibold"
-      // Branco puro por cima das categóricas (L≈0.62): passa 4.5:1 nas seis.
-      style={{ background: `var(--cat-${indice + 1})`, color: 'oklch(1 0 0)' }}
+      // Fundo tênue + tinta forte, não branco sobre a cor cheia: branco sobre
+      // as categóricas dá de 2,8:1 a 3,8:1, e a inicial em 12px semibold fica
+      // ilegível justamente na cor mais clara.
+      style={{
+        background: `color-mix(in oklch, var(--cat-${indice + 1}) 18%, transparent)`,
+        color: `var(--cat-${indice + 1}-forte)`,
+      }}
       aria-hidden
     >
       {iniciais || '?'}
@@ -59,8 +65,28 @@ const colunas: Coluna<ClienteDemo>[] = [
     texto: (c) => c.tipo,
     celula: (c) => <Badge variant={TOM_TIPO[c.tipo]}>{c.tipo}</Badge>,
   },
-  { chave: 'documento', cabecalho: 'CPF / CNPJ', texto: (c) => c.documento },
-  { chave: 'telefone', cabecalho: 'Telefone', texto: (c) => c.telefone },
+  {
+    chave: 'documento',
+    cabecalho: 'CPF / CNPJ',
+    texto: (c) => c.documento || '—',
+    celula: (c) =>
+      c.documento || <span className="text-texto-fraco">não informado</span>,
+  },
+  {
+    chave: 'telefone',
+    cabecalho: 'Telefone',
+    texto: (c) => c.telefone || '—',
+    // Cliente sem telefone não é detalhe de cadastro: é cliente que a empresa
+    // não consegue cobrar nem avisar de entrega. A auditoria achou 4 com
+    // telefone em 30. Marcar em vermelho é o que torna o problema visível.
+    celula: (c) =>
+      c.telefone || (
+        <span className="inline-flex items-center gap-1 text-perigo">
+          <PhoneOff className="size-3.5" aria-hidden />
+          sem telefone
+        </span>
+      ),
+  },
   { chave: 'bairro', cabecalho: 'Bairro', texto: (c) => c.bairro },
   { chave: 'cidade', cabecalho: 'Cidade', texto: (c) => c.cidade },
   {
@@ -82,11 +108,17 @@ const colunas: Coluna<ClienteDemo>[] = [
     chave: 'ultimaCompra',
     cabecalho: 'Última compra',
     texto: (c) => c.ultimaCompra,
-    // Ordena por data de verdade; o texto é dd/mm/aaaa e ordenaria por dia.
-    valor: (c) => {
-      const [d, m, a] = c.ultimaCompra.split('/')
-      return new Date(Number(a), Number(m) - 1, Number(d))
-    },
+    // Ordena pelos dias parados, não pelo texto: dd/mm/aaaa comparado como
+    // texto ordena por dia do mês.
+    valor: (c) => -c.diasSemComprar,
+    celula: (c) => (
+      <span className="whitespace-nowrap">
+        {c.ultimaCompra}
+        {c.diasSemComprar >= 15 && (
+          <span className="ml-1.5 text-alerta">· {c.diasSemComprar} dias</span>
+        )}
+      </span>
+    ),
   },
   {
     chave: 'saldoDevedor',

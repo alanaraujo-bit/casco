@@ -37,17 +37,21 @@ function Topbar({ aoAbrirMenu }: { aoAbrirMenu: () => void }) {
         <Menu className="size-5" aria-hidden />
       </button>
 
-      <div className="min-w-0 flex-1">
-        {/* h1 por página, resolvido pela navegação: o leitor de tela anuncia
-            onde está a cada rota, sem depender de cada tela lembrar de
-            declarar o seu. */}
+      <div className="min-w-0 flex-1 md:hidden">
+        {/* Só no celular. No desktop quem manda é o `CabecalhoPagina` da tela,
+            que fica logo abaixo — os dois juntos repetiam a mesma palavra duas
+            vezes na mesma dobra, com dois `h1` na página. Duplicar título é o
+            defeito que mais deixa uma interface com cara de montada por
+            automação, e é falha de acessibilidade de quebra. */}
         <h1 className="truncate text-base font-semibold tracking-tight text-texto">
           {item?.rotulo ?? 'Casco'}
         </h1>
-        {item && (
-          <p className="truncate text-2xs text-texto-fraco md:hidden">{item.grupo}</p>
-        )}
+        {item && <p className="truncate text-2xs text-texto-fraco">{item.grupo}</p>}
       </div>
+
+      {/* Empurra o seletor de tema para a direita quando o título some. */}
+      <div className="hidden flex-1 md:block" />
+
 
       <ThemeToggle />
     </header>

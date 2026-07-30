@@ -39,6 +39,8 @@ const FORMATADORES: Record<Formato, (n: number) => string> = {
 export interface PontoSerie {
   rotulo: string
   valor: number
+  /** Período ainda em curso. Marcado no eixo para não ser lido como queda. */
+  parcial?: boolean
 }
 
 /** Caminho suave por Catmull-Rom convertido em Bézier cúbica. */
@@ -68,15 +70,22 @@ function caminhoSuave(pontos: { x: number; y: number }[], tensao = 0.5) {
  */
 export function GraficoArea({
   serie,
+  titulo,
   cor = 'var(--acento)',
   altura = 160,
   formato = 'numero',
+  eixo = false,
   className,
 }: {
   serie: PontoSerie[]
+  /** Vira a legenda da tabela acessível. Sem ele, duas séries na mesma tela
+      soam idênticas para quem usa leitor de tela. */
+  titulo: string
   cor?: string
   altura?: number
   formato?: Formato
+  /** Mostra os rótulos do eixo X, alinhados aos pontos. */
+  eixo?: boolean
   className?: string
 }) {
   const formatar = FORMATADORES[formato]
@@ -97,7 +106,12 @@ export function GraficoArea({
   const area = `${linha} L ${pontos[pontos.length - 1].x} ${A} L ${pontos[0].x} ${A} Z`
 
   return (
-    <div className={cn('relative', className)} style={{ height: altura }}>
+    // `mb-5` quando há eixo: os rótulos ficam posicionados abaixo da caixa de
+    // altura fixa, e sem essa margem eles cairiam por cima do que vem depois.
+    <div
+      className={cn('relative', eixo && 'mb-5', className)}
+      style={{ height: altura }}
+    >
       <svg
         viewBox={`0 0 ${L} ${A}`}
         preserveAspectRatio="none"
@@ -150,6 +164,20 @@ export function GraficoArea({
         )}
       </svg>
 
+      {/* Escala à direita, nas mesmas alturas das linhas de base. Dá leitura de
+          grandeza sem depender de passar o mouse — que no celular não existe. */}
+      {eixo &&
+        [0.25, 0.5, 0.75].map((f) => (
+          <span
+            key={f}
+            className="pointer-events-none absolute right-0 -translate-y-1/2 bg-superficie px-1 text-2xs tabular-nums text-texto-fraco dark:bg-superficie-elevada"
+            style={{ top: `${f * 100}%` }}
+            aria-hidden
+          >
+            {formatar(topo * (1 - f))}
+          </span>
+        ))}
+
       {/* Marcadores fora do SVG: dentro deles o `preserveAspectRatio="none"`
           esticaria o círculo em elipse. Posicionados em % sobre o mesmo eixo. */}
       {serie.map((p, i) => (
@@ -168,13 +196,20 @@ export function GraficoArea({
       ))}
 
       {/* Faixas de captura: uma por ponto, cobrindo a altura toda. Buscar o
-          ponto mais próximo por coordenada de mouse erra perto das bordas. */}
-      <div className="absolute inset-0 flex" onMouseLeave={() => setAtivo(null)}>
+          ponto mais próximo por coordenada de mouse erra perto das bordas.
+          `onPointerEnter` e não `onMouseEnter`: no celular não existe hover, e
+          o dono olha o faturamento justamente no celular. Sem isto o gráfico
+          não entrega um único número no toque. */}
+      <div
+        className="absolute inset-0 flex"
+        onPointerLeave={() => setAtivo(null)}
+      >
         {serie.map((p, i) => (
           <div
             key={p.rotulo}
             className="group relative flex-1"
-            onMouseEnter={() => setAtivo(i)}
+            onPointerEnter={() => setAtivo(i)}
+            onPointerDown={() => setAtivo(i)}
           >
             {ativo === i && (
               <div
@@ -196,16 +231,38 @@ export function GraficoArea({
       {/* O SVG é decorativo; a tabela abaixo é o conteúdo real para quem usa
           leitor de tela. Sem ela o gráfico simplesmente não existe. */}
       <table className="sr-only">
-        <caption>Série por período</caption>
+        <caption>{titulo}</caption>
         <tbody>
           {serie.map((p) => (
             <tr key={p.rotulo}>
-              <th scope="row">{p.rotulo}</th>
+              <th scope="row">
+                {p.rotulo}
+                {p.parcial ? ' (parcial)' : ''}
+              </th>
               <td>{formatar(p.valor)}</td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {/* Eixo dentro do componente, posicionado pelo MESMO cálculo dos pontos.
+          Antes cada página desenhava os rótulos com `flex-1`, cujos centros
+          caem em 4,2% / 12,5% / … enquanto os pontos caem em 0% / 9,1% / … —
+          o pico de julho não ficava sobre "Jul". */}
+      {eixo && (
+        <div className="absolute inset-x-0 top-full pt-1.5" aria-hidden>
+          {serie.map((p, i) => (
+            <span
+              key={p.rotulo}
+              className="absolute -translate-x-1/2 whitespace-nowrap text-2xs text-texto-fraco"
+              style={{ left: `${pontos[i].x}%` }}
+            >
+              {p.rotulo}
+              {p.parcial && <span className="text-acento-texto"> ·</span>}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -362,42 +419,81 @@ export function BarraProgresso({
  */
 export function GraficoColunas({
   serie,
+  titulo,
   cor = 'var(--acento)',
   altura = 120,
   formato = 'numero',
+  destacarUltima = false,
 }: {
   serie: PontoSerie[]
+  titulo: string
   cor?: string
   altura?: number
   formato?: Formato
+  /** Pinta a última coluna com o acento cheio — normalmente "hoje". */
+  destacarUltima?: boolean
 }) {
   const formatar = FORMATADORES[formato]
   const max = Math.max(...serie.map((p) => p.valor), 1)
+
   return (
     <div>
       <div className="flex items-end gap-1.5" style={{ height: altura }}>
-        {serie.map((p) => (
-          <div key={p.rotulo} className="group flex h-full flex-1 flex-col justify-end">
-            <span className="mb-1 text-center text-2xs tabular-nums text-texto-fraco opacity-0 transition-opacity group-hover:opacity-100">
-              {formatar(p.valor)}
-            </span>
-            <div
-              className="w-full rounded-t-md transition-[height,opacity] duration-500 group-hover:opacity-80"
-              style={{ height: `${(p.valor / max) * 100}%`, background: cor, minHeight: 2 }}
-            />
-          </div>
-        ))}
+        {serie.map((p, i) => {
+          const ultima = destacarUltima && i === serie.length - 1
+          return (
+            <div key={p.rotulo} className="flex h-full flex-1 flex-col justify-end">
+              {/* Valor sempre visível, não só no hover: no toque não há hover, e
+                  sem ele a coluna vira desenho sem informação nenhuma. */}
+              <span
+                className={cn(
+                  'mb-1 text-center text-2xs tabular-nums',
+                  ultima ? 'font-semibold text-texto' : 'text-texto-fraco',
+                )}
+              >
+                {formatar(p.valor)}
+              </span>
+              <div
+                className="w-full rounded-t-md transition-[height] duration-500"
+                style={{
+                  height: `${(p.valor / max) * 100}%`,
+                  background: cor,
+                  opacity: ultima ? 1 : 0.45,
+                  minHeight: 2,
+                }}
+              />
+            </div>
+          )
+        })}
       </div>
+
       <div className="mt-1.5 flex gap-1.5">
-        {serie.map((p) => (
+        {serie.map((p, i) => (
           <span
             key={p.rotulo}
-            className="flex-1 truncate text-center text-2xs text-texto-fraco"
+            className={cn(
+              'flex-1 truncate text-center text-2xs',
+              destacarUltima && i === serie.length - 1
+                ? 'font-medium text-texto-suave'
+                : 'text-texto-fraco',
+            )}
           >
             {p.rotulo}
           </span>
         ))}
       </div>
+
+      <table className="sr-only">
+        <caption>{titulo}</caption>
+        <tbody>
+          {serie.map((p) => (
+            <tr key={p.rotulo}>
+              <th scope="row">{p.rotulo}</th>
+              <td>{formatar(p.valor)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

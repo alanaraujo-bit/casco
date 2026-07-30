@@ -13,10 +13,20 @@ import { cn } from '@/lib/utils'
  * tamanho identifica a importância, e variação identifica se é notícia boa.
  */
 
-export type Tom = 'acento' | 'sucesso' | 'alerta' | 'perigo' | 'info' | 'roxo'
+/**
+ * Dois grupos, e a diferença importa.
+ *
+ * Semânticos (`sucesso`, `alerta`, `perigo`, `info`) significam ESTADO. Usá-los
+ * para decorar é o erro que faz uma tela parecer montada por sorteio: verde num
+ * atalho de "Receber título" sugere que algo já foi recebido, âmbar em "Baixa
+ * de vasilhame" sugere pendência. Para diferenciar sem afirmar nada, usa-se a
+ * família categórica `cat-1..6`.
+ */
+export type TomSemantico = 'acento' | 'sucesso' | 'alerta' | 'perigo' | 'info' | 'roxo'
+export type TomCategoria = 'cat-1' | 'cat-2' | 'cat-3' | 'cat-4' | 'cat-5' | 'cat-6'
+export type Tom = TomSemantico | TomCategoria
 
-/** Fundo tênue + ícone forte. Tênue de verdade: o dado tem que dominar. */
-const TONS: Record<Tom, { chip: string; texto: string; cor: string }> = {
+const TONS: Record<TomSemantico, { chip: string; texto: string; cor: string }> = {
   acento: { chip: 'bg-acento-suave', texto: 'text-acento-texto', cor: 'var(--acento)' },
   sucesso: { chip: 'bg-sucesso-bg', texto: 'text-sucesso', cor: 'var(--sucesso)' },
   alerta: { chip: 'bg-alerta-bg', texto: 'text-alerta', cor: 'var(--alerta)' },
@@ -25,11 +35,20 @@ const TONS: Record<Tom, { chip: string; texto: string; cor: string }> = {
   roxo: { chip: 'bg-roxo-bg', texto: 'text-roxo', cor: 'var(--roxo)' },
 }
 
+const ehCategoria = (tom: Tom): tom is TomCategoria => tom.startsWith('cat-')
+
 export function corDoTom(tom: Tom) {
-  return TONS[tom].cor
+  return ehCategoria(tom) ? `var(--${tom})` : TONS[tom].cor
 }
 
-/** Quadradinho de ícone colorido. Reusado no KPI, na atividade e nas ações. */
+/**
+ * Quadradinho de ícone colorido. Reusado no KPI, na atividade e nas ações.
+ *
+ * Para as categóricas o fundo sai de `color-mix` (a mesma cor a 14%) e a tinta
+ * do ícone é a variante `-forte`. A cor de gráfico tem luminosidade pensada
+ * para preencher área, não para desenhar traço de 2px: usada como tinta ela
+ * reprova no contraste de texto.
+ */
 export function Chip({
   Icone,
   tom = 'acento',
@@ -39,14 +58,23 @@ export function Chip({
   tom?: Tom
   tamanho?: 'sm' | 'md'
 }) {
+  const categoria = ehCategoria(tom)
   return (
     <span
       className={cn(
         'grid shrink-0 place-items-center rounded-xl',
-        TONS[tom].chip,
-        TONS[tom].texto,
+        !categoria && TONS[tom as TomSemantico].chip,
+        !categoria && TONS[tom as TomSemantico].texto,
         tamanho === 'sm' ? 'size-8' : 'size-10',
       )}
+      style={
+        categoria
+          ? {
+              background: `color-mix(in oklch, var(--${tom}) 14%, transparent)`,
+              color: `var(--${tom}-forte)`,
+            }
+          : undefined
+      }
       aria-hidden
     >
       <Icone className={tamanho === 'sm' ? 'size-4' : 'size-5'} />
@@ -189,7 +217,10 @@ export function Bloco({
           (href && (
             <Link
               href={href}
-              className="shrink-0 rounded text-xs font-medium text-acento-texto hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foco"
+              // -my-2/-mr-2 + padding: 44px de alvo no toque sem empurrar o
+              // layout. Era um link de 18px de altura, e é a única entrada
+              // para o bloco pelo celular.
+              className="-my-2 -mr-2 shrink-0 rounded px-2 py-2 text-xs font-medium text-acento-texto hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foco md:-my-1 md:py-1"
             >
               {hrefRotulo}
             </Link>
@@ -212,12 +243,16 @@ export function AcaoRapida({
   Icone,
   tom,
   href,
+  emBreve = false,
 }: {
   titulo: string
   descricao: string
   Icone: LucideIcon
   tom: Tom
   href: string
+  /** Marca o atalho cuja tela ainda não existe, em vez de deixar o clique
+      cair num beco. Durante a demonstração isso vira roteiro, não defeito. */
+  emBreve?: boolean
 }) {
   return (
     <Link
@@ -231,7 +266,14 @@ export function AcaoRapida({
     >
       <Chip Icone={Icone} tom={tom} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium text-texto">{titulo}</span>
+        <span className="flex items-center gap-1.5">
+          <span className="truncate text-sm font-medium text-texto">{titulo}</span>
+          {emBreve && (
+            <span className="shrink-0 rounded-full border border-borda bg-superficie-afundada px-1.5 py-px text-2xs font-medium text-texto-fraco">
+              em breve
+            </span>
+          )}
+        </span>
         <span className="block truncate text-xs text-texto-suave">{descricao}</span>
       </span>
       <ArrowRight

@@ -424,7 +424,10 @@ export function TabelaDados<T>({
       </div>
 
       {/* ------------------------------------------------------------ conteúdo */}
-      <div className="overflow-hidden rounded-lg border border-borda bg-superficie">
+      {/* Sem `overflow-hidden`: ele criava um contexto de rolagem que anulava o
+          `sticky` do cabeçalho, e a operadora perdia os títulos das colunas ao
+          rolar os 46 lançamentos. O arredondamento agora sai do próprio filho. */}
+      <div className="rounded-lg border border-borda bg-superficie">
         <p role="status" aria-live="polite" className="sr-only">
           {anuncio}
         </p>
@@ -454,11 +457,11 @@ export function TabelaDados<T>({
         ) : (
           <>
             {/* ---------------------------------------------- tabela (ponteiro) */}
-            <div className="hidden overflow-x-auto md:block">
+            <div className="hidden overflow-x-auto rounded-t-lg md:block">
               <table className="w-full border-collapse text-sm">
                 <caption className="sr-only">{legenda}</caption>
                 <thead>
-                  <tr className="border-b border-borda bg-superficie-afundada">
+                  <tr className="border-b-2 border-borda-forte bg-superficie-afundada">
                     {visiveis.map((c) => {
                       const ativa = ordenacao?.chave === c.chave
                       const podeOrdenar = c.ordenavel !== false
@@ -477,8 +480,12 @@ export function TabelaDados<T>({
                           }
                           style={c.larguraMin ? { minWidth: c.larguraMin } : undefined}
                           className={cn(
-                            'sticky top-0 z-10 bg-superficie-afundada',
-                            'text-2xs font-medium uppercase tracking-wide text-texto-suave',
+                            // `top-14` e não `top-0`: a barra superior do app é
+                            // fixa e tem 3.5rem — grudar em 0 esconde o
+                            // cabeçalho atrás dela.
+                            'sticky top-14 z-10 bg-superficie-afundada',
+                            'border-b-2 border-borda-forte',
+                            'text-2xs font-semibold uppercase tracking-wide text-texto-suave',
                             'whitespace-nowrap',
                             padCelula,
                             alinhar(c),
@@ -527,6 +534,10 @@ export function TabelaDados<T>({
                         key={chaveLinha(linha)}
                         className={cn(
                           'border-b border-borda last:border-b-0',
+                          // Faixa alternada: 25 linhas de número em densidade
+                          // compacta, só com divisória de 1px, não dão âncora
+                          // horizontal nenhuma para o olho voltar.
+                          'odd:bg-superficie-afundada/40',
                           'hover:bg-superficie-hover',
                           href && 'focus-within:bg-superficie-hover',
                         )}

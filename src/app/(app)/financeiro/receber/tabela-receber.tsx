@@ -60,9 +60,19 @@ const colunas: Coluna<ContaDemo>[] = [
     texto: (c) => moeda(c.valorTotal),
     valor: (c) => c.valorTotal,
     numerica: true,
-    papelMobile: 'destaque',
+    papelMobile: 'campo',
   },
   { chave: 'parcela', cabecalho: 'Parcela', texto: (c) => c.parcela, ordenavel: false },
+  {
+    // Estava faltando, e não é detalhe: num título de R$ 3.400 em "2/3", é este
+    // o número que entra no caixa. Sem ele a operadora não fecha o dia.
+    chave: 'valorParcela',
+    cabecalho: 'Valor Parcela',
+    texto: (c) => moeda(c.valorParcela),
+    valor: (c) => c.valorParcela,
+    numerica: true,
+    papelMobile: 'destaque',
+  },
   {
     chave: 'vencimento',
     cabecalho: 'Vencimento',
@@ -87,6 +97,15 @@ const colunas: Coluna<ContaDemo>[] = [
     cabecalho: 'Forma Pgto',
     texto: (c) => c.formaPagamento,
     papelMobile: 'campo',
+  },
+  {
+    chave: 'taxas',
+    cabecalho: 'Taxas',
+    texto: (c) => (c.taxas ? moeda(c.taxas) : '—'),
+    valor: (c) => c.taxas || null,
+    numerica: true,
+    ocultaPorPadrao: true,
+    papelMobile: 'oculto',
   },
   {
     chave: 'dataPagamento',

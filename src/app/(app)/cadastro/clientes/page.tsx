@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
-import { Contact, IdCard, Phone, UserPlus } from 'lucide-react'
+import { Contact, IdCard, Package, Phone, UserPlus } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Chip } from '@/components/painel/pecas'
-import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { BotaoEmBreve } from '@/components/ui/em-breve'
 import { CLIENTES } from '@/lib/demo'
 import { TabelaClientes } from './tabela-clientes'
 
@@ -18,19 +18,36 @@ export const metadata: Metadata = { title: 'Clientes' }
  */
 export default function PaginaClientes() {
   const total = CLIENTES.length
-  const comDocumento = CLIENTES.filter((c) => c.documento.length > 5).length
-  const comContato = CLIENTES.filter((c) => c.telefone.length > 8).length
+  const comDocumento = CLIENTES.filter((c) => c.documento !== '').length
+  const comContato = CLIENTES.filter((c) => c.telefone !== '').length
   const galoesNaRua = CLIENTES.reduce((s, c) => s + c.vasilhames, 0)
 
   const metricas = [
-    { rotulo: 'Total de clientes', valor: total, Icone: Contact, tom: 'acento' as const },
-    { rotulo: 'Com CPF/CNPJ', valor: comDocumento, Icone: IdCard, tom: 'info' as const },
-    { rotulo: 'Com contato', valor: comContato, Icone: Phone, tom: 'sucesso' as const },
+    {
+      rotulo: 'Total de clientes',
+      valor: total.toLocaleString('pt-BR'),
+      Icone: Contact,
+      tom: 'cat-1' as const,
+    },
+    {
+      rotulo: 'Com CPF/CNPJ',
+      valor: `${comDocumento} de ${total}`,
+      Icone: IdCard,
+      tom: 'cat-3' as const,
+    },
+    {
+      // O único cartão em vermelho da tela, e de propósito: é um defeito de
+      // cadastro que custa cobrança e entrega perdida, não uma contagem neutra.
+      rotulo: 'Com telefone',
+      valor: `${comContato} de ${total}`,
+      Icone: Phone,
+      tom: 'perigo' as const,
+    },
     {
       rotulo: 'Galões com clientes',
-      valor: galoesNaRua,
-      Icone: UserPlus,
-      tom: 'roxo' as const,
+      valor: galoesNaRua.toLocaleString('pt-BR'),
+      Icone: Package,
+      tom: 'cat-4' as const,
     },
   ]
 
@@ -40,10 +57,19 @@ export default function PaginaClientes() {
         titulo="Clientes"
         descricao="Cadastro, contato e vasilhame em poder de cada cliente"
         acoes={
-          <Button variant="primario" size="sm">
+          <BotaoEmBreve
+            titulo="Cadastro de cliente"
+            descricao="A tela de cadastro é a Etapa 1 do plano. É o que ela vai fazer:"
+            itens={[
+              'Endereço com bairro e ponto de referência, para montar rota depois',
+              'Tipo de cliente definindo o preço automaticamente',
+              'Saldo de vasilhame do cliente na própria ficha',
+              'Cadastro rápido pelo celular, com o mínimo de campos',
+            ]}
+          >
             <UserPlus aria-hidden />
             Novo cliente
-          </Button>
+          </BotaoEmBreve>
         }
       />
 
@@ -53,9 +79,7 @@ export default function PaginaClientes() {
             <Chip Icone={m.Icone} tom={m.tom} tamanho="sm" />
             <div className="min-w-0">
               <p className="truncate text-xs text-texto-suave">{m.rotulo}</p>
-              <p className="text-lg font-semibold tabular-nums text-texto">
-                {m.valor.toLocaleString('pt-BR')}
-              </p>
+              <p className="text-lg font-semibold tabular-nums text-texto">{m.valor}</p>
             </div>
           </Card>
         ))}

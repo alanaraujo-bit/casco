@@ -2,40 +2,44 @@ import type { Metadata } from 'next'
 import { AlertTriangle, CircleCheck, Clock, Plus, Wallet } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Chip } from '@/components/painel/pecas'
-import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { CONTAS_RECEBER } from '@/lib/demo'
+import { BotaoEmBreve } from '@/components/ui/em-breve'
+import { CONTAS_RECEBER, RESUMO } from '@/lib/demo'
 import { moeda } from '@/lib/utils'
 import { TabelaReceber } from './tabela-receber'
 
 export const metadata: Metadata = { title: 'Contas a Receber' }
 
 export default function PaginaReceber() {
-  const soma = (f: (c: (typeof CONTAS_RECEBER)[number]) => boolean) =>
-    CONTAS_RECEBER.filter(f).reduce((s, c) => s + c.valorTotal, 0)
-
+  // Os quatro somam por PARCELA, não por valor total do título — é o que
+  // entra no caixa e é o mesmo número que o painel mostra. Somar o total de um
+  // título parcelado infla o "a receber" em até três vezes.
   const cartoes = [
     {
       rotulo: 'Total lançado',
-      valor: moeda(soma(() => true)),
+      valor: moeda(RESUMO.recebido + RESUMO.aReceber),
+      detalhe: `${CONTAS_RECEBER.length} títulos`,
       Icone: Wallet,
-      tom: 'acento' as const,
+      tom: 'cat-1' as const,
     },
     {
       rotulo: 'Recebido',
-      valor: moeda(soma((c) => c.situacao === 'Recebido')),
+      valor: moeda(RESUMO.recebido),
+      detalhe: `${CONTAS_RECEBER.filter((c) => c.situacao === 'Recebido').length} títulos`,
       Icone: CircleCheck,
       tom: 'sucesso' as const,
     },
     {
       rotulo: 'Em aberto',
-      valor: moeda(soma((c) => c.situacao === 'Em aberto')),
+      valor: moeda(RESUMO.emAberto),
+      detalhe: `${RESUMO.venceEm7} vencem em 7 dias`,
       Icone: Clock,
       tom: 'alerta' as const,
     },
     {
       rotulo: 'Vencido',
-      valor: moeda(soma((c) => c.situacao === 'Vencido')),
+      valor: moeda(RESUMO.vencido),
+      detalhe: `${RESUMO.vencidoQtd} títulos`,
       Icone: AlertTriangle,
       tom: 'perigo' as const,
     },
@@ -47,10 +51,19 @@ export default function PaginaReceber() {
         titulo="Contas a Receber"
         descricao="Títulos por cliente, com situação e forma de pagamento"
         acoes={
-          <Button variant="primario" size="sm">
+          <BotaoEmBreve
+            titulo="Lançamento em Contas a Receber"
+            descricao="Faz parte da Etapa 4 do plano. É o que a tela vai fazer:"
+            itens={[
+              'Título avulso ou gerado direto da venda, sem redigitar',
+              'Parcelamento com vencimentos calculados',
+              'Baixa por PIX, dinheiro, cartão ou boleto, com taxa registrada',
+              'Baixa em lote: marcar vários títulos do mesmo cliente de uma vez',
+            ]}
+          >
             <Plus aria-hidden />
             Novo lançamento
-          </Button>
+          </BotaoEmBreve>
         }
       />
 
@@ -61,6 +74,7 @@ export default function PaginaReceber() {
             <div className="min-w-0">
               <p className="truncate text-xs text-texto-suave">{c.rotulo}</p>
               <p className="text-lg font-semibold tabular-nums text-texto">{c.valor}</p>
+              <p className="truncate text-2xs text-texto-fraco">{c.detalhe}</p>
             </div>
           </Card>
         ))}
