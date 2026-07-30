@@ -229,21 +229,27 @@ export function GraficoArea({
       </div>
 
       {/* O SVG é decorativo; a tabela abaixo é o conteúdo real para quem usa
-          leitor de tela. Sem ela o gráfico simplesmente não existe. */}
-      <table className="sr-only">
-        <caption>{titulo}</caption>
-        <tbody>
-          {serie.map((p) => (
-            <tr key={p.rotulo}>
-              <th scope="row">
-                {p.rotulo}
-                {p.parcial ? ' (parcial)' : ''}
-              </th>
-              <td>{formatar(p.valor)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          leitor de tela. Sem ela o gráfico simplesmente não existe.
+          `sr-only` no `div` externo, não na `table`: `overflow`/`clip-path`
+          na própria tabela não clipa o `<caption>` — ele vive na "table
+          wrapper box", fora da caixa que recebe o corte — e o título vaza
+          visível na tela. */}
+      <div className="sr-only">
+        <table>
+          <caption>{titulo}</caption>
+          <tbody>
+            {serie.map((p) => (
+              <tr key={p.rotulo}>
+                <th scope="row">
+                  {p.rotulo}
+                  {p.parcial ? ' (parcial)' : ''}
+                </th>
+                <td>{formatar(p.valor)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* Eixo dentro do componente, posicionado pelo MESMO cálculo dos pontos.
           Antes cada página desenhava os rótulos com `flex-1`, cujos centros
@@ -483,17 +489,21 @@ export function GraficoColunas({
         ))}
       </div>
 
-      <table className="sr-only">
-        <caption>{titulo}</caption>
-        <tbody>
-          {serie.map((p) => (
-            <tr key={p.rotulo}>
-              <th scope="row">{p.rotulo}</th>
-              <td>{formatar(p.valor)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* `sr-only` no `div` externo, não na `table` — ver nota em
+          `GraficoArea` sobre o `<caption>` escapando do `overflow`. */}
+      <div className="sr-only">
+        <table>
+          <caption>{titulo}</caption>
+          <tbody>
+            {serie.map((p) => (
+              <tr key={p.rotulo}>
+                <th scope="row">{p.rotulo}</th>
+                <td>{formatar(p.valor)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

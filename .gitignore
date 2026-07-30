@@ -42,3 +42,9 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# Log de servidor nunca dentro do projeto: o watcher do Next enxerga o
+# arquivo mudar, recompila, escreve mais log, e a pagina recarrega em loop.
+*.log
+
+.env*
