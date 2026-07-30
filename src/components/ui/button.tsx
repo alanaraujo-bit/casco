@@ -19,20 +19,28 @@ const buttonVariants = cva(
         primario:
           'bg-acento text-acento-contraste shadow-sm hover:bg-acento-hover active:bg-acento-ativo',
         secundario:
-          'bg-superficie text-texto border border-borda shadow-sm hover:bg-superficie-hover hover:border-borda-forte',
+          'bg-superficie text-texto border border-borda-controle shadow-sm hover:bg-superficie-hover hover:border-borda-forte',
         suave:
           'bg-acento-suave text-acento-texto border border-acento-suave-borda hover:bg-acento-suave/70',
         fantasma: 'text-texto-suave hover:bg-superficie-hover hover:text-texto',
-        perigo: 'bg-perigo text-white shadow-sm hover:brightness-110 active:brightness-95',
+        // Tokens em vez de `text-white` + filtro de brilho: branco sobre o
+        // vermelho do tema escuro dá 2.74:1, e o botão que exclui lançamento
+        // ficaria ilegível. `brightness()` também inverteria a semântica de
+        // "pressionado" em um dos dois temas.
+        perigo:
+          'bg-perigo text-perigo-contraste shadow-sm hover:bg-perigo-hover active:bg-perigo-ativo',
         link: 'text-acento-texto underline-offset-4 hover:underline',
       },
       size: {
-        sm: 'h-7 px-2.5 text-xs',
-        md: 'h-8 px-3 text-sm',
-        lg: 'h-10 px-4 text-base',
-        // Alvo de toque de 44px: mínimo confortável no celular do entregador.
+        // Alvo de 44px por padrão no toque, compacto a partir de `md`.
+        // Depender de o desenvolvedor lembrar de `size="toque"` seria frágil
+        // por construção — o entregador usa Android barato, na rua, de moto.
+        sm: 'h-9 px-3 text-sm md:h-7 md:px-2.5 md:text-xs',
+        md: 'h-11 px-4 text-base md:h-8 md:px-3 md:text-sm',
+        lg: 'h-12 px-5 text-base md:h-10 md:px-4',
+        icone: 'size-11 p-0 md:size-8',
+        /** Força 44px em qualquer breakpoint — telas do entregador. */
         toque: 'h-11 px-4 text-base',
-        icone: 'size-8 p-0',
         'icone-toque': 'size-11 p-0',
       },
     },

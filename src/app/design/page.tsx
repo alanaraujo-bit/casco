@@ -10,13 +10,28 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  EstadoErro,
+  EstadoOffline,
+  EstadoVazio,
+  FaixaOffline,
+  SemPermissao,
+} from '@/components/ui/estados'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { SkeletonTabela } from '@/components/ui/skeleton'
 import { moeda } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Design system' }
 
-const ESCALA = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']
+const ESCALA_ACENTO = [
+  '50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950',
+]
+/* Inclui 0 e 1000: são justamente `--fundo` e `--superficie`, as duas cores
+   que cobrem quase toda a tela. Omiti-las tornaria a amostra inútil. */
+const ESCALA_CINZA = [
+  '0', '50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950', '1000',
+]
 
 /* Dados fictícios de propósito: esta página é pública, então nenhum nome ou
    documento de cliente real aparece aqui. */
@@ -55,6 +70,25 @@ function Secao({
   )
 }
 
+function Rampa({ escala, prefixo }: { escala: string[]; prefixo: string }) {
+  return (
+    <div className="flex overflow-hidden rounded-lg border border-borda">
+      {escala.map((n) => (
+        <div key={n} className="flex-1">
+          <div
+            className="h-14"
+            style={{ backgroundColor: `var(--${prefixo}-${n})` }}
+            aria-hidden
+          />
+          <div className="bg-superficie px-1 py-1 text-center text-2xs text-texto-fraco">
+            {n}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function DesignPage() {
   return (
     <div className="mx-auto max-w-5xl px-5 py-8 space-y-10">
@@ -80,45 +114,19 @@ export default function DesignPage() {
         titulo="Acento — petróleo"
         descricao="Um acento só. O sistema antigo usa cinco cores saturadas competindo, e é por isso que nada tem hierarquia."
       >
-        <div className="flex overflow-hidden rounded-lg border border-borda">
-          {ESCALA.map((n) => (
-            <div key={n} className="flex-1">
-              <div
-                className="h-14"
-                style={{ backgroundColor: `var(--petroleo-${n})` }}
-                aria-hidden
-              />
-              <div className="bg-superficie px-1 py-1 text-center text-2xs text-texto-fraco">
-                {n}
-              </div>
-            </div>
-          ))}
-        </div>
+        <Rampa escala={ESCALA_ACENTO} prefixo="petroleo" />
       </Secao>
 
       <Secao
         titulo="Neutros"
         descricao="Carregam a interface inteira. Sub-tom frio: cinza puro fica morto ao lado de um acento saturado."
       >
-        <div className="flex overflow-hidden rounded-lg border border-borda">
-          {ESCALA.map((n) => (
-            <div key={n} className="flex-1">
-              <div
-                className="h-14"
-                style={{ backgroundColor: `var(--cinza-${n})` }}
-                aria-hidden
-              />
-              <div className="bg-superficie px-1 py-1 text-center text-2xs text-texto-fraco">
-                {n}
-              </div>
-            </div>
-          ))}
-        </div>
+        <Rampa escala={ESCALA_CINZA} prefixo="cinza" />
       </Secao>
 
       <Secao
         titulo="Semânticas"
-        descricao="Só significam estado — nunca decoram. Verde é pago, âmbar é pendente, vermelho é vencido ou quebrado."
+        descricao="Só significam estado — nunca decoram. Cada par foi ajustado até passar 4.5:1 contra o próprio fundo, nos dois temas."
       >
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
@@ -139,7 +147,7 @@ export default function DesignPage() {
 
       <Secao
         titulo="Tipografia"
-        descricao="Corpo em 13px, não 16px. Quem passa 8h na tela quer ver mais linha, não texto maior."
+        descricao="Corpo em 14px, não 16px, e piso de 12px. Ferramenta de 8h quer ver mais linha — mas economizar pixel abaixo de 12px cobra caro de quem tem 45+ anos e monitor comum."
       >
         <Card>
           <CardContent className="space-y-2 pt-4">
@@ -148,19 +156,22 @@ export default function DesignPage() {
             </p>
             <p className="text-xl font-semibold text-texto">Contas a receber</p>
             <p className="text-base text-texto">
-              Texto de corpo — o tamanho padrão da interface.
+              Texto de corpo — o tamanho padrão da interface (14px).
             </p>
             <p className="text-sm text-texto-suave">
-              Texto secundário, usado em apoio e descrição.
+              Texto secundário, usado em apoio e descrição (13px).
             </p>
             <p className="text-2xs text-texto-fraco uppercase tracking-wide">
-              Rótulo de tabela
+              Rótulo de tabela (12px)
             </p>
           </CardContent>
         </Card>
       </Secao>
 
-      <Secao titulo="Botões" descricao="Uma ação primária por tela. O resto é secundário ou fantasma.">
+      <Secao
+        titulo="Botões"
+        descricao="Uma ação primária por tela. No celular todos nascem com 44px de altura; a partir de md ficam compactos."
+      >
         <Card>
           <CardContent className="flex flex-wrap items-center gap-2 pt-4">
             <Button variant="primario">Registrar venda</Button>
@@ -178,7 +189,7 @@ export default function DesignPage() {
             <Button size="md">Médio</Button>
             <Button size="lg">Grande</Button>
             <Button size="toque" variant="primario">
-              Toque (44px)
+              Toque (44px sempre)
             </Button>
           </CardFooter>
         </Card>
@@ -186,7 +197,7 @@ export default function DesignPage() {
 
       <Secao
         titulo="Campos"
-        descricao="16px no celular por obrigação: abaixo disso o iOS dá zoom ao focar e a tela salta."
+        descricao="16px no celular por obrigação: abaixo disso o iOS dá zoom ao focar e a tela salta. A mensagem de erro sai do próprio componente, para o vínculo com o campo nunca ser esquecido."
       >
         <Card>
           <CardContent className="grid gap-4 pt-4 sm:grid-cols-2">
@@ -200,8 +211,11 @@ export default function DesignPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="d-erro">Vencimento</Label>
-              <Input id="d-erro" aria-invalid defaultValue="32/13/2026" />
-              <p className="text-2xs text-perigo">Data inválida.</p>
+              <Input
+                id="d-erro"
+                defaultValue="32/13/2026"
+                erro="Data inválida — use o formato dia/mês/ano."
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="d-off">Observação</Label>
@@ -211,7 +225,10 @@ export default function DesignPage() {
         </Card>
       </Secao>
 
-      <Secao titulo="Selos de estado" descricao="Se aparecer um selo sem estado por trás, está sendo usado errado.">
+      <Secao
+        titulo="Selos de estado"
+        descricao="Sempre com o rótulo escrito, nunca só cor — quem não distingue verde de vermelho precisa ler a palavra."
+      >
         <Card>
           <CardContent className="flex flex-wrap gap-2 pt-4">
             <Badge variant="sucesso">Pago</Badge>
@@ -225,16 +242,73 @@ export default function DesignPage() {
       </Secao>
 
       <Secao
+        titulo="Estados"
+        descricao="Carregando, vazio, erro, sem permissão e offline. Existem aqui para que nenhuma tela improvise o seu próprio — foi assim que o sistema antigo virou uma colcha de retalhos."
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <Card className="overflow-hidden">
+            <CardHeader className="border-b border-borda">
+              <CardTitle>Carregando</CardTitle>
+            </CardHeader>
+            <SkeletonTabela linhas={4} />
+          </Card>
+
+          <Card>
+            <CardHeader className="border-b border-borda">
+              <CardTitle>Vazio</CardTitle>
+            </CardHeader>
+            <EstadoVazio
+              titulo="Nenhum lançamento em aberto"
+              descricao="Quando houver conta a receber, ela aparece aqui."
+              acao={<Button variant="primario">Novo lançamento</Button>}
+            />
+          </Card>
+
+          <Card>
+            <CardHeader className="border-b border-borda">
+              <CardTitle>Erro</CardTitle>
+            </CardHeader>
+            <EstadoErro />
+          </Card>
+
+          <Card>
+            <CardHeader className="border-b border-borda">
+              <CardTitle>Sem permissão</CardTitle>
+            </CardHeader>
+            <SemPermissao recurso="abrir o PDV" />
+          </Card>
+
+          <Card className="overflow-hidden md:col-span-2">
+            <CardHeader className="border-b border-borda">
+              <CardTitle>Offline</CardTitle>
+              <CardDescription>
+                A faixa não interrompe a tarefa; a tela cheia é para quando não há
+                o que mostrar.
+              </CardDescription>
+            </CardHeader>
+            <FaixaOffline pendentes={3} />
+            <EstadoOffline pendentes={3} />
+          </Card>
+        </div>
+      </Secao>
+
+      <Secao
         titulo="Tabela financeira"
         descricao="Algarismo tabular é inegociável: sem ele a coluna de valor treme entre linhas e a tabela parece amadora antes de o número ser lido."
       >
         <Card className="overflow-hidden">
           <CardHeader className="border-b border-borda">
             <CardTitle>Contas a Receber</CardTitle>
-            <CardDescription>Vocabulário do sistema antigo, de propósito — o usuário não pode se perder ao trocar.</CardDescription>
+            <CardDescription>
+              Vocabulário do sistema antigo, de propósito — o usuário não pode se
+              perder ao trocar.
+            </CardDescription>
           </CardHeader>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            {/* min-w é o que faz o overflow-x realmente existir. Com apenas
+                `w-full` a tabela se espreme em 360px, o nome do cliente quebra
+                em três linhas e o alinhamento das colunas se perde. */}
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="border-b border-borda bg-superficie-afundada text-left">
                   <th className="px-4 py-2 text-2xs font-medium uppercase tracking-wide text-texto-fraco">
@@ -280,6 +354,10 @@ export default function DesignPage() {
             </span>
           </CardFooter>
         </Card>
+        <p className="text-2xs text-texto-fraco">
+          Em telas estreitas a tabela rola na horizontal. A partir da Etapa 0.6 ela
+          ganha o modo Cards, que o sistema antigo já oferece e o usuário conhece.
+        </p>
       </Secao>
 
       <footer className="border-t border-borda pt-6 text-2xs text-texto-fraco">

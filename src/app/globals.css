@@ -1,7 +1,8 @@
 @import 'tailwindcss';
 
-/* Modo escuro por classe/atributo, com o sistema como padrão.
-   O script inline no layout carimba data-theme antes da primeira pintura. */
+/* O script em layout.tsx SEMPRE carimba data-theme antes da primeira pintura,
+   resolvendo 'sistema' para light/dark. Por isso o variant abaixo basta e não
+   existe bloco @media duplicado: fonte única de verdade. */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
 /* ==========================================================================
@@ -40,26 +41,28 @@
   --cinza-800: oklch(0.272 0.011 250);
   --cinza-900: oklch(0.208 0.009 250);
   --cinza-950: oklch(0.158 0.008 250);
+  --cinza-975: oklch(0.140 0.008 250);
   --cinza-1000: oklch(0.122 0.007 250);
 
   /* Semânticas. Só significam estado — nunca decoram.
-     Cada uma tem par claro/escuro afinado, não invertido. */
-  --verde-light: oklch(0.545 0.129 155);
+     Cada par foi ajustado até passar 4.5:1 contra o próprio fundo, nos dois
+     temas: o texto do selo tem 11–12px, então conta como texto normal. */
+  --verde-light: oklch(0.524 0.129 155);
   --verde-dark: oklch(0.735 0.132 155);
   --verde-bg-light: oklch(0.955 0.033 155);
   --verde-bg-dark: oklch(0.315 0.055 155);
 
-  --ambar-light: oklch(0.588 0.128 75);
+  --ambar-light: oklch(0.546 0.128 75);
   --ambar-dark: oklch(0.795 0.132 80);
   --ambar-bg-light: oklch(0.965 0.042 85);
   --ambar-bg-dark: oklch(0.335 0.058 70);
 
-  --vermelho-light: oklch(0.552 0.191 26);
+  --vermelho-light: oklch(0.54 0.191 26);
   --vermelho-dark: oklch(0.712 0.163 25);
   --vermelho-bg-light: oklch(0.958 0.028 25);
   --vermelho-bg-dark: oklch(0.325 0.082 25);
 
-  --azul-light: oklch(0.548 0.154 258);
+  --azul-light: oklch(0.544 0.154 258);
   --azul-dark: oklch(0.735 0.126 258);
   --azul-bg-light: oklch(0.962 0.024 258);
   --azul-bg-dark: oklch(0.318 0.068 258);
@@ -82,11 +85,18 @@
 
   --texto: var(--cinza-950);
   --texto-suave: var(--cinza-600);
-  --texto-fraco: var(--cinza-500);
+  /* Afinado por tema, não compartilhado: no claro este é o valor que ainda
+     passa 4.5:1 contra o pior fundo em que ele aparece. */
+  --texto-fraco: oklch(0.544 0.013 250);
   --texto-invertido: var(--cinza-0);
 
   --borda: var(--cinza-200);
   --borda-forte: var(--cinza-300);
+  /* Borda de controle é outro problema que a borda decorativa: aqui o
+     contorno é a única coisa que diz onde o campo começa, e a WCAG 1.4.11
+     exige 3:1 para isso. Manter separado permite que card e divisória
+     continuem delicados. */
+  --borda-controle: oklch(0.668 0.005 250);
 
   --acento: var(--petroleo-600);
   --acento-hover: var(--petroleo-700);
@@ -102,6 +112,9 @@
   --alerta-bg: var(--ambar-bg-light);
   --perigo: var(--vermelho-light);
   --perigo-bg: var(--vermelho-bg-light);
+  --perigo-hover: oklch(0.478 0.185 26);
+  --perigo-ativo: oklch(0.42 0.17 26);
+  --perigo-contraste: var(--cinza-0);
   --info: var(--azul-light);
   --info-bg: var(--azul-bg-light);
 
@@ -116,71 +129,34 @@
 
 /* ==========================================================================
    MODO ESCURO
-   Não é o claro invertido. Três diferenças que decidem a qualidade:
+   Não é o claro invertido. Quatro diferenças que decidem a qualidade:
    1. Elevação vira luminosidade, não sombra — sombra some sobre fundo escuro.
    2. O acento sobe de luminosidade e desce de croma; petróleo-600 vira lama.
    3. O fundo é quase-preto levantado, não #000 — preto puro achata tudo.
+   4. `--superficie-afundada` fica ENTRE fundo e superfície. Se fosse igual ao
+      fundo, o rodapé do card viraria um buraco recortado em vez de uma área
+      rebaixada.
    ========================================================================== */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-
-    --fundo: var(--cinza-1000);
-    --superficie: var(--cinza-950);
-    --superficie-elevada: var(--cinza-900);
-    --superficie-afundada: var(--cinza-1000);
-    --superficie-hover: var(--cinza-900);
-
-    --texto: var(--cinza-100);
-    --texto-suave: var(--cinza-400);
-    --texto-fraco: var(--cinza-500);
-    --texto-invertido: var(--cinza-950);
-
-    --borda: var(--cinza-800);
-    --borda-forte: var(--cinza-700);
-
-    --acento: var(--petroleo-400);
-    --acento-hover: var(--petroleo-300);
-    --acento-ativo: var(--petroleo-200);
-    --acento-suave: var(--petroleo-950);
-    --acento-suave-borda: var(--petroleo-800);
-    --acento-texto: var(--petroleo-300);
-    --acento-contraste: var(--cinza-1000);
-
-    --sucesso: var(--verde-dark);
-    --sucesso-bg: var(--verde-bg-dark);
-    --alerta: var(--ambar-dark);
-    --alerta-bg: var(--ambar-bg-dark);
-    --perigo: var(--vermelho-dark);
-    --perigo-bg: var(--vermelho-bg-dark);
-    --info: var(--azul-dark);
-    --info-bg: var(--azul-bg-dark);
-
-    --foco: var(--petroleo-400);
-
-    --sombra-sm: 0 1px 2px oklch(0 0 0 / 0.4);
-    --sombra: 0 1px 3px oklch(0 0 0 / 0.5), 0 1px 2px oklch(0 0 0 / 0.4);
-    --sombra-md: 0 4px 12px oklch(0 0 0 / 0.55), 0 2px 4px oklch(0 0 0 / 0.4);
-    --sombra-lg: 0 12px 28px oklch(0 0 0 / 0.6), 0 4px 8px oklch(0 0 0 / 0.45);
-  }
-}
-
 :root[data-theme='dark'] {
   color-scheme: dark;
 
   --fundo: var(--cinza-1000);
   --superficie: var(--cinza-950);
   --superficie-elevada: var(--cinza-900);
-  --superficie-afundada: var(--cinza-1000);
+  --superficie-afundada: var(--cinza-975);
   --superficie-hover: var(--cinza-900);
 
   --texto: var(--cinza-100);
   --texto-suave: var(--cinza-400);
-  --texto-fraco: var(--cinza-500);
+  /* Mais claro que no tema claro: sobre superfície elevada, o valor do tema
+     claro cairia para 3.76:1 — e este token carrega o cabeçalho da tabela
+     financeira, em 11px maiúsculo. */
+  --texto-fraco: oklch(0.6 0.013 250);
   --texto-invertido: var(--cinza-950);
 
   --borda: var(--cinza-800);
   --borda-forte: var(--cinza-700);
+  --borda-controle: oklch(0.484 0.011 250);
 
   --acento: var(--petroleo-400);
   --acento-hover: var(--petroleo-300);
@@ -196,6 +172,11 @@
   --alerta-bg: var(--ambar-bg-dark);
   --perigo: var(--vermelho-dark);
   --perigo-bg: var(--vermelho-bg-dark);
+  --perigo-hover: oklch(0.762 0.15 25);
+  --perigo-ativo: oklch(0.812 0.13 25);
+  /* Texto escuro sobre vermelho claro: 7.38:1. Branco daria 2.74:1 e o botão
+     que exclui lançamento ficaria ilegível justamente no tema escuro. */
+  --perigo-contraste: var(--cinza-1000);
   --info: var(--azul-dark);
   --info-bg: var(--azul-bg-dark);
 
@@ -226,6 +207,7 @@
 
   --color-borda: var(--borda);
   --color-borda-forte: var(--borda-forte);
+  --color-borda-controle: var(--borda-controle);
 
   --color-acento: var(--acento);
   --color-acento-hover: var(--acento-hover);
@@ -241,6 +223,9 @@
   --color-alerta-bg: var(--alerta-bg);
   --color-perigo: var(--perigo);
   --color-perigo-bg: var(--perigo-bg);
+  --color-perigo-hover: var(--perigo-hover);
+  --color-perigo-ativo: var(--perigo-ativo);
+  --color-perigo-contraste: var(--perigo-contraste);
   --color-info: var(--info);
   --color-info-bg: var(--info-bg);
 
@@ -248,11 +233,12 @@
 
   --font-sans: var(--fonte-sans), ui-sans-serif, system-ui, sans-serif;
 
-  /* Escala tipográfica de ferramenta densa: 13px é o corpo, não 16px.
-     Quem passa 8h na tela quer ver mais linha, não texto maior. */
-  --text-2xs: 0.6875rem;
+  /* Escala de ferramenta densa: corpo em 14px, não 16px. Quem passa 8h na
+     tela quer ver mais linha. O piso é 12px — 11px seria economia de pixel
+     no lugar errado, cobrada de quem tem 45+ anos e monitor comum. */
+  --text-2xs: 0.75rem;
   --text-2xs--line-height: 1rem;
-  --text-xs: 0.75rem;
+  --text-xs: 0.8125rem;
   --text-xs--line-height: 1.125rem;
   --text-sm: 0.8125rem;
   --text-sm--line-height: 1.25rem;
@@ -278,74 +264,101 @@
   --shadow-lg: var(--sombra-lg);
 }
 
-/* ========================================================================== */
+/* ==========================================================================
+   BASE
+   Tudo daqui para baixo mora em @layer base de propósito. Estilo de autor
+   fora de camada vence QUALQUER utility do Tailwind — a precedência de
+   camada é avaliada antes da especificidade. Sem este @layer, um simples
+   `* { border-color }` anula `border-transparent`, `aria-invalid:border-perigo`
+   e todas as outras utilities de borda do projeto.
+   ========================================================================== */
+@layer base {
+  * {
+    border-color: var(--borda);
+  }
 
-* {
-  border-color: var(--borda);
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--borda-forte) transparent;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--fundo);
+    color: var(--texto);
+    font-family: var(--fonte-sans), ui-sans-serif, system-ui, sans-serif;
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Dinheiro e quantidade SEMPRE em algarismo tabular. Sem isso as colunas de
+     valor tremem entre linhas, e uma tabela financeira que treme parece
+     amadora antes mesmo de o usuário ler o número. */
+  .tabular,
+  table td,
+  table th,
+  input[type='number'],
+  [data-numero] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /* Foco visível e consistente. Nunca removido — o balconista opera no
+     teclado. Propriedades longas em vez do shorthand `outline`, para não
+     sobrescrever `outline-color` semântico (campo inválido em foco precisa
+     continuar vermelho). Sem `border-radius` aqui: alterá-lo mudaria o raio
+     do próprio elemento a cada Tab. */
+  :focus-visible {
+    outline-width: 2px;
+    outline-style: solid;
+    outline-color: var(--foco);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--acento-suave);
+    color: var(--acento-texto);
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--borda-forte);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--texto-fraco);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
-}
-
-body {
-  background-color: var(--fundo);
-  color: var(--texto);
-  font-family: var(--fonte-sans), ui-sans-serif, system-ui, sans-serif;
-  font-size: var(--text-base);
-  line-height: var(--text-base--line-height);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Dinheiro e quantidade SEMPRE em algarismo tabular. Sem isso as colunas de
-   valor tremem entre linhas, e uma tabela financeira que treme parece amadora
-   antes mesmo de o usuário ler o número. */
-.tabular,
-table td,
-table th,
-input[type='number'],
-[data-numero] {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: 'tnum' 1;
-}
-
-/* Foco visível e consistente. Nunca removido — o balconista opera no teclado. */
-:focus-visible {
-  outline: 2px solid var(--foco);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-
-::selection {
-  background-color: var(--acento-suave);
-  color: var(--acento-texto);
-}
-
-/* Barra de rolagem discreta, coerente nos dois temas. */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--borda-forte) transparent;
-}
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-*::-webkit-scrollbar-thumb {
-  background-color: var(--borda-forte);
-  border: 3px solid transparent;
-  background-clip: content-box;
-  border-radius: 999px;
-}
-*::-webkit-scrollbar-thumb:hover {
-  background-color: var(--texto-fraco);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+@layer components {
+  /* Pulso do skeleton: mais lento que o padrão do Tailwind, que fica
+     inquieto quando há muitas linhas carregando ao mesmo tempo. */
+  @keyframes casco-pulso {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.55;
+    }
   }
 }
