@@ -3,6 +3,7 @@ import { SearchX } from 'lucide-react'
 import { AppShell } from '@/components/layout/app-shell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { lerSessao } from '@/lib/sessao'
 
 /**
  * 404 do sistema inteiro.
@@ -17,9 +18,20 @@ import { Card, CardContent } from '@/components/ui/card'
  * fora da navegação: com o shell, ele volta ao trabalho pelo menu, sem
  * precisar do botão.
  */
-export default function NaoEncontrado() {
+export default async function NaoEncontrado() {
+  // `lerSessao` e não `exigirSessao`: redirecionar de dentro de um boundary de
+  // erro é como se cria laço de navegação. Sem sessão, o shell aparece sem o
+  // menu de conta — e o proxy já teria mandado essa pessoa para o login.
+  const sessao = await lerSessao()
+
   return (
-    <AppShell>
+    <AppShell
+      usuario={
+        sessao
+          ? { nome: sessao.nome, empresa: sessao.empresa, papel: sessao.papel }
+          : undefined
+      }
+    >
       <Card className="mx-auto max-w-lg">
         <CardContent className="flex flex-col items-center gap-3 px-6 py-12 text-center">
           <div className="grid size-11 place-items-center rounded-full bg-superficie-afundada text-texto-suave">

@@ -76,9 +76,16 @@ e no celular, com dados de verdade. Build passando não conta como pronto.
 *Nenhuma tela de negócio. É o chão onde todo o resto pisa.*
 
 - **0.1** Next.js 16 (App Router) + TypeScript + Tailwind v4 ✅
-- **0.2** Postgres no Railway + Drizzle + RLS por `company_id` + runner de migrations
-  — *código pronto, aguardando o Railway*
-- **0.3** Auth.js v5: login, sessão com `company_id` e papel, guard em `proxy.ts`
+- **0.2** Postgres no Railway + Drizzle + RLS por `company_id` + runner de migrations ✅
+  — banco no ar, 20 tabelas com RLS e `force`, isolamento provado a cada deploy
+- **0.3** ~~Auth.js v5~~ **sessão própria**: login, sessão com `company_id` e papel,
+  guard em `proxy.ts` ✅
+  > **Desvio consciente.** A LM tem login por e-mail e senha, e nada mais. O que
+  > sobraria do Auth.js seria o provider de credenciais — justamente a parte que
+  > ele pede para você escrever inteira. Trocaríamos ~80 linhas explícitas por uma
+  > dependência em beta acoplada a uma versão do Next que acabou de renomear o
+  > middleware. Está tudo atrás de `lerSessao()`: no dia em que precisar de OAuth,
+  > a troca é local.
 - **0.4** Design system: paleta OKLCH em dois temas, tipografia, tokens, estados ✅
 - **0.5** **Shell da aplicação**: sidebar espelhando os grupos de menu deles, topbar
 - **0.6** **Componente de tabela de dados** — paginação, ordenação, filtro, densidade,

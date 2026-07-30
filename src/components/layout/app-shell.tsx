@@ -6,10 +6,24 @@ import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { ConteudoSidebar, Sidebar } from '@/components/layout/sidebar'
+import { MenuUsuario } from '@/components/layout/menu-usuario'
 import { acharItem } from '@/lib/navegacao'
 import { cn } from '@/lib/utils'
 
-function Topbar({ aoAbrirMenu }: { aoAbrirMenu: () => void }) {
+/** Só o que a topbar precisa mostrar — não a sessão inteira. */
+export interface UsuarioShell {
+  nome: string
+  empresa: string
+  papel: string
+}
+
+function Topbar({
+  aoAbrirMenu,
+  usuario,
+}: {
+  aoAbrirMenu: () => void
+  usuario?: UsuarioShell
+}) {
   const caminho = usePathname()
   const item = acharItem(caminho)
 
@@ -54,11 +68,21 @@ function Topbar({ aoAbrirMenu }: { aoAbrirMenu: () => void }) {
 
 
       <ThemeToggle />
+      {/* Opcional porque o `not-found.tsx` da raiz também monta este shell, e
+          ele é boundary de erro: renderiza fora do layout de `(app)`, onde a
+          sessão pode não ter sido resolvida. */}
+      {usuario && <MenuUsuario {...usuario} />}
     </header>
   )
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  usuario,
+}: {
+  children: React.ReactNode
+  usuario?: UsuarioShell
+}) {
   const [menuAberto, setMenuAberto] = React.useState(false)
   const caminho = usePathname()
 
@@ -140,7 +164,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Dialog.Portal>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar aoAbrirMenu={() => setMenuAberto(true)} />
+          <Topbar aoAbrirMenu={() => setMenuAberto(true)} usuario={usuario} />
 
           {/* `tabIndex={-1}` é obrigatório: sem ele vários navegadores movem a
               âncora mas não o foco, e o link de pular não pula nada. */}
