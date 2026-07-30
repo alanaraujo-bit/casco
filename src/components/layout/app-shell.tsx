@@ -80,6 +80,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-dvh bg-fundo">
+      {/* PRIMEIRO elemento do DOM, antes da sidebar — e isso é o ponto inteiro.
+          A ordem de tabulação segue o DOM, não o layout: colocado depois da
+          sidebar, o link viraria a 25ª parada e não pularia nada. A operadora
+          de balcão opera no teclado; sem ele são 26 tabulações até o primeiro
+          campo, em toda navegação, o dia inteiro. */}
+      <a
+        href="#conteudo"
+        className={cn(
+          'sr-only focus:not-sr-only',
+          'focus:absolute focus:left-3 focus:top-3 focus:z-[60]',
+          'focus:rounded-md focus:bg-acento focus:px-3 focus:py-2',
+          'focus:text-sm focus:font-medium focus:text-acento-contraste',
+          'focus:outline-2 focus:outline-offset-2 focus:outline-foco',
+        )}
+      >
+        Pular para o conteúdo
+      </a>
+
       <Sidebar />
 
       <Dialog.Root open={menuAberto} onOpenChange={setMenuAberto}>
@@ -115,22 +133,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Dialog.Portal>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          {/* Primeiro elemento focável da página, e o mais importante desta
-              tela: a sidebar vem antes do conteúdo no DOM, então sem ele são
-              26 tabulações até o primeiro campo — em toda navegação, o dia
-              inteiro. A operadora de balcão opera no teclado. */}
-          <a
-            href="#conteudo"
-            className={cn(
-              'sr-only focus:not-sr-only',
-              'focus:absolute focus:left-3 focus:top-3 focus:z-50',
-              'focus:rounded-md focus:bg-acento focus:px-3 focus:py-2',
-              'focus:text-sm focus:font-medium focus:text-acento-contraste',
-            )}
-          >
-            Pular para o conteúdo
-          </a>
-
           <Topbar aoAbrirMenu={() => setMenuAberto(true)} />
 
           {/* `tabIndex={-1}` é obrigatório: sem ele vários navegadores movem a
