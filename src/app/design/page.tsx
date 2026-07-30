@@ -147,25 +147,38 @@ export default function DesignPage() {
 
       <Secao
         titulo="Tipografia"
-        descricao="Corpo em 14px, não 16px, e piso de 12px. Ferramenta de 8h quer ver mais linha — mas economizar pixel abaixo de 12px cobra caro de quem tem 45+ anos e monitor comum."
+        descricao="O corpo é sm (14px), não 16px — ferramenta de 8h quer ver mais linha. Piso em 12px, porque economizar pixel abaixo disso cobra caro de quem tem 45+ anos e monitor comum. Cada degrau tem tamanho próprio: dois nomes com o mesmo valor deixariam quem escolhe entre eles sem critério."
       >
         <Card>
           <CardContent className="space-y-2 pt-4">
             <p className="text-3xl font-semibold tracking-tight text-texto">
-              Painel gerencial
+              Painel gerencial <span className="text-2xs text-texto-fraco">3xl · 30px</span>
             </p>
-            <p className="text-xl font-semibold text-texto">Contas a receber</p>
+            <p className="text-xl font-semibold text-texto">
+              Contas a Receber <span className="text-2xs text-texto-fraco">xl · 20px</span>
+            </p>
             <p className="text-base text-texto">
-              Texto de corpo — o tamanho padrão da interface (14px).
+              Campo no celular e texto de destaque{' '}
+              <span className="text-2xs text-texto-fraco">base · 16px</span>
             </p>
-            <p className="text-sm text-texto-suave">
-              Texto secundário, usado em apoio e descrição (13px).
+            <p className="text-sm text-texto">
+              Texto de corpo — o padrão da interface{' '}
+              <span className="text-2xs text-texto-fraco">sm · 14px</span>
+            </p>
+            <p className="text-xs text-texto-suave">
+              Texto secundário e rótulo de campo{' '}
+              <span className="text-2xs text-texto-fraco">xs · 13px</span>
             </p>
             <p className="text-2xs text-texto-fraco uppercase tracking-wide">
-              Rótulo de tabela (12px)
+              Rótulo de tabela · 2xs · 12px
             </p>
           </CardContent>
         </Card>
+        <p className="text-2xs text-texto-fraco">
+          <strong className="font-medium text-texto-suave">base é 16px de propósito:</strong>{' '}
+          é o tamanho dos campos no celular, e abaixo de 16px o iOS dá zoom ao focar. O
+          nome existe para essa função.
+        </p>
       </Secao>
 
       <Secao

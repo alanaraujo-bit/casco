@@ -35,7 +35,9 @@ const buttonVariants = cva(
         // Alvo de 44px por padrão no toque, compacto a partir de `md`.
         // Depender de o desenvolvedor lembrar de `size="toque"` seria frágil
         // por construção — o entregador usa Android barato, na rua, de moto.
-        sm: 'h-9 px-3 text-sm md:h-7 md:px-2.5 md:text-xs',
+        // Também 44px no toque: `sm` vai para barra de filtro e ação de linha
+        // de tabela, que são telas que o entregador usa.
+        sm: 'h-11 px-3 text-sm md:h-7 md:px-2.5 md:text-xs',
         md: 'h-11 px-4 text-base md:h-8 md:px-3 md:text-sm',
         lg: 'h-12 px-5 text-base md:h-10 md:px-4',
         icone: 'size-11 p-0 md:size-8',

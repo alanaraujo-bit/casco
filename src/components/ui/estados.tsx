@@ -1,3 +1,9 @@
+// `EstadoErro` recebe um callback (`aoTentarNovamente`) que vira `onClick`.
+// Sem esta diretiva, a primeira tela real que passar a função a partir de um
+// Server Component quebra em runtime — e o App Router torna isso o caminho
+// mais provável, não o exótico.
+'use client'
+
 import * as React from 'react'
 import { Ban, Inbox, RotateCw, TriangleAlert, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'

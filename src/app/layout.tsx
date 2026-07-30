@@ -28,10 +28,11 @@ export const viewport: Viewport = {
   initialScale: 1,
   // Ocupa a área sob o notch; o conteúdo é protegido por safe-area no shell.
   viewportFit: 'cover',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f2f3f5' },
-    { media: '(prefers-color-scheme: dark)', color: '#1c1d21' },
-  ],
+  // Valor claro como ponto de partida — o `scriptTema` reescreve o `content`
+  // conforme o tema RESOLVIDO. Amarrar isso a `prefers-color-scheme` estaria
+  // errado em dois dos quatro cenários: quem força um tema contra o sistema
+  // teria a barra do navegador de uma cor e a página de outra.
+  themeColor: '#f3f4f6',
 }
 
 export default function RootLayout({

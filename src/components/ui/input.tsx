@@ -11,18 +11,34 @@ export interface InputProps extends Omit<React.ComponentProps<'input'>, 'aria-in
   erro?: string
 }
 
-export function Input({ className, type, erro, id, ...props }: InputProps) {
+export function Input({
+  className,
+  type,
+  erro,
+  id,
+  'aria-describedby': descritoPor,
+  ...props
+}: InputProps) {
   const gerado = React.useId()
   const idCampo = id ?? gerado
   const idErro = erro ? `${idCampo}-erro` : undefined
 
+  // Mescla em vez de deixar sobrescrever: um campo com texto de ajuda E erro
+  // perderia silenciosamente o vínculo do erro, anulando justamente o motivo
+  // desta prop existir — e o TypeScript não avisaria.
+  const descricao = [descritoPor, idErro].filter(Boolean).join(' ') || undefined
+
   return (
-    <>
+    // O erro sai embrulhado junto com o campo para que o layout não dependa de
+    // o chamador lembrar de um `space-y`. Dentro de um flex, um Fragment
+    // faria a mensagem virar irmã do input e escapar do agrupamento.
+    <div className="space-y-1">
       <input
+        {...props}
         id={idCampo}
         type={type}
         aria-invalid={erro ? true : undefined}
-        aria-describedby={idErro}
+        aria-describedby={descricao}
         className={cn(
           // 44px no toque, denso no desktop — mesmo raciocínio da fonte abaixo.
           'flex h-11 w-full rounded-md px-3 py-1 md:h-9',
@@ -37,19 +53,18 @@ export function Input({ className, type, erro, id, ...props }: InputProps) {
           'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-superficie-afundada',
           'aria-invalid:border-perigo aria-invalid:outline-perigo',
           'file:border-0 file:bg-transparent file:text-sm file:font-medium',
-          // 16px no celular é obrigatório: abaixo disso o iOS dá zoom ao focar
-          // o campo e a tela "salta". No desktop volta para 13px, que é a
-          // densidade certa para uso prolongado.
+          // `text-base` aqui vale 16px por definição da escala. Abaixo disso o
+          // iOS dá zoom ao focar o campo e a tela "salta". No desktop cai para
+          // 14px, que é a densidade certa para uso prolongado.
           'text-base md:text-sm',
           className,
         )}
-        {...props}
       />
       {erro && (
         <p id={idErro} className="text-xs text-perigo">
           {erro}
         </p>
       )}
-    </>
+    </div>
   )
 }

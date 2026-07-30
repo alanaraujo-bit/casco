@@ -9,7 +9,7 @@ export function Skeleton({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       className={cn(
-        'rounded-md bg-superficie-hover [animation:casco-pulso_1.8s_ease-in-out_infinite]',
+        'rounded-md bg-esqueleto [animation:casco-pulso_1.8s_ease-in-out_infinite]',
         className,
       )}
       {...props}
