@@ -101,10 +101,14 @@ export default function DesignPage() {
             >
               C
             </div>
-            <span className="text-xl font-semibold tracking-tight text-texto">Casco</span>
+            {/* h1: sem ele o outline desta página começava em h2, e a
+                navegação por cabeçalho não tinha ponto de partida. */}
+            <h1 className="text-xl font-semibold tracking-tight text-texto">
+              Casco · Design system
+            </h1>
           </div>
           <p className="text-xs text-texto-suave">
-            Design system · gestão para distribuidoras com vasilhame retornável
+            Gestão para distribuidoras com vasilhame retornável
           </p>
         </div>
         <ThemeToggle />

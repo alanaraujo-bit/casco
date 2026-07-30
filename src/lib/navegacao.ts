@@ -18,8 +18,6 @@ import {
 export type ItemNav = {
   rotulo: string
   href: string
-  /** Ainda não construída — a navegação mostra a tela de "em construção". */
-  emBreve?: boolean
 }
 
 export type GrupoNav = {
@@ -39,21 +37,28 @@ export type GrupoNav = {
  * adoção.
  *
  * A exceção é o grupo Vasilhame, que não existe lá — e é o motivo da troca.
+ *
+ * **Pendências a confirmar com o cliente** (ver `docs/00-auditoria-sistema-legado.md` §3):
+ * - O legado tem 6 telas de NF-e. Ficam fora até confirmarmos se a LM emite nota.
+ * - O legado tem "Serviços" em Vendas e Cadastro. A LM vende água, não serviço —
+ *   confirmar se usam.
+ * - O legado tem Agenda, Etiquetas e Analytics. Vieram vazios na auditoria;
+ *   confirmar se são usados antes de construir.
  */
 export const NAVEGACAO: GrupoNav[] = [
   {
     rotulo: 'Painel',
     Icone: LayoutDashboard,
-    itens: [{ rotulo: 'Painel Gerencial', href: '/painel', emBreve: true }],
+    itens: [{ rotulo: 'Painel Gerencial', href: '/painel' }],
   },
   {
     rotulo: 'Vendas',
     Icone: ShoppingCart,
     itens: [
-      { rotulo: 'PDV', href: '/vendas/pdv', emBreve: true },
-      { rotulo: 'Vendas de Produtos', href: '/vendas/produtos', emBreve: true },
-      { rotulo: 'Orçamento', href: '/vendas/orcamento', emBreve: true },
-      { rotulo: 'Comissão', href: '/vendas/comissao', emBreve: true },
+      { rotulo: 'PDV', href: '/vendas/pdv' },
+      { rotulo: 'Vendas de Produtos', href: '/vendas/produtos' },
+      { rotulo: 'Orçamento', href: '/vendas/orcamento' },
+      { rotulo: 'Comissão', href: '/vendas/comissao' },
     ],
   },
   {
@@ -63,64 +68,60 @@ export const NAVEGACAO: GrupoNav[] = [
     rotulo: 'Vasilhame',
     Icone: Truck,
     itens: [
-      { rotulo: 'Baixa de Vasilhame', href: '/vasilhame/baixa', emBreve: true },
-      { rotulo: 'Saldo por Cliente', href: '/vasilhame/saldos', emBreve: true },
-      { rotulo: 'Movimentos', href: '/vasilhame/movimentos', emBreve: true },
+      { rotulo: 'Baixa de Vasilhame', href: '/vasilhame/baixa' },
+      { rotulo: 'Saldo por Cliente', href: '/vasilhame/saldos' },
+      { rotulo: 'Movimentos', href: '/vasilhame/movimentos' },
     ],
   },
   {
     rotulo: 'Cadastro',
     Icone: Contact,
     itens: [
-      { rotulo: 'Clientes', href: '/cadastro/clientes', emBreve: true },
-      { rotulo: 'Produtos e Serviços', href: '/cadastro/produtos', emBreve: true },
-      { rotulo: 'Fornecedores', href: '/cadastro/fornecedores', emBreve: true },
-      { rotulo: 'Tabelas de Preço', href: '/cadastro/tabelas-preco', emBreve: true },
+      { rotulo: 'Clientes', href: '/cadastro/clientes' },
+      { rotulo: 'Produtos e Serviços', href: '/cadastro/produtos' },
+      { rotulo: 'Fornecedores', href: '/cadastro/fornecedores' },
+      { rotulo: 'Tabelas de Preço', href: '/cadastro/tabelas-preco' },
     ],
   },
   {
     rotulo: 'Financeiro',
     Icone: Wallet,
     itens: [
-      { rotulo: 'Contas a Receber', href: '/financeiro/receber', emBreve: true },
-      { rotulo: 'Contas a Pagar', href: '/financeiro/pagar', emBreve: true },
-      { rotulo: 'Despesas', href: '/financeiro/despesas', emBreve: true },
-      { rotulo: 'Caixa', href: '/financeiro/caixa', emBreve: true },
+      { rotulo: 'Contas a Receber', href: '/financeiro/receber' },
+      { rotulo: 'Contas a Pagar', href: '/financeiro/pagar' },
+      { rotulo: 'Despesas', href: '/financeiro/despesas' },
+      { rotulo: 'Caixa', href: '/financeiro/caixa' },
     ],
   },
   {
     rotulo: 'Estoque',
     Icone: Boxes,
     itens: [
-      { rotulo: 'Saldo em Estoque', href: '/estoque/saldo', emBreve: true },
-      { rotulo: 'Entradas', href: '/estoque/entradas', emBreve: true },
+      { rotulo: 'Saldo em Estoque', href: '/estoque/saldo' },
+      { rotulo: 'Entradas', href: '/estoque/entradas' },
     ],
   },
   {
     rotulo: 'Relatórios',
     Icone: FileBarChart,
     itens: [
-      { rotulo: 'DRE', href: '/relatorios/dre', emBreve: true },
-      { rotulo: 'Fluxo de Caixa Diário', href: '/relatorios/caixa-diario', emBreve: true },
-      { rotulo: 'Fluxo de Caixa Mensal', href: '/relatorios/caixa-mensal', emBreve: true },
-      {
-        rotulo: 'Conciliação Bancária',
-        href: '/relatorios/conciliacao',
-        emBreve: true,
-      },
+      { rotulo: 'DRE', href: '/relatorios/dre' },
+      { rotulo: 'Fluxo de Caixa Diário', href: '/relatorios/caixa-diario' },
+      { rotulo: 'Fluxo de Caixa Mensal', href: '/relatorios/caixa-mensal' },
+      { rotulo: 'Conciliação Bancária', href: '/relatorios/conciliacao' },
     ],
   },
   {
     rotulo: 'Configurações',
     Icone: Settings,
     itens: [
-      { rotulo: 'Empresa', href: '/config/empresa', emBreve: true },
-      { rotulo: 'Usuários', href: '/config/usuarios', emBreve: true },
+      { rotulo: 'Empresa', href: '/config/empresa' },
+      { rotulo: 'Usuários', href: '/config/usuarios' },
     ],
   },
 ]
 
-/** Ícones por item, usados na busca rápida e no cabeçalho da página. */
+/** Ícone específico de alguns itens; o resto herda o ícone do grupo. */
 export const ICONES_ITEM: Record<string, LucideIcon> = {
   '/vendas/pdv': ShoppingCart,
   '/vendas/produtos': Receipt,
@@ -133,7 +134,7 @@ export const ICONES_ITEM: Record<string, LucideIcon> = {
   '/relatorios/dre': ClipboardList,
 }
 
-/** Todos os itens achatados — para busca e para resolver a rota atual. */
+/** Todos os itens achatados — para resolver a rota atual e, depois, para busca. */
 export const TODOS_ITENS: (ItemNav & { grupo: string; Icone: LucideIcon })[] =
   NAVEGACAO.flatMap((g) =>
     g.itens.map((i) => ({ ...i, grupo: g.rotulo, Icone: ICONES_ITEM[i.href] ?? g.Icone })),

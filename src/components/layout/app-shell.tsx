@@ -17,9 +17,11 @@ function Topbar({ aoAbrirMenu }: { aoAbrirMenu: () => void }) {
     <header
       className={cn(
         'sticky top-0 z-10 flex items-center gap-3 border-b border-borda bg-superficie px-3 md:px-5',
-        // A altura acompanha a safe-area do topo para o conteúdo não ficar sob
-        // o notch quando o app roda em tela cheia.
-        'h-14 pt-[env(safe-area-inset-top)]',
+        // A altura SOMA a safe-area em vez de reservá-la por dentro. Com
+        // `h-14` + `padding-top`, o inset comeria o espaço do conteúdo: num
+        // iPhone com notch em modo standalone o inset chega a 47px e sobrariam
+        // 9px para o título e o seletor de tema.
+        'h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)]',
       )}
     >
       <button
@@ -36,8 +38,9 @@ function Topbar({ aoAbrirMenu }: { aoAbrirMenu: () => void }) {
       </button>
 
       <div className="min-w-0 flex-1">
-        {/* h1 por página, no topbar: o leitor de tela anuncia onde está a cada
-            navegação, sem depender de cada tela lembrar de declarar o seu. */}
+        {/* h1 por página, resolvido pela navegação: o leitor de tela anuncia
+            onde está a cada rota, sem depender de cada tela lembrar de
+            declarar o seu. */}
         <h1 className="truncate text-base font-semibold tracking-tight text-texto">
           {item?.rotulo ?? 'Casco'}
         </h1>
@@ -61,13 +64,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setMenuAberto(false)
   }, [caminho])
 
+  // Fecha ao cruzar o breakpoint. O drawer tem `md:hidden`, mas o estado não
+  // sabe disso: girar um tablet para paisagem com o menu aberto deixaria o
+  // focus trap e o scroll lock do Radix presos num elemento `display:none` —
+  // página que não rola e foco em lugar invisível.
+  React.useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const fechar = () => {
+      if (mq.matches) setMenuAberto(false)
+    }
+    fechar()
+    mq.addEventListener('change', fechar)
+    return () => mq.removeEventListener('change', fechar)
+  }, [])
+
   return (
     <div className="flex min-h-dvh bg-fundo">
       <Sidebar />
 
       <Dialog.Root open={menuAberto} onOpenChange={setMenuAberto}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50 md:hidden" />
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-sobreposicao md:hidden" />
           <Dialog.Content
             className={cn(
               'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] border-r border-borda bg-superficie md:hidden',
@@ -98,8 +115,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </Dialog.Portal>
 
         <div className="flex min-w-0 flex-1 flex-col">
+          {/* Primeiro elemento focável da página, e o mais importante desta
+              tela: a sidebar vem antes do conteúdo no DOM, então sem ele são
+              26 tabulações até o primeiro campo — em toda navegação, o dia
+              inteiro. A operadora de balcão opera no teclado. */}
+          <a
+            href="#conteudo"
+            className={cn(
+              'sr-only focus:not-sr-only',
+              'focus:absolute focus:left-3 focus:top-3 focus:z-50',
+              'focus:rounded-md focus:bg-acento focus:px-3 focus:py-2',
+              'focus:text-sm focus:font-medium focus:text-acento-contraste',
+            )}
+          >
+            Pular para o conteúdo
+          </a>
+
           <Topbar aoAbrirMenu={() => setMenuAberto(true)} />
-          <main className="min-w-0 flex-1 p-3 md:p-5">{children}</main>
+
+          {/* `tabIndex={-1}` é obrigatório: sem ele vários navegadores movem a
+              âncora mas não o foco, e o link de pular não pula nada. */}
+          <main id="conteudo" tabIndex={-1} className="min-w-0 flex-1 p-3 md:p-5">
+            {children}
+          </main>
         </div>
       </Dialog.Root>
     </div>
