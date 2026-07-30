@@ -79,6 +79,22 @@
   --azul-dark: oklch(0.735 0.126 258);
   --azul-bg-light: oklch(0.962 0.024 258);
   --azul-bg-dark: oklch(0.318 0.068 258);
+
+  --roxo-light: oklch(0.522 0.176 300);
+  --roxo-dark: oklch(0.745 0.128 300);
+  --roxo-bg-light: oklch(0.962 0.026 300);
+  --roxo-bg-dark: oklch(0.322 0.072 300);
+
+  /* Categóricas. Diferente das semânticas acima: estas NÃO significam estado,
+     só separam séries num gráfico ou categorias num painel. Ter as duas
+     famílias evita o erro clássico de pintar "Gás" de vermelho e o dono ler
+     como problema. Mesma luminosidade entre si, para nenhuma dominar. */
+  --cat-1: var(--petroleo-500);
+  --cat-2: oklch(0.624 0.132 258);
+  --cat-3: oklch(0.624 0.128 300);
+  --cat-4: oklch(0.646 0.132 155);
+  --cat-5: oklch(0.694 0.134 75);
+  --cat-6: oklch(0.628 0.155 25);
 }
 
 /* ==========================================================================
@@ -136,6 +152,8 @@
   --perigo-contraste: var(--cinza-0);
   --info: var(--azul-light);
   --info-bg: var(--azul-bg-light);
+  --roxo: var(--roxo-light);
+  --roxo-bg: var(--roxo-bg-light);
 
   --foco: var(--petroleo-500);
 
@@ -207,6 +225,8 @@
   --perigo-contraste: var(--cinza-1000);
   --info: var(--azul-dark);
   --info-bg: var(--azul-bg-dark);
+  --roxo: var(--roxo-dark);
+  --roxo-bg: var(--roxo-bg-dark);
 
   --foco: var(--petroleo-400);
 
@@ -259,6 +279,15 @@
   --color-perigo-contraste: var(--perigo-contraste);
   --color-info: var(--info);
   --color-info-bg: var(--info-bg);
+  --color-roxo: var(--roxo);
+  --color-roxo-bg: var(--roxo-bg);
+
+  --color-cat-1: var(--cat-1);
+  --color-cat-2: var(--cat-2);
+  --color-cat-3: var(--cat-3);
+  --color-cat-4: var(--cat-4);
+  --color-cat-5: var(--cat-5);
+  --color-cat-6: var(--cat-6);
 
   --color-foco: var(--foco);
   --color-sobreposicao: var(--sobreposicao);
