@@ -32,7 +32,12 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
           const idGrupo = `grupo-${slug(grupo.rotulo)}`
           return (
             <div key={grupo.rotulo} className="mb-3 last:mb-0">
-              <div className="flex items-center gap-2 px-2 py-1.5">
+              {/* Grudento dentro do contêiner de rolagem: o menu tem ~1060px
+                  e a área visível fica em torno de 590px num Chrome
+                  maximizado em 1366×768, então rolar é inevitável. O problema
+                  real não é a rolagem, é perder a referência de onde se está —
+                  e isso o rótulo fixo resolve sem tirar nada da tela. */}
+              <div className="sticky top-0 z-10 flex items-center gap-2 bg-superficie px-2 py-1.5">
                 <grupo.Icone className="size-3.5 shrink-0 text-texto-fraco" aria-hidden />
                 {/* `span`, não `h2`. Rótulo de grupo de menu não é seção de
                     documento: colocá-lo no outline faria os 8 grupos virem

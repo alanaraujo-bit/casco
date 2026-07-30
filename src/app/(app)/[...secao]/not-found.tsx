@@ -4,12 +4,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 
 /**
- * 404 de dentro do sistema.
+ * 404 de dentro do sistema: mantém o usuário no shell, porque um erro de
+ * digitação na URL não deveria jogá-lo para fora da navegação.
  *
- * Existe separado do `app/not-found.tsx` por dois motivos: mantém o usuário
- * dentro do shell — um erro de digitação na URL não deveria jogá-lo para fora
- * da navegação — e renderiza no lugar certo da árvore, em vez de chegar pelo
- * payload de streaming com o body vazio.
+ * Mora **dentro de `[...secao]`**, e não no grupo `(app)`, de propósito: grupo
+ * de rota não cria segmento de URL, então um `not-found` ali disputa o mesmo
+ * nível com o da raiz — e a raiz vence, sem passar pelo layout do shell. O
+ * arquivo existiria e não seria alcançado nunca. Aqui não há ambiguidade: este
+ * é o boundary do segmento que chama `notFound()`.
  */
 export default function NaoEncontradoNoApp() {
   return (

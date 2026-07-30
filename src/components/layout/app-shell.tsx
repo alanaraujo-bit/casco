@@ -89,7 +89,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         href="#conteudo"
         className={cn(
           'sr-only focus:not-sr-only',
-          'focus:absolute focus:left-3 focus:top-3 focus:z-[60]',
+          // `fixed` e não `absolute`: com `absolute` ele se posiciona contra o
+          // topo do documento, então voltar com Shift+Tab no meio de uma
+          // tabela longa faria o link aparecer fora da tela.
+          'focus:fixed focus:left-3 focus:top-3 focus:z-[60]',
           'focus:rounded-md focus:bg-acento focus:px-3 focus:py-2',
           'focus:text-sm focus:font-medium focus:text-acento-contraste',
           'focus:outline-2 focus:outline-offset-2 focus:outline-foco',
