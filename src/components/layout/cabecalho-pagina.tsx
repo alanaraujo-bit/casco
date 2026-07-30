@@ -28,10 +28,15 @@ export function CabecalhoPagina({
       )}
     >
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight text-texto">{titulo}</h1>
-        {descricao && (
-          <p className="mt-0.5 text-sm text-texto-suave">{descricao}</p>
-        )}
+        {/* Só a partir de `md`. No celular quem carrega o título é a barra
+            superior fixa, que fica a 40px daqui — os dois juntos repetiam a
+            mesma palavra na mesma dobra e colocavam dois `h1` na árvore de
+            acessibilidade. `display:none` tira do leitor de tela também, então
+            em cada largura existe exatamente um. */}
+        <h1 className="hidden text-xl font-semibold tracking-tight text-texto md:block">
+          {titulo}
+        </h1>
+        {descricao && <p className="text-sm text-texto-suave md:mt-0.5">{descricao}</p>}
       </div>
       {acoes && <div className="flex shrink-0 items-center gap-2">{acoes}</div>}
     </div>
