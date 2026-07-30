@@ -1,7 +1,6 @@
 import {
   ArrowLeftRight,
   Boxes,
-  ClipboardList,
   Contact,
   FileBarChart,
   LayoutDashboard,
@@ -29,14 +28,53 @@ export type GrupoNav = {
 /**
  * A navegação inteira, em um lugar só.
  *
+ * **O menu mostra só o que funciona.** Esta é a regra dura do arquivo. Cada item
+ * em `NAVEGACAO` é uma tela que grava e lê de verdade; nada de rota que abre num
+ * cartão "em construção". O sistema que a distribuidora recebe precisa parecer
+ * pequeno e inteiro, não grande e oco — menu cheio de porta que não abre ensina,
+ * na primeira semana, que não vale a pena clicar. E quem opera balcão o dia
+ * inteiro aprende rápido a ignorar o que nunca serviu.
+ *
+ * O que ainda não existe fica em `PROXIMAS`, logo abaixo: mesma forma, mesmos
+ * rótulos, fora da tela. Promover uma tela é mover uma linha de lá para cá —
+ * e o critério para mover é o do roadmap: o fluxo real roda de ponta a ponta,
+ * no desktop e no celular, com dado de verdade.
+ *
  * **Os rótulos são os do sistema antigo, de propósito.** "Contas a Receber",
- * "PDV", "DRE", "Fluxo de Caixa Diário", "Conciliação Bancária" — nenhum
- * sinônimo, nenhuma melhoria de nomenclatura. O usuário da LM já sabe operar
- * um sistema; nosso trabalho não é ensinar outro, é entregar o mesmo mapa
- * mental bem executado. Ganhar discussão de nomenclatura não vale perder a
- * adoção.
+ * "PDV", "DRE", "Fluxo de Caixa Diário" — nenhum sinônimo, nenhuma melhoria de
+ * nomenclatura. O usuário da LM já sabe operar um sistema; nosso trabalho não é
+ * ensinar outro, é entregar o mesmo mapa mental bem executado. Ganhar discussão
+ * de nomenclatura não vale perder a adoção.
  *
  * A exceção é o grupo Vasilhame, que não existe lá — e é o motivo da troca.
+ */
+export const NAVEGACAO: GrupoNav[] = [
+  {
+    rotulo: 'Painel',
+    Icone: LayoutDashboard,
+    itens: [{ rotulo: 'Painel Gerencial', href: '/painel' }],
+  },
+  {
+    rotulo: 'Cadastro',
+    Icone: Contact,
+    itens: [{ rotulo: 'Clientes', href: '/cadastro/clientes' }],
+  },
+  {
+    rotulo: 'Financeiro',
+    Icone: Wallet,
+    itens: [{ rotulo: 'Contas a Receber', href: '/financeiro/receber' }],
+  },
+]
+
+/**
+ * O que ainda não foi construído. **Não é renderizado em lugar nenhum.**
+ *
+ * Existe para que o mapa completo não se perca entre uma etapa e outra, e para
+ * que promover uma tela seja recortar uma linha — sem reabrir a auditoria para
+ * lembrar o rótulo exato que eles usam, que é justamente o detalhe que se perde.
+ *
+ * A ordem dos grupos aqui é a do sistema antigo: Vendas · Vasilhame · Cadastro ·
+ * Financeiro · Estoque · Relatórios · Configurações.
  *
  * **Pendências a confirmar com o cliente** (ver `docs/00-auditoria-sistema-legado.md` §3):
  * - O legado tem 6 telas de NF-e. Ficam fora até confirmarmos se a LM emite nota.
@@ -45,12 +83,7 @@ export type GrupoNav = {
  * - O legado tem Agenda, Etiquetas e Analytics. Vieram vazios na auditoria;
  *   confirmar se são usados antes de construir.
  */
-export const NAVEGACAO: GrupoNav[] = [
-  {
-    rotulo: 'Painel',
-    Icone: LayoutDashboard,
-    itens: [{ rotulo: 'Painel Gerencial', href: '/painel' }],
-  },
+export const PROXIMAS: GrupoNav[] = [
   {
     rotulo: 'Vendas',
     Icone: ShoppingCart,
@@ -77,7 +110,6 @@ export const NAVEGACAO: GrupoNav[] = [
     rotulo: 'Cadastro',
     Icone: Contact,
     itens: [
-      { rotulo: 'Clientes', href: '/cadastro/clientes' },
       { rotulo: 'Produtos e Serviços', href: '/cadastro/produtos' },
       { rotulo: 'Fornecedores', href: '/cadastro/fornecedores' },
       { rotulo: 'Tabelas de Preço', href: '/cadastro/tabelas-preco' },
@@ -87,7 +119,6 @@ export const NAVEGACAO: GrupoNav[] = [
     rotulo: 'Financeiro',
     Icone: Wallet,
     itens: [
-      { rotulo: 'Contas a Receber', href: '/financeiro/receber' },
       { rotulo: 'Contas a Pagar', href: '/financeiro/pagar' },
       { rotulo: 'Despesas', href: '/financeiro/despesas' },
       { rotulo: 'Caixa', href: '/financeiro/caixa' },
@@ -131,10 +162,15 @@ export const ICONES_ITEM: Record<string, LucideIcon> = {
   '/cadastro/produtos': Package,
   '/financeiro/receber': Wallet,
   '/estoque/saldo': Boxes,
-  '/relatorios/dre': ClipboardList,
 }
 
-/** Todos os itens achatados — para resolver a rota atual e, depois, para busca. */
+/**
+ * Todos os itens visíveis, achatados — resolve a rota atual e, depois, a busca.
+ *
+ * Só `NAVEGACAO`, nunca `PROXIMAS`: é isto que faz uma rota não construída dar
+ * 404 de verdade em vez de "em construção". Se o item não está no menu, digitar
+ * a URL na mão não deve revelá-lo.
+ */
 export const TODOS_ITENS: (ItemNav & { grupo: string; Icone: LucideIcon })[] =
   NAVEGACAO.flatMap((g) =>
     g.itens.map((i) => ({ ...i, grupo: g.rotulo, Icone: ICONES_ITEM[i.href] ?? g.Icone })),

@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { Contact, IdCard, Package, Phone, UserPlus } from 'lucide-react'
+import { Contact, IdCard, Package, Phone } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Chip } from '@/components/painel/pecas'
 import { Card } from '@/components/ui/card'
-import { BotaoEmBreve } from '@/components/ui/em-breve'
 import { CLIENTES } from '@/lib/demo'
 import { TabelaClientes } from './tabela-clientes'
 
@@ -56,21 +55,6 @@ export default function PaginaClientes() {
       <CabecalhoPagina
         titulo="Clientes"
         descricao="Cadastro, contato e vasilhame em poder de cada cliente"
-        acoes={
-          <BotaoEmBreve
-            titulo="Cadastro de cliente"
-            descricao="A tela de cadastro é a Etapa 1 do plano. É o que ela vai fazer:"
-            itens={[
-              'Endereço com bairro e ponto de referência, para montar rota depois',
-              'Tipo de cliente definindo o preço automaticamente',
-              'Saldo de vasilhame do cliente na própria ficha',
-              'Cadastro rápido pelo celular, com o mínimo de campos',
-            ]}
-          >
-            <UserPlus aria-hidden />
-            Novo cliente
-          </BotaoEmBreve>
-        }
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

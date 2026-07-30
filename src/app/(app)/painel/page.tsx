@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import {
   AlertTriangle,
-  ArrowLeftRight,
   BadgeDollarSign,
   CircleDollarSign,
   Droplets,
@@ -24,7 +23,6 @@ import {
 } from '@/components/painel/pecas'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { BotaoEmBreve } from '@/components/ui/em-breve'
 import {
   BarraProgresso,
   GraficoArea,
@@ -93,25 +91,9 @@ export default function PainelGerencial() {
           </>
         }
         acoes={
-          <>
-            <span className="hidden rounded-md border border-borda bg-superficie px-2.5 py-1.5 text-xs font-medium text-texto-suave sm:inline-block">
-              Julho / 2026 · mês em curso
-            </span>
-            <BotaoEmBreve
-              titulo="PDV — venda de balcão"
-              descricao="A tela de venda é a Etapa 3 do plano. É o que ela vai fazer:"
-              itens={[
-                'Venda em até 3 toques: cliente, produto, forma de pagamento',
-                'Preço automático por tipo de cliente (revenda, mercado, consumidor)',
-                'Devolução de vasilhame lançada na mesma tela da venda',
-                'Venda avulsa de balcão, sem obrigar cadastro',
-                'Comprovante impresso ou enviado por WhatsApp',
-              ]}
-            >
-              <ShoppingCart aria-hidden />
-              Nova venda
-            </BotaoEmBreve>
-          </>
+          <span className="hidden rounded-md border border-borda bg-superficie px-2.5 py-1.5 text-xs font-medium text-texto-suave sm:inline-block">
+            Julho / 2026 · mês em curso
+          </span>
         }
       />
 
@@ -129,7 +111,6 @@ export default function PainelGerencial() {
             />
           }
           detalhe="vs. junho fechado"
-          href="/relatorios/dre"
           grafico={
             <GraficoArea
               titulo="Faturamento dos últimos 7 meses"
@@ -147,7 +128,6 @@ export default function PainelGerencial() {
           tom="info"
           variacao={<Variacao atual={RESUMO.vendasHoje} anterior={RESUMO.vendasOntem} />}
           detalhe="vs. ontem"
-          href="/vendas/produtos"
           grafico={
             <GraficoColunas
               titulo="Vendas dos últimos 7 dias"
@@ -268,22 +248,6 @@ export default function PainelGerencial() {
                 {moeda(VASILHAME.custoPerdasMes)} de custo
               </dd>
             </div>
-            <div className="col-span-2 sm:col-span-1 sm:self-center">
-              <BotaoEmBreve
-                variant="secundario"
-                titulo="Baixa de vasilhame"
-                descricao="É a tela que não existe no sistema atual. Etapa 2 do plano:"
-                itens={[
-                  'Motivo obrigatório: quebrado, trincado, perdido ou não devolvido',
-                  'Vira custo de estoque — nunca aparece como receita',
-                  'Saldo por cliente atualizado na hora',
-                  'Relatório de perdas por motivo, por mês e por entregador',
-                ]}
-              >
-                <ArrowLeftRight aria-hidden />
-                Lançar baixa
-              </BotaoEmBreve>
-            </div>
           </dl>
         </div>
       </Card>
@@ -293,7 +257,6 @@ export default function PainelGerencial() {
         <Bloco
           titulo="Faturamento mês a mês"
           descricao="12 meses · julho ainda em curso"
-          href="/relatorios/caixa-mensal"
           className="lg:col-span-2"
         >
           <GraficoArea
@@ -308,7 +271,6 @@ export default function PainelGerencial() {
         <Bloco
           titulo="Onde estão os galões"
           descricao={`${totalGaloes.toLocaleString('pt-BR')} vasilhames no total`}
-          href="/vasilhame/saldos"
         >
           <GraficoRosca
             titulo="Distribuição do vasilhame retornável"
@@ -333,7 +295,7 @@ export default function PainelGerencial() {
       {/* -------------------------------------------------------- ações rápidas */}
       {/* Cor categórica, não semântica: verde em "Receber título" sugeriria que
           algo foi recebido, e âmbar em "Baixa de vasilhame" sugeriria alerta. */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         <AcaoRapida
           titulo="Receber título"
           descricao="Baixa em Contas a Receber"
@@ -348,22 +310,6 @@ export default function PainelGerencial() {
           tom="cat-3"
           href="/cadastro/clientes"
         />
-        <AcaoRapida
-          titulo="Baixa de vasilhame"
-          descricao="Quebrado, trincado ou perdido"
-          Icone={ArrowLeftRight}
-          tom="cat-5"
-          href="/vasilhame/baixa"
-          emBreve
-        />
-        <AcaoRapida
-          titulo="PDV"
-          descricao="Venda de balcão"
-          Icone={ShoppingCart}
-          tom="cat-2"
-          href="/vendas/pdv"
-          emBreve
-        />
       </div>
 
       {/* ---------------------------------------------------------- três blocos */}
@@ -371,7 +317,6 @@ export default function PainelGerencial() {
         <Bloco
           titulo="Mais vendidos no mês"
           descricao="Em receita — não em unidade"
-          href="/estoque/saldo"
         >
           <div className="space-y-3">
             {MIX_PRODUTOS.map((p) => (

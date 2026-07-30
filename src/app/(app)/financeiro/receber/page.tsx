@@ -1,9 +1,8 @@
 import type { Metadata } from 'next'
-import { AlertTriangle, CircleCheck, Clock, Plus, Wallet } from 'lucide-react'
+import { AlertTriangle, CircleCheck, Clock, Wallet } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Chip } from '@/components/painel/pecas'
 import { Card } from '@/components/ui/card'
-import { BotaoEmBreve } from '@/components/ui/em-breve'
 import { CONTAS_RECEBER, RESUMO } from '@/lib/demo'
 import { moeda } from '@/lib/utils'
 import { TabelaReceber } from './tabela-receber'
@@ -50,21 +49,6 @@ export default function PaginaReceber() {
       <CabecalhoPagina
         titulo="Contas a Receber"
         descricao="Títulos por cliente, com situação e forma de pagamento"
-        acoes={
-          <BotaoEmBreve
-            titulo="Lançamento em Contas a Receber"
-            descricao="Faz parte da Etapa 4 do plano. É o que a tela vai fazer:"
-            itens={[
-              'Título avulso ou gerado direto da venda, sem redigitar',
-              'Parcelamento com vencimentos calculados',
-              'Baixa por PIX, dinheiro, cartão ou boleto, com taxa registrada',
-              'Baixa em lote: marcar vários títulos do mesmo cliente de uma vez',
-            ]}
-          >
-            <Plus aria-hidden />
-            Novo lançamento
-          </BotaoEmBreve>
-        }
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

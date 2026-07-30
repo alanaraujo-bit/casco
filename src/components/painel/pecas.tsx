@@ -234,8 +234,12 @@ export function Bloco({
 /**
  * Atalho grande e colorido.
  *
- * O sistema antigo obriga a passar pelo menu para tudo. Quatro atalhos cobrem
- * o que a operadora faz o dia inteiro; o resto continua no menu.
+ * O sistema antigo obriga a passar pelo menu para tudo. Os atalhos cobrem o que
+ * a operadora faz o dia inteiro; o resto continua no menu.
+ *
+ * Só entram aqui telas que existem. Atalho com selo "em breve" foi removido:
+ * ele ocupa o lugar mais nobre da tela para prometer, e quem trabalha no balcão
+ * aprende em dois dias a não olhar para aquele canto.
  */
 export function AcaoRapida({
   titulo,
@@ -243,16 +247,12 @@ export function AcaoRapida({
   Icone,
   tom,
   href,
-  emBreve = false,
 }: {
   titulo: string
   descricao: string
   Icone: LucideIcon
   tom: Tom
   href: string
-  /** Marca o atalho cuja tela ainda não existe, em vez de deixar o clique
-      cair num beco. Durante a demonstração isso vira roteiro, não defeito. */
-  emBreve?: boolean
 }) {
   return (
     <Link
@@ -266,14 +266,7 @@ export function AcaoRapida({
     >
       <Chip Icone={Icone} tom={tom} />
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-medium text-texto">{titulo}</span>
-          {emBreve && (
-            <span className="shrink-0 rounded-full border border-borda bg-superficie-afundada px-1.5 py-px text-2xs font-medium text-texto-fraco">
-              em breve
-            </span>
-          )}
-        </span>
+        <span className="truncate text-sm font-medium text-texto">{titulo}</span>
         <span className="block truncate text-xs text-texto-suave">{descricao}</span>
       </span>
       <ArrowRight
