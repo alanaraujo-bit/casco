@@ -6,6 +6,9 @@ Produto da [Aionix](https://www.aionixdev.com).
 O que separa o Casco de um ERP genérico: o vasilhame é tratado como o que ele é —
 um ativo emprestado que circula, quebra e às vezes some. Não como uma linha de venda.
 
+**Produção:** https://casco.vercel.app
+Deploy automático a cada push na `main`; cada PR ganha uma URL de preview.
+
 ## Stack
 
 | | |
