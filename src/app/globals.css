@@ -1,26 +1,351 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
+/* Modo escuro por classe/atributo, com o sistema como padrão.
+   O script inline no layout carimba data-theme antes da primeira pintura. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* ==========================================================================
+   PALETA CRUA
+   Em OKLCH porque a luminosidade é perceptualmente uniforme: L=0.60 tem o
+   mesmo peso visual em qualquer matiz. É isso que permite afinar claro e
+   escuro separadamente sem que um dos dois fique desequilibrado.
+   ========================================================================== */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Acento — petróleo. Não é o laranja do sistema antigo (a troca precisa
+     parecer outra ferramenta), e não é azul-água nem vermelho-fogo (o produto
+     serve água e gás). */
+  --petroleo-50: oklch(0.976 0.014 200);
+  --petroleo-100: oklch(0.945 0.031 200);
+  --petroleo-200: oklch(0.885 0.058 200);
+  --petroleo-300: oklch(0.805 0.084 200);
+  --petroleo-400: oklch(0.712 0.101 200);
+  --petroleo-500: oklch(0.624 0.108 200);
+  --petroleo-600: oklch(0.532 0.101 200);
+  --petroleo-700: oklch(0.448 0.086 200);
+  --petroleo-800: oklch(0.368 0.069 200);
+  --petroleo-900: oklch(0.296 0.053 200);
+  --petroleo-950: oklch(0.208 0.038 200);
+
+  /* Neutros com sub-tom frio (matiz 250, croma baixíssimo). Neutro puro
+     cinza fica morto ao lado de um acento saturado. */
+  --cinza-0: oklch(1 0 0);
+  --cinza-50: oklch(0.985 0.002 250);
+  --cinza-100: oklch(0.967 0.003 250);
+  --cinza-200: oklch(0.928 0.005 250);
+  --cinza-300: oklch(0.871 0.007 250);
+  --cinza-400: oklch(0.708 0.011 250);
+  --cinza-500: oklch(0.556 0.013 250);
+  --cinza-600: oklch(0.446 0.013 250);
+  --cinza-700: oklch(0.365 0.012 250);
+  --cinza-800: oklch(0.272 0.011 250);
+  --cinza-900: oklch(0.208 0.009 250);
+  --cinza-950: oklch(0.158 0.008 250);
+  --cinza-1000: oklch(0.122 0.007 250);
+
+  /* Semânticas. Só significam estado — nunca decoram.
+     Cada uma tem par claro/escuro afinado, não invertido. */
+  --verde-light: oklch(0.545 0.129 155);
+  --verde-dark: oklch(0.735 0.132 155);
+  --verde-bg-light: oklch(0.955 0.033 155);
+  --verde-bg-dark: oklch(0.315 0.055 155);
+
+  --ambar-light: oklch(0.588 0.128 75);
+  --ambar-dark: oklch(0.795 0.132 80);
+  --ambar-bg-light: oklch(0.965 0.042 85);
+  --ambar-bg-dark: oklch(0.335 0.058 70);
+
+  --vermelho-light: oklch(0.552 0.191 26);
+  --vermelho-dark: oklch(0.712 0.163 25);
+  --vermelho-bg-light: oklch(0.958 0.028 25);
+  --vermelho-bg-dark: oklch(0.325 0.082 25);
+
+  --azul-light: oklch(0.548 0.154 258);
+  --azul-dark: oklch(0.735 0.126 258);
+  --azul-bg-light: oklch(0.962 0.024 258);
+  --azul-bg-dark: oklch(0.318 0.068 258);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* ==========================================================================
+   MODO CLARO
+   Fundo levemente acinzentado e cartões brancos: dá elevação sem sombra
+   pesada, e cansa menos que branco puro em jornada de 8h.
+   ========================================================================== */
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --fundo: var(--cinza-100);
+  --superficie: var(--cinza-0);
+  --superficie-elevada: var(--cinza-0);
+  --superficie-afundada: var(--cinza-50);
+  --superficie-hover: var(--cinza-100);
+
+  --texto: var(--cinza-950);
+  --texto-suave: var(--cinza-600);
+  --texto-fraco: var(--cinza-500);
+  --texto-invertido: var(--cinza-0);
+
+  --borda: var(--cinza-200);
+  --borda-forte: var(--cinza-300);
+
+  --acento: var(--petroleo-600);
+  --acento-hover: var(--petroleo-700);
+  --acento-ativo: var(--petroleo-800);
+  --acento-suave: var(--petroleo-50);
+  --acento-suave-borda: var(--petroleo-200);
+  --acento-texto: var(--petroleo-700);
+  --acento-contraste: var(--cinza-0);
+
+  --sucesso: var(--verde-light);
+  --sucesso-bg: var(--verde-bg-light);
+  --alerta: var(--ambar-light);
+  --alerta-bg: var(--ambar-bg-light);
+  --perigo: var(--vermelho-light);
+  --perigo-bg: var(--vermelho-bg-light);
+  --info: var(--azul-light);
+  --info-bg: var(--azul-bg-light);
+
+  --foco: var(--petroleo-500);
+
+  /* Sombras reais no claro — aqui elevação é sombra. */
+  --sombra-sm: 0 1px 2px oklch(0.208 0.009 250 / 0.06);
+  --sombra: 0 1px 3px oklch(0.208 0.009 250 / 0.08), 0 1px 2px oklch(0.208 0.009 250 / 0.04);
+  --sombra-md: 0 4px 12px oklch(0.208 0.009 250 / 0.09), 0 2px 4px oklch(0.208 0.009 250 / 0.05);
+  --sombra-lg: 0 12px 28px oklch(0.208 0.009 250 / 0.12), 0 4px 8px oklch(0.208 0.009 250 / 0.06);
 }
 
+/* ==========================================================================
+   MODO ESCURO
+   Não é o claro invertido. Três diferenças que decidem a qualidade:
+   1. Elevação vira luminosidade, não sombra — sombra some sobre fundo escuro.
+   2. O acento sobe de luminosidade e desce de croma; petróleo-600 vira lama.
+   3. O fundo é quase-preto levantado, não #000 — preto puro achata tudo.
+   ========================================================================== */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --fundo: var(--cinza-1000);
+    --superficie: var(--cinza-950);
+    --superficie-elevada: var(--cinza-900);
+    --superficie-afundada: var(--cinza-1000);
+    --superficie-hover: var(--cinza-900);
+
+    --texto: var(--cinza-100);
+    --texto-suave: var(--cinza-400);
+    --texto-fraco: var(--cinza-500);
+    --texto-invertido: var(--cinza-950);
+
+    --borda: var(--cinza-800);
+    --borda-forte: var(--cinza-700);
+
+    --acento: var(--petroleo-400);
+    --acento-hover: var(--petroleo-300);
+    --acento-ativo: var(--petroleo-200);
+    --acento-suave: var(--petroleo-950);
+    --acento-suave-borda: var(--petroleo-800);
+    --acento-texto: var(--petroleo-300);
+    --acento-contraste: var(--cinza-1000);
+
+    --sucesso: var(--verde-dark);
+    --sucesso-bg: var(--verde-bg-dark);
+    --alerta: var(--ambar-dark);
+    --alerta-bg: var(--ambar-bg-dark);
+    --perigo: var(--vermelho-dark);
+    --perigo-bg: var(--vermelho-bg-dark);
+    --info: var(--azul-dark);
+    --info-bg: var(--azul-bg-dark);
+
+    --foco: var(--petroleo-400);
+
+    --sombra-sm: 0 1px 2px oklch(0 0 0 / 0.4);
+    --sombra: 0 1px 3px oklch(0 0 0 / 0.5), 0 1px 2px oklch(0 0 0 / 0.4);
+    --sombra-md: 0 4px 12px oklch(0 0 0 / 0.55), 0 2px 4px oklch(0 0 0 / 0.4);
+    --sombra-lg: 0 12px 28px oklch(0 0 0 / 0.6), 0 4px 8px oklch(0 0 0 / 0.45);
   }
 }
 
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --fundo: var(--cinza-1000);
+  --superficie: var(--cinza-950);
+  --superficie-elevada: var(--cinza-900);
+  --superficie-afundada: var(--cinza-1000);
+  --superficie-hover: var(--cinza-900);
+
+  --texto: var(--cinza-100);
+  --texto-suave: var(--cinza-400);
+  --texto-fraco: var(--cinza-500);
+  --texto-invertido: var(--cinza-950);
+
+  --borda: var(--cinza-800);
+  --borda-forte: var(--cinza-700);
+
+  --acento: var(--petroleo-400);
+  --acento-hover: var(--petroleo-300);
+  --acento-ativo: var(--petroleo-200);
+  --acento-suave: var(--petroleo-950);
+  --acento-suave-borda: var(--petroleo-800);
+  --acento-texto: var(--petroleo-300);
+  --acento-contraste: var(--cinza-1000);
+
+  --sucesso: var(--verde-dark);
+  --sucesso-bg: var(--verde-bg-dark);
+  --alerta: var(--ambar-dark);
+  --alerta-bg: var(--ambar-bg-dark);
+  --perigo: var(--vermelho-dark);
+  --perigo-bg: var(--vermelho-bg-dark);
+  --info: var(--azul-dark);
+  --info-bg: var(--azul-bg-dark);
+
+  --foco: var(--petroleo-400);
+
+  --sombra-sm: 0 1px 2px oklch(0 0 0 / 0.4);
+  --sombra: 0 1px 3px oklch(0 0 0 / 0.5), 0 1px 2px oklch(0 0 0 / 0.4);
+  --sombra-md: 0 4px 12px oklch(0 0 0 / 0.55), 0 2px 4px oklch(0 0 0 / 0.4);
+  --sombra-lg: 0 12px 28px oklch(0 0 0 / 0.6), 0 4px 8px oklch(0 0 0 / 0.45);
+}
+
+/* ==========================================================================
+   EXPOSIÇÃO PARA O TAILWIND
+   `inline` faz as utilities referenciarem a variável em vez de copiar o
+   valor — sem isso, trocar de tema não mudaria nada.
+   ========================================================================== */
+@theme inline {
+  --color-fundo: var(--fundo);
+  --color-superficie: var(--superficie);
+  --color-superficie-elevada: var(--superficie-elevada);
+  --color-superficie-afundada: var(--superficie-afundada);
+  --color-superficie-hover: var(--superficie-hover);
+
+  --color-texto: var(--texto);
+  --color-texto-suave: var(--texto-suave);
+  --color-texto-fraco: var(--texto-fraco);
+  --color-texto-invertido: var(--texto-invertido);
+
+  --color-borda: var(--borda);
+  --color-borda-forte: var(--borda-forte);
+
+  --color-acento: var(--acento);
+  --color-acento-hover: var(--acento-hover);
+  --color-acento-ativo: var(--acento-ativo);
+  --color-acento-suave: var(--acento-suave);
+  --color-acento-suave-borda: var(--acento-suave-borda);
+  --color-acento-texto: var(--acento-texto);
+  --color-acento-contraste: var(--acento-contraste);
+
+  --color-sucesso: var(--sucesso);
+  --color-sucesso-bg: var(--sucesso-bg);
+  --color-alerta: var(--alerta);
+  --color-alerta-bg: var(--alerta-bg);
+  --color-perigo: var(--perigo);
+  --color-perigo-bg: var(--perigo-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+
+  --color-foco: var(--foco);
+
+  --font-sans: var(--fonte-sans), ui-sans-serif, system-ui, sans-serif;
+
+  /* Escala tipográfica de ferramenta densa: 13px é o corpo, não 16px.
+     Quem passa 8h na tela quer ver mais linha, não texto maior. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.875rem;
+  --text-base--line-height: 1.375rem;
+  --text-lg: 1rem;
+  --text-lg--line-height: 1.5rem;
+  --text-xl: 1.125rem;
+  --text-xl--line-height: 1.625rem;
+  --text-2xl: 1.375rem;
+  --text-2xl--line-height: 1.875rem;
+  --text-3xl: 1.75rem;
+  --text-3xl--line-height: 2.125rem;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+
+  --shadow-sm: var(--sombra-sm);
+  --shadow-DEFAULT: var(--sombra);
+  --shadow-md: var(--sombra-md);
+  --shadow-lg: var(--sombra-lg);
+}
+
+/* ========================================================================== */
+
+* {
+  border-color: var(--borda);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--fundo);
+  color: var(--texto);
+  font-family: var(--fonte-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--text-base);
+  line-height: var(--text-base--line-height);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dinheiro e quantidade SEMPRE em algarismo tabular. Sem isso as colunas de
+   valor tremem entre linhas, e uma tabela financeira que treme parece amadora
+   antes mesmo de o usuário ler o número. */
+.tabular,
+table td,
+table th,
+input[type='number'],
+[data-numero] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Foco visível e consistente. Nunca removido — o balconista opera no teclado. */
+:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+::selection {
+  background-color: var(--acento-suave);
+  color: var(--acento-texto);
+}
+
+/* Barra de rolagem discreta, coerente nos dois temas. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--borda-forte) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--borda-forte);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--texto-fraco);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
