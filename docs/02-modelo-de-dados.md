@@ -139,9 +139,19 @@ Regra de ouro do módulo: **baixa de galão é evento de estoque, jamais uma ven
 Nenhum motivo desta tabela toca `vendas`, `pagamentos` ou `contas_receber`. É exatamente
 essa separação que conserta o DRE do cliente.
 
-Perdas viram custo pelo custo médio do vasilhame, lançadas em `caixa_movimentos` como
-saída na categoria "Perda de vasilhame" — visível no DRE como custo, que é onde deveria
-estar desde sempre.
+Perdas viram custo pelo custo médio do vasilhame, visível no DRE como custo — que é onde
+deveria estar desde sempre.
+
+> **Correção do plano original, aplicada na migration 0005.** A primeira versão deste
+> documento mandava lançar a perda em `caixa_movimentos`, como saída na categoria "Perda
+> de vasilhame". Isso está errado: quando um galão quebra, **nenhum dinheiro sai do
+> caixa**. Jogar a perda no fluxo de caixa erraria o saldo do dia exatamente como a venda
+> de R$ 0,13 erra o faturamento — trocaríamos um número falso por outro, e o Fluxo de
+> Caixa Diário deixaria de bater com o dinheiro na gaveta.
+>
+> Perda é **custo não-caixa**. Ela vive em `vasilhame_movimentos`, com o custo unitário
+> congelado na linha, e o DRE a lê pela view `vasilhame_perdas`. Uma fonte só, auditável
+> galão a galão, sem duplicação para sair de sincronia.
 
 O saldo é **derivado** dos movimentos, mas materializado na tabela de saldo para leitura
 rápida no caminhão. Um trigger mantém as duas em sincronia — assim o saldo nunca "descola"
