@@ -19,11 +19,16 @@ export default function Home() {
           Gestão para distribuidoras com vasilhame retornável — água e gás.
         </p>
 
-        <Button asChild variant="primario" size="lg">
-          <Link href="/design">Ver o design system</Link>
-        </Button>
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+          <Button asChild variant="primario" size="lg">
+            <Link href="/painel">Entrar no sistema</Link>
+          </Button>
+          <Button asChild variant="secundario" size="lg">
+            <Link href="/design">Design system</Link>
+          </Button>
+        </div>
 
-        <p className="text-2xs text-texto-fraco">Em construção · Etapa 0.4 do roadmap</p>
+        <p className="text-2xs text-texto-fraco">Em construção · Etapa 0.5 do roadmap</p>
       </div>
     </main>
   )

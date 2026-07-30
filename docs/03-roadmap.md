@@ -4,6 +4,27 @@ Princípio de execução: **uma etapa por vez, terminada de verdade.**
 Nada avança enquanto a etapa atual não passar pelos três níveis. Qualidade antes de
 velocidade — não existe "volto depois pra arrumar".
 
+## Foco atual: o ERP do escritório
+
+Decisão de 30/07/2026: **o app do entregador sai do caminho crítico.** O alvo é
+entregar à LM o sistema que o dono e a operadora de balcão usam todo dia, substituindo
+o Fature Gestão. A Etapa 7 (rotas e app de campo) fica adiada, não cancelada.
+
+O que isso muda:
+
+- **Offline-first sai do escopo imediato.** O escritório tem internet; era o caminhão
+  que não tinha. A modelagem continua preparada (UUID v7 gerado no cliente,
+  idempotência por `id`), porque desfazer isso depois custaria caro e mantê-lo não
+  custa nada agora.
+- **Alvos de toque de 44px continuam.** Não é concessão ao entregador: é o que faz o
+  sistema funcionar no celular do dono, que vai querer olhar o faturamento fora da loja.
+- **Vasilhame continua sendo a Etapa 2 e o diferencial.** Não é módulo de campo — a
+  baixa de galão quebrado é lançada no balcão, e é justamente o buraco que faz a
+  operadora registrar venda de R$ 0,13 hoje.
+
+O que fica adiado: montagem de rota, app de campo, fila de sincronização, confirmação
+de entrega com geolocalização.
+
 ---
 
 ## A regra da familiaridade
@@ -54,15 +75,17 @@ e no celular, com dados de verdade. Build passando não conta como pronto.
 ### Etapa 0 — Fundação
 *Nenhuma tela de negócio. É o chão onde todo o resto pisa.*
 
-- Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui
-- Supabase + Drizzle, migrations versionadas
-- Multi-tenant: `company_id` em tudo, RLS ligada, `company_id` no JWT
-- Auth: login, sessão, papéis (dono · operador · entregador)
-- **Shell da aplicação**: sidebar espelhando os grupos de menu deles, topbar, breadcrumb
-- **Design system**: paleta, tipografia, escala de espaçamento, tokens, dark mode
-- **Componente de tabela de dados** — paginação, ordenação, filtro, densidade,
+- **0.1** Next.js 16 (App Router) + TypeScript + Tailwind v4 ✅
+- **0.2** Postgres no Railway + Drizzle + RLS por `company_id` + runner de migrations
+  — *código pronto, aguardando o Railway*
+- **0.3** Auth.js v5: login, sessão com `company_id` e papel, guard em `proxy.ts`
+- **0.4** Design system: paleta OKLCH em dois temas, tipografia, tokens, estados ✅
+- **0.5** **Shell da aplicação**: sidebar espelhando os grupos de menu deles, topbar
+- **0.6** **Componente de tabela de dados** — paginação, ordenação, filtro, densidade,
   exportar. Vai ser reusado em ~15 telas; feito bem uma vez, paga o projeto inteiro
-- PWA: manifest, service worker, e as travas de mobile (sem zoom, sem seleção, sem bounce)
+- **0.7** PWA e responsividade: manifest, e as travas de mobile (sem zoom, sem seleção
+  acidental, sem bounce). Escopo reduzido — sem service worker offline, já que o app
+  de campo saiu do caminho crítico
 
 > Etapa mais longa e a que menos aparece. É proposital: cada tela depois sai em uma
 > fração do tempo porque a fundação já resolveu o difícil.
@@ -131,13 +154,17 @@ e no celular, com dados de verdade. Build passando não conta como pronto.
 - Fluxo de Caixa Diário e Mensal — **12 meses**, não 10
 - Perda de vasilhame como linha de custo visível
 
-### Etapa 7 — Rotas e app do entregador
-*A mais difícil. Precisa de tudo que veio antes.*
+### ~~Etapa 7 — Rotas e app do entregador~~ — **ADIADA**
+*Fora do caminho crítico desde 30/07/2026. Entra depois da entrega do ERP.*
 
 - Montagem de rota, carga do caminhão, ordem de visita
 - App do entregador em PWA, **offline-first** (Dexie + outbox, UUID v7 no device)
 - Confirmação de entrega com geolocalização
 - Conferência de retorno: vasilhame que voltou, quebrado, e dinheiro
+
+> O que fica preservado desde já, porque desfazer depois custa caro e manter agora
+> não custa nada: `id` gerado no cliente com UUID v7, endereço desnormalizado em
+> `clientes`, e `sync_outbox_log` no modelo de dados.
 
 ---
 
@@ -145,13 +172,15 @@ e no celular, com dados de verdade. Build passando não conta como pronto.
 
 ```
 0 Fundação → 1 Cadastros → 2 Vasilhame → 3 Vendas → 4 Financeiro
-  → 5 Estoque → 6 Relatórios → 7 Rotas
+  → 5 Estoque → 6 Relatórios ┊ (7 Rotas — adiada)
 ```
 
 - **Cadastros antes de tudo**: nada funciona sem cliente e produto.
 - **Vasilhame cedo**: é a dor nº 1, é autocontido, e é a demo que fecha a adoção.
+  Não é módulo de campo — a baixa de galão quebrado é lançada no balcão.
 - **Relatórios tarde**: relatório sem dado real é decoração.
-- **Rotas por último**: é o mais difícil, e depende de venda, estoque e vasilhame prontos.
+- **Rotas adiada**: a entrega ao cliente é o ERP do escritório. Rota só faz sentido
+  depois que venda, estoque e vasilhame estiverem rodando de verdade.
 
 ---
 
