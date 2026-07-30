@@ -51,10 +51,10 @@ drop policy if exists tenant_isolation on users;
 create policy tenant_isolation on users
   using (company_id = current_setting('app.company_id', true)::uuid);
 
--- Quando `app.company_id` não está definido, `current_setting(..., true)`
--- devolve null, a comparação vira null, e a política nega tudo.
--- Ou seja: query sem tenant definido não retorna linha nenhuma. É o padrão
--- seguro — falha fechada, não aberta.
+-- ATENÇÃO: o raciocínio acima está errado e foi corrigido na 0003.
+-- `current_setting(..., true)` só devolve null enquanto o parâmetro nunca
+-- existiu na sessão; depois de um `set_config` local ele volta para string
+-- vazia, e `''::uuid` levanta exceção. As políticas válidas são as da 0003.
 
 -- ------------------------------------------------------- login (exceção)
 -- O login é o único momento em que precisamos ler `users` sem saber ainda a

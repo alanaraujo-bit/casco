@@ -134,23 +134,38 @@ async function provarIsolamento() {
     }
 
     // Enxergando como a empresa A.
-    const visto = await app.begin(async (tx) => {
-      await tx`select set_config('app.company_id', ${A}, true)`;
-      return tx`select id, nome from companies where id in (${A}, ${B})`;
-    });
+    try {
+      const visto = await app.begin(async (tx) => {
+        await tx`select set_config('app.company_id', ${A}, true)`;
+        return tx`select id, nome from companies where id in (${A}, ${B})`;
+      });
 
-    if (visto.length !== 1 || visto[0].id !== A) {
-      problemas.push(
-        `com app.company_id = A, a consulta devolveu ${visto.length} linha(s) ` +
-          `(${visto.map((r) => r.nome).join(', ') || 'nenhuma'}) — deveria devolver exatamente a empresa A`,
-      );
+      if (visto.length !== 1 || visto[0].id !== A) {
+        problemas.push(
+          `com app.company_id = A, a consulta devolveu ${visto.length} linha(s) ` +
+            `(${visto.map((r) => r.nome).join(', ') || 'nenhuma'}) — deveria devolver exatamente a empresa A`,
+        );
+      }
+    } catch (err) {
+      problemas.push(`a consulta com tenant definido levantou erro: ${err.message}`);
     }
 
     // Sem tenant definido, a politica precisa negar tudo — falha fechada.
-    const semTenant = await app`select count(*)::int as n from companies`;
-    if (semTenant[0].n !== 0) {
+    //
+    // Esta consulta roda DEPOIS da transacao acima e na mesma conexao, de
+    // proposito: e o cenario real de producao, onde a conexao e reciclada entre
+    // requisicoes. Foi exatamente aqui que a 0001 quebrou — o parametro nao
+    // volta a ser indefinido depois da transacao, volta a ser string vazia.
+    try {
+      const semTenant = await app`select count(*)::int as n from companies`;
+      if (semTenant[0].n !== 0) {
+        problemas.push(
+          `sem app.company_id definido, a consulta devolveu ${semTenant[0].n} linha(s) — deveria devolver zero`,
+        );
+      }
+    } catch (err) {
       problemas.push(
-        `sem app.company_id definido, a consulta devolveu ${semTenant[0].n} linha(s) — deveria devolver zero`,
+        `a consulta sem tenant levantou erro em vez de devolver zero linhas: ${err.message}`,
       );
     }
   } finally {
