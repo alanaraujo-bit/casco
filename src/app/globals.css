@@ -8,10 +8,15 @@
 /* O script também carimba a PREFERÊNCIA (light/dark/sistema), separada do tema
    resolvido. Com isso o seletor de tema pinta a opção ativa por CSS, e não por
    estado do React — que só existe depois da hidratação e faria o indicador
-   saltar para quem escolheu um tema explícito. */
-@custom-variant pref-light (&:where([data-tema-pref='light'] *));
-@custom-variant pref-dark (&:where([data-tema-pref='dark'] *));
-@custom-variant pref-sistema (&:where([data-tema-pref='sistema'] *));
+   saltar para quem escolheu um tema explícito.
+
+   `:is` e não `:where` de propósito: `:where` contribui zero para a
+   especificidade, então `hover:` (0,2,0) venceria o estado ativo (0,1,0) — e
+   passar o mouse sobre a opção já selecionada a deixaria com cara de
+   desativada. Com `:is` os dois empatam e a ordem decide, que é o correto. */
+@custom-variant pref-light (&:is([data-tema-pref='light'] *));
+@custom-variant pref-dark (&:is([data-tema-pref='dark'] *));
+@custom-variant pref-sistema (&:is([data-tema-pref='sistema'] *));
 
 /* ==========================================================================
    PALETA CRUA

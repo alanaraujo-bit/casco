@@ -67,6 +67,18 @@ e no celular, com dados de verdade. Build passando não conta como pronto.
 > Etapa mais longa e a que menos aparece. É proposital: cada tela depois sai em uma
 > fração do tempo porque a fundação já resolveu o difícil.
 
+> **Critério de aceite herdado da revisão da 0.4:** a região `aria-live` do
+> carregamento tem que morar no container do DataTable, que persiste entre
+> "carregando" e "carregado" — não no skeleton, que é substituído. Hoje o
+> leitor de tela anuncia "Carregando…" na montagem e nunca anuncia que
+> terminou.
+>
+> **Validar na Etapa 4, com os 111 lançamentos reais de Contas a Receber:** a
+> escala tipográfica subiu um degrau (corpo de 13px para 14px), o que custa
+> cerca de 5% das linhas por tela. Se a operadora reclamar de rolagem, o
+> ajuste é `--text-sm` voltar para 13px **mantendo** o piso de 12px nos selos
+> — não desfazer a escala.
+
 ### Etapa 1 — Cadastros
 *Clientes primeiro — é a melhor tela do sistema deles e a base de todo o resto.*
 
