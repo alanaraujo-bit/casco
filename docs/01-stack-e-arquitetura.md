@@ -10,7 +10,7 @@
 
 | Camada | Escolha | Por quê |
 |---|---|---|
-| Front + API | **Next.js 15 (App Router) + TypeScript** | Um só codebase serve desktop e PWA. Server Components cortam o JS enviado ao celular do entregador. |
+| Front + API | **Next.js 16 (App Router) + TypeScript** | Um só codebase serve desktop e PWA. Server Components cortam o JS enviado ao celular do entregador. |
 | Banco | **Postgres no Railway** | Postgres puro, sem vendor lock. RLS nativa é o mecanismo de isolamento multi-tenant. Já contratado. |
 | ORM | **Drizzle** | SQL-first, migrations versionadas, tipagem real. Prisma pesa demais em serverless. |
 | Auth | **Auth.js (NextAuth) v5** | Sessão em JWT com `company_id` e papel embutidos. Sem depender de provedor externo. |
