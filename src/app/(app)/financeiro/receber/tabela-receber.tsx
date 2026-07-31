@@ -3,7 +3,7 @@
 import { Badge } from '@/components/ui/badge'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
-import { CONTAS_RECEBER, type ContaDemo } from '@/lib/demo'
+import type { TituloLista } from '@/modules/financeiro/consultas'
 import { moeda } from '@/lib/utils'
 
 const TOM_SITUACAO = {
@@ -13,10 +13,18 @@ const TOM_SITUACAO = {
 } as const
 
 /** dd/mm/aaaa ordena por dia se comparado como texto. Vira Date. */
-function data(br: string) {
+function data(br: string | null) {
+  if (!br) return null
   const [d, m, a] = br.split('/')
   return new Date(Number(a), Number(m) - 1, Number(d))
 }
+
+/**
+ * `numeric` do Postgres chega como string, e de propósito: `12345678.99` em
+ * `Number` já perde centavo. Convertemos só na hora de formatar, nunca para
+ * fazer conta — soma de dinheiro é responsabilidade do banco.
+ */
+const num = (v: string | null) => (v == null ? null : Number(v))
 
 /**
  * A ordem das colunas é a do Fature Gestão, item por item.
@@ -29,13 +37,13 @@ function data(br: string) {
  * escondidas e ligam num clique — a tela abre respirando, e quem precisa
  * conferir liga o que precisa.
  */
-const colunas: Coluna<ContaDemo>[] = [
+const colunas: Coluna<TituloLista>[] = [
   { chave: 'origem', cabecalho: 'Origem', texto: (c) => c.origem, papelMobile: 'oculto' },
   {
     chave: 'codigo',
     cabecalho: 'Código',
-    texto: (c) => c.codigo,
-    valor: (c) => Number(c.codigo),
+    texto: (c) => (c.codigo ? String(c.codigo).padStart(4, '0') : '—'),
+    valor: (c) => c.codigo ?? 0,
     numerica: true,
     papelMobile: 'oculto',
   },
@@ -57,19 +65,19 @@ const colunas: Coluna<ContaDemo>[] = [
   {
     chave: 'valorTotal',
     cabecalho: 'Valor Total',
-    texto: (c) => moeda(c.valorTotal),
-    valor: (c) => c.valorTotal,
+    texto: (c) => moeda(Number(c.valorTotal)),
+    valor: (c) => Number(c.valorTotal),
     numerica: true,
     papelMobile: 'campo',
   },
   { chave: 'parcela', cabecalho: 'Parcela', texto: (c) => c.parcela, ordenavel: false },
   {
-    // Estava faltando, e não é detalhe: num título de R$ 3.400 em "2/3", é este
-    // o número que entra no caixa. Sem ele a operadora não fecha o dia.
+    // Num título de R$ 3.400 em "2/3", é este o número que entra no caixa.
+    // Sem ele a operadora não fecha o dia.
     chave: 'valorParcela',
     cabecalho: 'Valor Parcela',
-    texto: (c) => moeda(c.valorParcela),
-    valor: (c) => c.valorParcela,
+    texto: (c) => moeda(Number(c.valorParcela)),
+    valor: (c) => Number(c.valorParcela),
     numerica: true,
     papelMobile: 'destaque',
   },
@@ -80,6 +88,8 @@ const colunas: Coluna<ContaDemo>[] = [
     valor: (c) => data(c.vencimento),
   },
   {
+    // Derivada no banco a partir de `pago_em` e `vencimento`, nunca digitada:
+    // no sistema deles dá para ver linha "Vencido" com vencimento no mês que vem.
     chave: 'situacao',
     cabecalho: 'Situação',
     texto: (c) => c.situacao,
@@ -88,21 +98,21 @@ const colunas: Coluna<ContaDemo>[] = [
   {
     chave: 'banco',
     cabecalho: 'Banco',
-    texto: (c) => c.banco,
+    texto: (c) => c.banco ?? '—',
     ocultaPorPadrao: true,
     papelMobile: 'oculto',
   },
   {
     chave: 'formaPagamento',
     cabecalho: 'Forma Pgto',
-    texto: (c) => c.formaPagamento,
+    texto: (c) => c.formaPagamento ?? '—',
     papelMobile: 'campo',
   },
   {
     chave: 'taxas',
     cabecalho: 'Taxas',
-    texto: (c) => (c.taxas ? moeda(c.taxas) : '—'),
-    valor: (c) => c.taxas || null,
+    texto: (c) => (Number(c.taxas) ? moeda(Number(c.taxas)) : '—'),
+    valor: (c) => Number(c.taxas) || null,
     numerica: true,
     ocultaPorPadrao: true,
     papelMobile: 'oculto',
@@ -111,33 +121,37 @@ const colunas: Coluna<ContaDemo>[] = [
     chave: 'dataPagamento',
     cabecalho: 'Data Pagamento',
     texto: (c) => c.dataPagamento ?? '—',
-    valor: (c) => (c.dataPagamento ? data(c.dataPagamento) : null),
+    valor: (c) => data(c.dataPagamento),
     ocultaPorPadrao: true,
     papelMobile: 'oculto',
   },
   {
     chave: 'valorPago',
     cabecalho: 'Valor Pago',
-    texto: (c) => (c.valorPago == null ? '—' : moeda(c.valorPago)),
-    valor: (c) => c.valorPago ?? null,
+    texto: (c) => (c.valorPago == null ? '—' : moeda(Number(c.valorPago))),
+    valor: (c) => num(c.valorPago),
     numerica: true,
     ocultaPorPadrao: true,
     papelMobile: 'oculto',
   },
 ]
 
-export function TabelaReceber() {
+export function TabelaReceber({ linhas }: { linhas: TituloLista[] }) {
   return (
     <TabelaDados
       id="contas-receber"
       legenda="Contas a receber"
       colunas={colunas}
-      linhas={CONTAS_RECEBER}
+      linhas={linhas}
       chaveLinha={(c) => c.id}
       buscaPlaceholder="Buscar por cliente, código, situação…"
       nomeExportacao="contas-a-receber"
       densidadePadrao="compacta"
-      vazio={{ descricao: 'Nenhum título lançado neste período.' }}
+      vazio={{
+        titulo: 'Nenhum título lançado',
+        descricao:
+          'Os títulos aparecem aqui quando uma venda for registrada a prazo, ou quando você lançar uma cobrança avulsa.',
+      }}
     />
   )
 }

@@ -170,6 +170,18 @@ export function TabelaDados<T>({
     [colunas, prefs.ocultas],
   )
 
+  /**
+   * Onde mora o link da linha: a coluna marcada como título.
+   *
+   * Cai para a primeira quando nenhuma se declara — e aí o comportamento é o
+   * antigo. Calculado sobre as colunas VISÍVEIS porque o usuário pode esconder
+   * colunas, e o link precisa acompanhar o que sobrou na tela.
+   */
+  const indiceTitulo = React.useMemo(() => {
+    const i = visiveis.findIndex((c) => c.papelMobile === 'titulo')
+    return i >= 0 ? i : 0
+  }, [visiveis])
+
   const alternarColuna = (chave: string, mostrar: boolean) =>
     setPrefs((p) => ({
       ...p,
@@ -457,7 +469,16 @@ export function TabelaDados<T>({
         ) : (
           <>
             {/* ---------------------------------------------- tabela (ponteiro) */}
-            <div className="hidden overflow-x-auto rounded-t-lg md:block">
+            {/* Rola nos dois eixos, e é isto que faz o cabeçalho grudar de
+                verdade: o `sticky` das células se ancora aqui. Enquanto só
+                havia `overflow-x`, não existia rolagem vertical para grudar em
+                nada — e o deslocamento acabava empurrando o cabeçalho por cima
+                dos dados.
+
+                Altura limitada pela viewport, e só isso — sem altura mínima. Um
+                piso deixaria a tabela com 16rem de vazio embaixo quando houvesse
+                duas linhas, e cadastro que começa do zero passa semanas assim. */}
+            <div className="hidden max-h-[calc(100dvh-18rem)] overflow-auto rounded-t-lg md:block">
               <table className="w-full border-collapse text-sm">
                 <caption className="sr-only">{legenda}</caption>
                 <thead>
@@ -480,10 +501,22 @@ export function TabelaDados<T>({
                           }
                           style={c.larguraMin ? { minWidth: c.larguraMin } : undefined}
                           className={cn(
-                            // `top-14` e não `top-0`: a barra superior do app é
-                            // fixa e tem 3.5rem — grudar em 0 esconde o
-                            // cabeçalho atrás dela.
-                            'sticky top-14 z-10 bg-superficie-afundada',
+                            // `top-0`, e o motivo importa.
+                            //
+                            // Era `top-14`, mirando a barra superior de 3.5rem.
+                            // Só que `sticky` se ancora no contêiner de rolagem
+                            // mais próximo, e o `overflow-x-auto` do wrapper
+                            // abaixo já é um. Esse wrapper não rola na vertical,
+                            // então o deslocamento não grudava nada: empurrava o
+                            // cabeçalho 56px para baixo, abrindo uma faixa vazia
+                            // no topo e cobrindo as duas primeiras linhas. A
+                            // tela parecia ter dois cabeçalhos embaralhados com
+                            // os dados.
+                            //
+                            // Com `top-0` ele fica no lugar certo. Para o
+                            // cabeçalho acompanhar a rolagem, quem precisa rolar
+                            // é este wrapper — feito logo abaixo.
+                            'sticky top-0 z-10 bg-superficie-afundada',
                             'border-b-2 border-borda-forte',
                             'text-2xs font-semibold uppercase tracking-wide text-texto-suave',
                             'whitespace-nowrap',
@@ -552,11 +585,19 @@ export function TabelaDados<T>({
                               i === 0 ? 'font-medium text-texto' : 'text-texto-suave',
                             )}
                           >
-                            {/* A âncora fica na primeira célula, não no <tr>:
-                                linha não é elemento focável, e envolver a tabela
-                                inteira em link quebra a semântica de tabela.
-                                O ::after estende a área clicável pela linha. */}
-                            {href && i === 0 ? (
+                            {/* A âncora fica na célula que IDENTIFICA a linha,
+                                não no <tr>: linha não é elemento focável, e
+                                envolver a tabela inteira em link quebra a
+                                semântica de tabela. O ::after estende a área
+                                clicável pela linha inteira.
+
+                                Era sempre a primeira coluna. Deu errado assim
+                                que Clientes ganhou "Código" na frente do nome:
+                                o link virou o número, e quem clicava no nome do
+                                cliente não abria nada. Agora segue a coluna
+                                marcada como título — a mesma que vira o título
+                                do cartão no celular. */}
+                            {href && i === indiceTitulo ? (
                               <Link
                                 href={href}
                                 className="relative rounded after:absolute after:inset-y-0 after:-left-4 after:right-[-100vw] after:content-[''] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foco"

@@ -5,6 +5,7 @@ import { sql } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { db } from '@/db/client'
+import { withTenant } from '@/db/tenant'
 import type { Papel } from '@/db/schema'
 import { criarSessao, encerrarSessao } from '@/lib/sessao'
 
@@ -79,8 +80,15 @@ export async function entrar(
     return { erro: 'E-mail ou senha incorretos.', email }
   }
 
-  const [empresa] = await db.execute<{ nome: string }>(
-    sql`select nome from companies where id = ${usuario.company_id}`,
+  // Dentro do `withTenant`, e não solto como estava.
+  //
+  // `companies` tem RLS: sem `app.company_id` definido a política nega, a
+  // consulta volta vazia e o nome da empresa virava string vazia — silenciosamente.
+  // O efeito aparecia longe da causa: a topbar e o painel mostravam a data
+  // seguida de um "·" solto, e ninguém ligava isso ao login. A RLS fez o que
+  // devia; o errado era consultar fora do wrapper.
+  const [empresa] = await withTenant(usuario.company_id, (tx) =>
+    tx.execute<{ nome: string }>(sql`select nome from companies where id = ${usuario.company_id}`),
   )
 
   await criarSessao({

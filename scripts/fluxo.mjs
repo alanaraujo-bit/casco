@@ -85,6 +85,11 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms))
  */
 const PREFIXO = '[teste-fluxo]'
 
+/** 1440×900: o notebook comum do escritório, e bem acima do breakpoint md. */
+const DESKTOP = { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false }
+/** iPhone 14. O dono vai olhar o faturamento daqui, fora da loja. */
+const CELULAR = { width: 390, height: 844, deviceScaleFactor: 3, mobile: true }
+
 const bancoUrl = process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL
 const banco = bancoUrl
   ? postgres(bancoUrl, { max: 1, prepare: false, onnotice() {} })
@@ -431,6 +436,11 @@ try {
   await comando(ws, 'Page.enable', {}, sessao)
   await comando(ws, 'Runtime.enable', {}, sessao)
 
+  // Desktop de verdade desde o início. A janela padrão do headless tem 800×600,
+  // que fica abaixo do breakpoint `md` — a rodada inteira exercitava a visão de
+  // cartões do celular achando que testava a tabela, e a tabela nunca era vista.
+  await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
+
   // Instalado ANTES de qualquer navegação e reinstalado a cada documento: um
   // `console.error` disparado durante a hidratação acontece antes de qualquer
   // script nosso conseguir rodar depois do load. Sem isto o teste conferia uma
@@ -460,6 +470,18 @@ try {
   await clicar('Entrar')
   await esperarCaminho((p) => p.startsWith('/painel'), 'entrar no painel')
   check('login pelo formulário funciona', true)
+
+  // O nome da empresa vem do banco na hora do login e viaja na sessão. Ficava
+  // vazio porque a consulta rodava fora do `withTenant` e a RLS negava — e o
+  // sintoma era só um "·" solto ao lado da data. Num sistema multi-tenant, o
+  // nome da distribuidora na tela é o que denuncia sessão trocada antes de um
+  // lançamento ir para a empresa errada.
+  const cabecalho = await texto()
+  check(
+    'o nome da empresa aparece na tela',
+    /Distribuidora|Natuclara/i.test(cabecalho),
+    cabecalho.split('\n').slice(0, 4).join(' / '),
+  )
 
   /* ------------------------------------------------------------ senha errada */
   await irPara('/painel')
@@ -515,6 +537,11 @@ try {
   await esperarCaminho((p) => p.startsWith('/cadastro/clientes?novo='), 'voltar para a lista depois de salvar')
   check('cadastro salva e volta para a lista', true)
 
+  // Fotos das telas em estado normal, não só de falha. Defeito de sobreposição
+  // — cabeçalho por cima das linhas, coluna espremida — não aparece em
+  // asserção de texto nenhuma: o conteúdo está lá, só está no lugar errado.
+  await foto('lista-clientes')
+
   const listaDepois = await texto()
   check('o cliente aparece na lista', listaDepois.includes(nome))
   check('o código foi gerado automaticamente', /\b000\d\b/.test(listaDepois))
@@ -569,7 +596,7 @@ try {
   await comando(
     ws,
     'Emulation.setDeviceMetricsOverride',
-    { width: 390, height: 844, deviceScaleFactor: 3, mobile: true },
+    CELULAR,
     sessao,
   )
   await irPara('/cadastro/clientes')
@@ -578,7 +605,9 @@ try {
     (await js('return document.documentElement.scrollWidth <= window.innerWidth + 1')),
     `scrollWidth=${await js('return document.documentElement.scrollWidth')} vs ${await js('return window.innerWidth')}`,
   )
+  await foto('celular-lista')
   await irPara('/cadastro/clientes/novo')
+  await foto('celular-formulario')
   check(
     'no celular o formulário não rola de lado',
     (await js('return document.documentElement.scrollWidth <= window.innerWidth + 1')),
@@ -598,6 +627,41 @@ try {
     `abaixo de 44px: ${menores}`,
   )
 
+  /* ------------------------------------------- as outras telas do menu */
+  // Cada tela do menu tem que abrir e mostrar dado do banco. A checagem de
+  // "nenhum número inventado" é literal: `demo.ts` não existe mais, então
+  // qualquer nome daquele arquivo aparecendo aqui significa que sobrou
+  // import morto em algum lugar.
+  await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
+
+  await irPara('/financeiro/receber')
+  const receber = await texto()
+  await foto('contas-a-receber')
+  check(
+    'Contas a Receber abre lendo do banco',
+    receber.includes('Contas a Receber') && receber.includes('Total lançado'),
+  )
+  check(
+    'Contas a Receber sem título mostra o estado vazio',
+    receber.includes('Nenhum título lançado'),
+  )
+
+  await irPara('/painel')
+  const painel = await texto()
+  await foto('painel')
+  check('Painel Gerencial abre', painel.includes('Painel Gerencial'))
+
+  const INVENTADOS = [
+    'Mercado Bom Preço',
+    'Distribuidora Norte',
+    'Restaurante Sabor da Terra',
+    'Padaria Pão Quente',
+    'Hotel Xingu',
+    'Top Gás Tucumã',
+  ]
+  const vestigios = INVENTADOS.filter((n) => receber.includes(n) || painel.includes(n))
+  check('nenhum dado fictício nas telas', vestigios.length === 0, vestigios.join(', '))
+
   /* ------------------------------------------------------- interatividade */
   // A prova de que o React assumiu a página.
   //
@@ -607,7 +671,7 @@ try {
   // ficam inertes, e nada disso levanta erro em lugar nenhum. É a falha mais
   // silenciosa que este projeto pode ter, e foi por isso que virou checagem
   // fixa: sem ela, dezessete testes verdes escondiam metade da interface morta.
-  await comando(ws, 'Emulation.clearDeviceMetricsOverride', {}, sessao)
+  await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
   await irPara('/cadastro/clientes')
   const estaHidratada = () =>
     js(`
