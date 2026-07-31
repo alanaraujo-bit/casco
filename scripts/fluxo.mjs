@@ -210,11 +210,19 @@ async function js(expressao) {
 }
 
 async function irPara(caminho) {
+  const antes = errosDaPagina.length
   await comando(ws, 'Page.navigate', { url: BASE + caminho }, sessao)
   await esperarPor(() => js(`return document.readyState === 'complete'`), `carregar ${caminho}`)
   // O React ainda precisa hidratar depois do `load` — sem isto, um clique
   // acontece antes de o handler existir e simplesmente não faz nada.
   await espera(400)
+
+  // Carimba a tela em que o erro nasceu. Sem isto o relatório diz "erro de
+  // hidratação" e cabe a alguém adivinhar em qual das seis telas — e em
+  // produção a mensagem vem minificada, sem componente e sem linha.
+  for (let i = antes; i < errosDaPagina.length; i++) {
+    errosDaPagina[i] = `[${caminho}] ${errosDaPagina[i]}`
+  }
 }
 
 async function esperarPor(condicao, oque, ms = 15_000) {
