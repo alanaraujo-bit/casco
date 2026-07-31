@@ -50,6 +50,24 @@ níveis (Funciona → Fluido → Premium) antes da próxima começar.
 **Pronto significa rodando.** Build passar não é prova. Execute o fluxo de verdade,
 no desktop e no celular, antes de dizer que terminou.
 
+Três comandos tornam isso verificável, e cada um pega o que os outros não pegam:
+
+| | |
+|---|---|
+| `npm run db:provar` | As regras que moram no banco — RLS, constraint, trigger — exercitadas como `casco_app`, o papel restrito da aplicação. |
+| `npm run fluxo` | O fluxo real num Chrome de verdade: login digitado, botões clicados, celular emulado. Pega o que `tsc` não vê. |
+| `npm run build` | Por último, e só confirma que compila. |
+
+Duas armadilhas que custaram caro e estão anotadas no código:
+
+- **Use `localhost`, nunca `127.0.0.1`, no `next dev`.** São origens diferentes para o
+  navegador, o Next 16 recusa servir os pacotes do cliente para a origem errada, e a
+  recusa é silenciosa: a página abre, navega e grava — porque formulário e link são HTML
+  puro — mas o React nunca assume. Nada aparece no console.
+- **O React 19 limpa o formulário quando a action termina**, inclusive em erro. Devolva os
+  valores digitados no estado e remonte o formulário, senão a operadora perde tudo que
+  preencheu ao errar um dígito.
+
 ## Estrutura
 
 ```

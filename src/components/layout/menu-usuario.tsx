@@ -1,6 +1,5 @@
 'use client'
 
-import { useTransition } from 'react'
 import { ChevronDown, LogOut } from 'lucide-react'
 import { Menu, MenuConteudo, MenuGatilho, MenuItem, MenuRotulo, MenuSeparador } from '@/components/ui/menu'
 import { sair } from '@/modules/auth/acoes'
@@ -29,8 +28,6 @@ export function MenuUsuario({
   empresa: string
   papel: string
 }) {
-  const [saindo, iniciarSaida] = useTransition()
-
   const iniciais = nome
     .split(/\s+/)
     .filter(Boolean)
@@ -69,15 +66,24 @@ export function MenuUsuario({
 
         <MenuSeparador />
 
-        <MenuItem
-          disabled={saindo}
-          // `onSelect` do Radix e não `onClick`: cobre Enter e Espaço além do
-          // clique, e fecha o menu antes de a navegação começar.
-          onSelect={() => iniciarSaida(() => void sair())}
-        >
-          <LogOut className="size-4" aria-hidden />
-          {saindo ? 'Saindo…' : 'Sair'}
-        </MenuItem>
+        {/* `<form action>` e não `onSelect` chamando a action: sair precisa
+            funcionar mesmo se o JavaScript falhar em carregar. Botão de sair
+            que não sai é falha de segurança — num balcão compartilhado, a
+            próxima pessoa herda a sessão de quem achou que tinha saído.
+
+            O `preventDefault` é o detalhe que faz funcionar: por padrão o Radix
+            fecha o menu ao selecionar o item, e fechar desmonta o formulário no
+            mesmo instante em que o envio começa — o clique respondia, o menu
+            sumia e a sessão continuava aberta. Segurando o menu aberto, o envio
+            termina; a navegação para o login fecha tudo logo depois. */}
+        <form action={sair}>
+          <MenuItem asChild onSelect={(e) => e.preventDefault()}>
+            <button type="submit" className="w-full">
+              <LogOut className="size-4" aria-hidden />
+              Sair
+            </button>
+          </MenuItem>
+        </form>
       </MenuConteudo>
     </Menu>
   )

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
     "db:provar": "node --env-file-if-exists=.env.local scripts/provar-schema.mjs",
-    "empresa:criar": "node --env-file-if-exists=.env.local scripts/criar-empresa.mjs"
+    "empresa:criar": "node --env-file-if-exists=.env.local scripts/criar-empresa.mjs",
+    "fluxo": "node --env-file-if-exists=.env.local scripts/fluxo.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.23",
