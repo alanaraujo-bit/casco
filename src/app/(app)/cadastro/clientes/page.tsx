@@ -3,48 +3,52 @@ import { Contact, IdCard, Package, Phone } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Chip } from '@/components/painel/pecas'
 import { Card } from '@/components/ui/card'
-import { CLIENTES } from '@/lib/demo'
+import { listarClientes, metricasClientes } from '@/modules/clientes/consultas'
 import { TabelaClientes } from './tabela-clientes'
 
 export const metadata: Metadata = { title: 'Clientes' }
 
 /**
- * Cabeçalho de métricas + tabela.
+ * Cabeçalho de métricas + tabela. **Primeira tela lendo do banco de verdade.**
  *
- * As três métricas são as mesmas do sistema antigo (Total · Com CPF/CNPJ ·
- * Com contato), porque é o que a operadora já usa para saber se o cadastro
- * está sujo. A quarta é nossa: quantos galões estão na rua.
+ * As três primeiras métricas são as mesmas do sistema antigo (Total · Com
+ * CPF/CNPJ · Com contato), porque é o que a operadora já usa para saber se o
+ * cadastro está sujo. A quarta é nossa: quantos galões estão na rua.
  */
-export default function PaginaClientes() {
-  const total = CLIENTES.length
-  const comDocumento = CLIENTES.filter((c) => c.documento !== '').length
-  const comContato = CLIENTES.filter((c) => c.telefone !== '').length
-  const galoesNaRua = CLIENTES.reduce((s, c) => s + c.vasilhames, 0)
+export default async function PaginaClientes() {
+  // Em paralelo: são duas consultas independentes, e encadeá-las somaria as
+  // duas latências para nada.
+  const [linhas, metricas] = await Promise.all([listarClientes(), metricasClientes()])
 
-  const metricas = [
+  const cartoes = [
     {
       rotulo: 'Total de clientes',
-      valor: total.toLocaleString('pt-BR'),
+      valor: metricas.total.toLocaleString('pt-BR'),
       Icone: Contact,
       tom: 'cat-1' as const,
     },
     {
       rotulo: 'Com CPF/CNPJ',
-      valor: `${comDocumento} de ${total}`,
+      valor: `${metricas.comDocumento} de ${metricas.total}`,
       Icone: IdCard,
       tom: 'cat-3' as const,
     },
     {
       // O único cartão em vermelho da tela, e de propósito: é um defeito de
       // cadastro que custa cobrança e entrega perdida, não uma contagem neutra.
+      // Só fica vermelho quando há de fato quem esteja sem telefone — cadastro
+      // vazio não é defeito, e alarme sem causa some da vista em uma semana.
       rotulo: 'Com telefone',
-      valor: `${comContato} de ${total}`,
+      valor: `${metricas.comTelefone} de ${metricas.total}`,
       Icone: Phone,
-      tom: 'perigo' as const,
+      tom:
+        metricas.total > 0 && metricas.comTelefone < metricas.total
+          ? ('perigo' as const)
+          : ('cat-2' as const),
     },
     {
       rotulo: 'Galões com clientes',
-      valor: galoesNaRua.toLocaleString('pt-BR'),
+      valor: metricas.galoesNaRua.toLocaleString('pt-BR'),
       Icone: Package,
       tom: 'cat-4' as const,
     },
@@ -58,7 +62,7 @@ export default function PaginaClientes() {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {metricas.map((m) => (
+        {cartoes.map((m) => (
           <Card key={m.rotulo} className="flex items-center gap-3 p-3">
             <Chip Icone={m.Icone} tom={m.tom} tamanho="sm" />
             <div className="min-w-0">
@@ -69,7 +73,7 @@ export default function PaginaClientes() {
         ))}
       </div>
 
-      <TabelaClientes />
+      <TabelaClientes linhas={linhas} />
     </div>
   )
 }

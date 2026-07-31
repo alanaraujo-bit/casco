@@ -112,9 +112,17 @@ e no celular, com dados de verdade. Build passando não conta como pronto.
 ### Etapa 1 — Cadastros
 *Clientes primeiro — é a melhor tela do sistema deles e a base de todo o resto.*
 
-- **Clientes** — com os 3 modos que eles já usam (Tabela · Cards · Lista), busca,
-  Exportar Excel, e o cabeçalho de métricas (Total · Com CPF/CNPJ · Com contato).
-  Adicionamos: endereço com georreferência e tipo de cliente (revenda · mercado · consumidor)
+- **Clientes** ✅ *(Nível 1 e 2 — lendo e gravando no banco)*
+  Listagem com busca, ordenação, colunas configuráveis e Exportar Excel; cabeçalho de
+  métricas (Total · Com CPF/CNPJ · Com contato · Galões na rua); cadastro e edição com
+  os dezesseis campos, validação de CPF/CNPJ pelos dígitos verificadores, máscara ao
+  digitar, e inativar em vez de apagar. Endereço com ponto de referência e tipo de
+  cliente definindo a tabela de preço.
+  Coberto por 23 checagens do `npm run fluxo`, no desktop e no celular.
+
+  > **Falta para o Nível 3:** os 3 modos de visualização que eles já usam
+  > (Tabela · Cards · Lista) — hoje só existe Tabela. E a importação da planilha do
+  > Fature, sem a qual a LM recomeçaria o cadastro do zero.
 - **Produtos** — incluindo a marcação de retornável e o vínculo com o vasilhame
 - **Fornecedores**
 - **Tabelas de preço** — revenda, mercadinho e consumidor final pagam diferente

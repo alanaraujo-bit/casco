@@ -1,12 +1,14 @@
 'use client'
 
-import * as React from 'react'
-import { PhoneOff } from 'lucide-react'
+import Link from 'next/link'
+import { PhoneOff, UserPlus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
-import { CLIENTES, type ClienteDemo } from '@/lib/demo'
-import { moeda } from '@/lib/utils'
+import { formatarDocumento, formatarTelefone } from '@/lib/formatos'
+import { ROTULO_TIPO } from '@/modules/clientes/esquema'
+import type { ClienteLista } from '@/modules/clientes/consultas'
 
 /** Iniciais em bolinha colorida — o cartão de cliente é a melhor tela deles. */
 function Avatar({ nome }: { nome: string }) {
@@ -38,13 +40,22 @@ function Avatar({ nome }: { nome: string }) {
 }
 
 const TOM_TIPO = {
-  Revenda: 'acento',
-  Mercado: 'info',
-  Restaurante: 'alerta',
-  Consumidor: 'neutro',
+  revenda: 'acento',
+  mercado: 'info',
+  restaurante: 'alerta',
+  consumidor: 'neutro',
 } as const
 
-const colunas: Coluna<ClienteDemo>[] = [
+const colunas: Coluna<ClienteLista>[] = [
+  {
+    chave: 'codigo',
+    cabecalho: 'Código',
+    // `0002 - DANIEL` é como eles leem o cliente hoje, e vão continuar lendo.
+    texto: (c) => (c.codigo ? String(c.codigo).padStart(4, '0') : '—'),
+    valor: (c) => c.codigo ?? 0,
+    numerica: true,
+    larguraMin: '5rem',
+  },
   {
     chave: 'nome',
     cabecalho: 'Cliente',
@@ -53,6 +64,11 @@ const colunas: Coluna<ClienteDemo>[] = [
       <span className="flex items-center gap-2">
         <Avatar nome={c.nome} />
         <span className="truncate">{c.nome}</span>
+        {!c.ativo && (
+          <Badge variant="neutro" className="shrink-0">
+            inativo
+          </Badge>
+        )}
       </span>
     ),
     fixa: true,
@@ -62,93 +78,96 @@ const colunas: Coluna<ClienteDemo>[] = [
   {
     chave: 'tipo',
     cabecalho: 'Tipo',
-    texto: (c) => c.tipo,
-    celula: (c) => <Badge variant={TOM_TIPO[c.tipo]}>{c.tipo}</Badge>,
+    texto: (c) => ROTULO_TIPO[c.tipo as keyof typeof ROTULO_TIPO] ?? c.tipo,
+    celula: (c) => (
+      <Badge variant={TOM_TIPO[c.tipo as keyof typeof TOM_TIPO] ?? 'neutro'}>
+        {ROTULO_TIPO[c.tipo as keyof typeof ROTULO_TIPO] ?? c.tipo}
+      </Badge>
+    ),
   },
   {
     chave: 'documento',
     cabecalho: 'CPF / CNPJ',
-    texto: (c) => c.documento || '—',
+    // Formatado só aqui: no banco vive sem pontuação, para o índice único
+    // enxergar `123.456.789-09` e `12345678909` como o mesmo cadastro.
+    texto: (c) => (c.documento ? formatarDocumento(c.documento) : '—'),
     celula: (c) =>
-      c.documento || <span className="text-texto-fraco">não informado</span>,
+      c.documento ? (
+        formatarDocumento(c.documento)
+      ) : (
+        <span className="text-texto-fraco">não informado</span>
+      ),
   },
   {
     chave: 'telefone',
     cabecalho: 'Telefone',
-    texto: (c) => c.telefone || '—',
+    texto: (c) => (c.telefone ? formatarTelefone(c.telefone) : '—'),
     // Cliente sem telefone não é detalhe de cadastro: é cliente que a empresa
     // não consegue cobrar nem avisar de entrega. A auditoria achou 4 com
     // telefone em 30. Marcar em vermelho é o que torna o problema visível.
     celula: (c) =>
-      c.telefone || (
+      c.telefone ? (
+        formatarTelefone(c.telefone)
+      ) : (
         <span className="inline-flex items-center gap-1 text-perigo">
           <PhoneOff className="size-3.5" aria-hidden />
           sem telefone
         </span>
       ),
   },
-  { chave: 'bairro', cabecalho: 'Bairro', texto: (c) => c.bairro },
-  { chave: 'cidade', cabecalho: 'Cidade', texto: (c) => c.cidade },
+  { chave: 'bairro', cabecalho: 'Bairro', texto: (c) => c.bairro || '—' },
+  { chave: 'cidade', cabecalho: 'Cidade', texto: (c) => c.cidade || '—' },
   {
     chave: 'vasilhames',
     cabecalho: 'Vasilhames',
     texto: (c) => String(c.vasilhames),
     valor: (c) => c.vasilhames,
     numerica: true,
-    celula: (c) => (
-      <span
-        className={c.vasilhames > 30 ? 'font-medium text-alerta' : undefined}
-        title={c.vasilhames > 30 ? 'Muitos galões em poder deste cliente' : undefined}
-      >
-        {c.vasilhames}
-      </span>
-    ),
-  },
-  {
-    chave: 'ultimaCompra',
-    cabecalho: 'Última compra',
-    texto: (c) => c.ultimaCompra,
-    // Ordena pelos dias parados, não pelo texto: dd/mm/aaaa comparado como
-    // texto ordena por dia do mês.
-    valor: (c) => -c.diasSemComprar,
-    celula: (c) => (
-      <span className="whitespace-nowrap">
-        {c.ultimaCompra}
-        {c.diasSemComprar >= 15 && (
-          <span className="ml-1.5 text-alerta">· {c.diasSemComprar} dias</span>
-        )}
-      </span>
-    ),
-  },
-  {
-    chave: 'saldoDevedor',
-    cabecalho: 'Saldo devedor',
-    texto: (c) => moeda(c.saldoDevedor),
-    valor: (c) => c.saldoDevedor,
-    numerica: true,
-    papelMobile: 'destaque',
     celula: (c) =>
-      c.saldoDevedor > 0 ? (
-        <span className="font-medium text-texto">{moeda(c.saldoDevedor)}</span>
+      c.vasilhames > 0 ? (
+        <span
+          className={c.vasilhames > 30 ? 'font-medium text-alerta' : undefined}
+          title={c.vasilhames > 30 ? 'Muitos galões em poder deste cliente' : undefined}
+        >
+          {c.vasilhames}
+        </span>
       ) : (
         <span className="text-texto-fraco">—</span>
       ),
   },
 ]
 
-export function TabelaClientes() {
+export function TabelaClientes({ linhas }: { linhas: ClienteLista[] }) {
   return (
     <TabelaDados
       id="clientes"
       legenda="Clientes cadastrados"
       colunas={colunas}
-      linhas={CLIENTES}
+      linhas={linhas}
       chaveLinha={(c) => c.id}
+      linkDaLinha={(c) => `/cadastro/clientes/${c.id}`}
       buscaPlaceholder="Buscar por nome, documento, bairro…"
       nomeExportacao="clientes"
+      acoesTopo={
+        <Button asChild variant="primario">
+          <Link href="/cadastro/clientes/novo">
+            <UserPlus aria-hidden />
+            Novo cliente
+          </Link>
+        </Button>
+      }
       vazio={{
+        titulo: 'Nenhum cliente cadastrado',
         descricao:
           'Cadastre o primeiro cliente para começar a lançar vendas e controlar vasilhame.',
+        acao: (
+          <Button asChild variant="primario">
+            <Link href="/cadastro/clientes/novo">
+              <UserPlus aria-hidden />
+              Cadastrar primeiro cliente
+            </Link>
+          </Button>
+        ),
       }}
     />
   )
