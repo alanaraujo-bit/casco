@@ -7,7 +7,7 @@
 -- ============================================================ peças comuns
 
 -- ------------------------------------------------------------- numeração
--- O usuário da LM lê o cliente como `0002 - DANIEL`, e vai continuar lendo.
+-- O usuário da JM lê o cliente como `0002 - DANIEL`, e vai continuar lendo.
 -- Um `uuid` é a chave real; o `codigo` é o que ele fala no telefone.
 --
 -- Sequence do Postgres não serve: ela é global, e o cliente nº 1 de cada

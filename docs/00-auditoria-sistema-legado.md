@@ -1,4 +1,4 @@
-# Auditoria — Fature Gestão (sistema atual da LM Distribuidora Natuclara)
+# Auditoria — Fature Gestão (sistema atual da JM Distribuidora Natuclara)
 
 Capturado em 30/07/2026 · 42 telas · 360 chamadas de API observadas
 Método: navegação **somente leitura** (GET) com Playwright. Nenhum clique, nenhum
@@ -8,7 +8,7 @@ formulário submetido, nenhum dado alterado. Artefatos em `recon/out/`.
 
 ## 1. O negócio do cliente
 
-A LM Distribuidora Natuclara é uma **fábrica de água de 20L** que opera em **dois canais**:
+A JM Distribuidora Natuclara é uma **fábrica de água de 20L** que opera em **dois canais**:
 
 - **Atacado** — venda para revendas de gás e mercados. Está no sistema, com cliente nomeado.
 - **Varejo porta a porta** — entrega direta ao consumidor. Confirmado pelo cliente.

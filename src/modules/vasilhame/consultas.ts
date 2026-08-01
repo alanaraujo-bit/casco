@@ -333,7 +333,7 @@ export interface MovimentoLista {
 /**
  * O razão completo, em ordem cronológica invertida.
  *
- * Sem paginação no banco, pela mesma razão da listagem de clientes: a LM lança
+ * Sem paginação no banco, pela mesma razão da listagem de clientes: a JM lança
  * dezenas de movimentos por semana, e a `TabelaDados` já pagina, busca e ordena
  * do lado do cliente. Quando passar de alguns milhares, o lugar de mudar é
  * aqui, sozinho.

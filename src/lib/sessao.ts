@@ -7,7 +7,7 @@ import type { Papel } from '@/db/schema'
 /**
  * Sessão em cookie assinado (JWT HS256), sem tabela de sessão no banco.
  *
- * **Por que não Auth.js**, que o roadmap previa na Etapa 0.3: a LM tem login por
+ * **Por que não Auth.js**, que o roadmap previa na Etapa 0.3: a JM tem login por
  * e-mail e senha e nada mais — sem Google, sem magic link, sem OAuth. O que
  * sobraria do Auth.js seria o provider de credenciais, que é justamente a parte
  * que ele pede para você escrever inteira. Trocaríamos ~80 linhas explícitas por

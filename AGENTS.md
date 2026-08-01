@@ -9,7 +9,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 Sistema de gestão para **distribuidoras com vasilhame retornável** — água e gás.
 Produto da Aionix. Multi-tenant: uma instalação serve várias distribuidoras.
 
-Primeiro cliente: LM Distribuidora Natuclara (Tucumã/PA), migrando do Fature Gestão.
+Primeiro cliente: JM Distribuidora Natuclara (Tucumã/PA), migrando do Fature Gestão.
 Auditoria do sistema que estamos substituindo: `docs/00-auditoria-sistema-legado.md`.
 
 ## Breaking changes desta versão do Next que já nos afetam

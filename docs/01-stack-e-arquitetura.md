@@ -141,7 +141,7 @@ observada nos dados do cliente, não por suposição:
 8. **WhatsApp** — pedido e aviso de saída para entrega. Depende de arrumar o cadastro
    (só 4 dos 30 clientes atuais têm telefone).
 9. **Fidelidade** — "a cada 10 galões, 1 grátis". Prática comum no varejo do setor;
-   confirmar se a LM já faz isso na planilha.
+   confirmar se a JM já faz isso na planilha.
 
 Os itens 1, 2 e 3 sozinhos já justificam a troca de sistema.
 

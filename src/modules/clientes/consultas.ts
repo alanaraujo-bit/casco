@@ -34,7 +34,7 @@ export interface ClienteLista {
  * precisar entrar no `group by`, e é assim que a listagem passa a somar errado
  * quando alguém acrescenta um campo meses depois.
  *
- * Sem paginação no banco por enquanto: a LM tem 30 clientes e a `TabelaDados`
+ * Sem paginação no banco por enquanto: a JM tem 30 clientes e a `TabelaDados`
  * já pagina, busca e ordena no cliente. Trazer tudo é mais rápido e mais
  * simples até a casa dos milhares — e aí o lugar de mudar é só aqui.
  */

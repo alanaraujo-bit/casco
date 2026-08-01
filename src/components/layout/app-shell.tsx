@@ -36,7 +36,7 @@ function FaixaAdmin({ empresa }: { empresa: string }) {
     <div className="flex items-center gap-2 bg-alerta-bg px-3 py-1.5 text-alerta md:px-5">
       <ShieldCheck className="size-4 shrink-0" aria-hidden />
       {/* No celular sobra o nome da empresa e mais nada.
-          "Acesso Aionix em LM Distribui…" gasta 18 caracteres dizendo o que o
+          "Acesso Aionix em JM Distribui…" gasta 18 caracteres dizendo o que o
           ícone e a cor já dizem, e come justamente a única informação que a
           faixa existe para dar. O texto completo volta a partir de `sm`. */}
       <p className="min-w-0 flex-1 truncate text-xs">

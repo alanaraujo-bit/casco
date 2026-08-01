@@ -1,6 +1,6 @@
 -- 0005 — Vasilhame em comodato: movimentos, saldo por cliente e custo da perda.
 --
--- É o motivo pelo qual a LM está trocando de sistema. O Fature Gestão não tem
+-- É o motivo pelo qual a JM está trocando de sistema. O Fature Gestão não tem
 -- onde lançar galão quebrado, então a operadora registra uma venda de R$ 0,13
 -- para dar baixa (auditoria §5). O faturamento vira ficção e o DRE não fecha.
 --
