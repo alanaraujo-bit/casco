@@ -386,29 +386,41 @@ async function preencher(campos) {
   }
 
   /*
-   * Confere um instante depois, e redigita se o formulário tiver limpado.
+   * Confere que o valor GRUDOU, e não só que entrou.
    *
    * O React 19 limpa o `<form action>` quando a action termina — o mesmo
    * comportamento que o `AGENTS.md` documenta. A limpeza **não** vem no commit
-   * que mostra a mensagem de erro, vem logo depois: o roteiro via a mensagem,
+   * que mostra a mensagem de erro, vem depois dele: o roteiro via a mensagem,
    * digitava, e a limpeza chegava em seguida e apagava tudo. O envio seguinte
    * ia vazio, e a falha aparecia como "a tela não avançou" — três telas longe
    * da causa, com uma foto de dois campos em branco que não explicava nada.
    *
-   * É artefato de velocidade de máquina, não defeito do produto: a pessoa lê a
-   * mensagem e leva quase um segundo até o primeiro caractere. Mas um teste que
-   * perde a corrida é um teste que falha uma vez a cada cinco, e teste instável
-   * não prova nada.
+   * Uma leitura só não basta, e foi o que reprovou contra produção depois de
+   * passar no `next dev`: lá a action responde em milissegundos e a limpeza
+   * chega antes da conferência; na Vercel ela demora meio segundo e chegava
+   * *depois*, com o roteiro já convencido de que os campos estavam bons. Por
+   * isso o critério é estabilidade — três leituras seguidas, ~600ms, que é
+   * mais do que a folga entre a resposta da action e a limpeza.
+   *
+   * É artefato de velocidade de máquina, não defeito do produto: a pessoa vê a
+   * mensagem e a limpeza no mesmo instante, e leva quase um segundo até o
+   * primeiro caractere. Mas teste que perde a corrida falha uma vez a cada
+   * cinco, e teste instável não prova nada.
    */
-  for (let tentativa = 0; tentativa < 12; tentativa++) {
-    await espera(150)
-    const limpos = JSON.parse(await vazios())
-    if (!limpos.length) return
-    await digitar()
+  let seguidas = 0
+  for (let leitura = 0; leitura < 25 && seguidas < 3; leitura++) {
+    await espera(200)
+    if (JSON.parse(await vazios()).length) {
+      seguidas = 0
+      await digitar()
+    } else {
+      seguidas++
+    }
   }
 
-  const limpos = JSON.parse(await vazios())
-  if (limpos.length) throw new Error(`o formulário limpou os campos: ${limpos.join(', ')}`)
+  if (seguidas < 3) {
+    throw new Error(`o formulário limpou os campos: ${JSON.parse(await vazios()).join(', ')}`)
+  }
 }
 
 /**
