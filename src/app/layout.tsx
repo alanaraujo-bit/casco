@@ -41,6 +41,24 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${inter.variable} h-full`} suppressHydrationWarning>
       <head>
+        {/*
+          Pede ao Dark Reader que não toque nesta página.
+
+          A extensão reescreve o DOM antes do React hidratar — enfia
+          `data-darkreader-inline-stroke` e um `style` com `--darkreader-*` em
+          cada `<svg>` — e o React acusa a diferença entre o que o servidor
+          mandou e o que encontrou. O erro de hidratação que aparece no `next
+          dev` nasce daí, não do nosso código, e some junto com esta linha.
+
+          Não é só calar aviso: o Casco já tem tema claro e escuro próprios,
+          resolvidos pelo `scriptTema` logo abaixo. Escurecer por cima de um
+          tema escuro é o que produz o texto sem contraste e o gráfico com cor
+          trocada — a extensão não sabe que o trabalho dela já está feito.
+          `darkreader-lock` é o jeito que a própria extensão oferece para um
+          site dizer isso.
+        */}
+        <meta name="darkreader-lock" />
+
         {/* Antes de qualquer pintura, para não piscar o tema errado. */}
         <script dangerouslySetInnerHTML={{ __html: scriptTema }} />
       </head>
