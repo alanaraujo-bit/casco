@@ -7,7 +7,7 @@ velocidade — não existe "volto depois pra arrumar".
 ## Foco atual: o ERP do escritório
 
 Decisão de 30/07/2026: **o app do entregador sai do caminho crítico.** O alvo é
-entregar à LM o sistema que o dono e a operadora de balcão usam todo dia, substituindo
+entregar à JM o sistema que o dono e a operadora de balcão usam todo dia, substituindo
 o Fature Gestão. A Etapa 7 (rotas e app de campo) fica adiada, não cancelada.
 
 O que isso muda:
@@ -29,7 +29,7 @@ de entrega com geolocalização.
 
 ## A regra da familiaridade
 
-O usuário da LM já sabe operar um sistema. Nosso trabalho **não é ensinar um sistema novo**
+O usuário da JM já sabe operar um sistema. Nosso trabalho **não é ensinar um sistema novo**
 — é entregar o mesmo mapa mental, bem executado. Regras duras:
 
 | Mantemos igual | Mudamos |
@@ -80,7 +80,7 @@ e no celular, com dados de verdade. Build passando não conta como pronto.
   — banco no ar, 20 tabelas com RLS e `force`, isolamento provado a cada deploy
 - **0.3** ~~Auth.js v5~~ **sessão própria**: login, sessão com `company_id` e papel,
   guard em `proxy.ts` ✅
-  > **Desvio consciente.** A LM tem login por e-mail e senha, e nada mais. O que
+  > **Desvio consciente.** A JM tem login por e-mail e senha, e nada mais. O que
   > sobraria do Auth.js seria o provider de credenciais — justamente a parte que
   > ele pede para você escrever inteira. Trocaríamos ~80 linhas explícitas por uma
   > dependência em beta acoplada a uma versão do Next que acabou de renomear o
@@ -122,7 +122,7 @@ e no celular, com dados de verdade. Build passando não conta como pronto.
 
   > **Falta para o Nível 3:** os 3 modos de visualização que eles já usam
   > (Tabela · Cards · Lista) — hoje só existe Tabela. E a importação da planilha do
-  > Fature, sem a qual a LM recomeçaria o cadastro do zero.
+  > Fature, sem a qual a JM recomeçaria o cadastro do zero.
 - **Produtos** ✅ *(Nível 1 — lendo e gravando no banco)*
   Listagem com busca, ordenação e Exportar Excel; cabeçalho de métricas
   (Total · Ativos · Retornáveis · Sem preço); cadastro e edição com campos
@@ -167,24 +167,61 @@ do `npm run fluxo`, no desktop e no celular, incluindo o custo aparecendo antes
 de gravar e sumindo depois do estorno.
 
 > Motivos ligados a venda (`entregue`/`devolvido`) só fecham na Etapa 3 — hoje
-> são lançados à mão, que é o que a LM precisa desde o primeiro dia. As baixas
+> são lançados à mão, que é o que a JM precisa desde o primeiro dia. As baixas
 > internas, o problema real, funcionam por inteiro aqui.
 
 > **Falta para o Nível 3:** filtro por período e por motivo na listagem de
 > movimentos (hoje só a busca em texto da `TabelaDados`), e a baixa em lote —
 > a conferência de retorno do caminhão lança um cliente por vez.
 
-### Etapa 3 — Vendas
-- Registro de venda com as colunas que eles já leem: Operação · Código · Data · Cliente ·
-  Vendedor · Comissão · Tipo Venda · Parcelas · Valor · Recebido · Taxas · A Receber
-- Venda avulsa (balcão) e venda com cliente
-- Orçamento
-- Comissão por vendedor
-- Vasilhame integrado à venda
+### Etapa 3 — Vendas ← *em andamento*
+
+- **PDV** ✅ *(Nível 1 e 2 — gravando no banco)*
+  Catálogo com o preço já resolvido pela tabela do cliente, carrinho por clique
+  (clicar de novo soma um), cliente opcional, desconto em reais, troco calculado
+  antes de fechar, e recibo que fica na tela com total, troco e saldo de galões.
+  Fechar uma venda é **uma transação e seis tabelas**: `vendas` + `venda_itens`,
+  saída em `estoque_movimentos` ao custo médio vigente, `entregue`/`devolvido` em
+  `vasilhame_movimentos`, e então **ou** entrada em `caixa_movimentos` com a taxa
+  da maquininha descontada, **ou** parcelas em `contas_receber`. Ou as seis
+  acontecem, ou nenhuma.
+- **Vendas de Produtos** ✅ *(Nível 1)* — listagem com as colunas deles, mais
+  cabeçalho de métricas (Vendido hoje · no mês · ticket médio · **taxas no mês**).
+  "Recebido" e "A Receber" são derivados de `pagamentos` e `contas_receber`, não
+  campos gravados na venda: no sistema deles as duas colunas param de bater no
+  dia em que alguém baixa um título por fora.
+- **Vasilhame integrado à venda** ✅ — o contador de "galões que ele trouxe" mora
+  na linha do item, que é onde a pergunta é feita no balcão. Fecha os motivos
+  `entregue`/`devolvido` que a Etapa 2 deixou para lançamento manual.
+- Orçamento — pendente
+- Comissão por vendedor — pendente (a coluna existe e a listagem já a mostra;
+  falta percentual por vendedor no cadastro de usuários, e até lá vale zero)
+
+Coberto por 14 checagens do `npm run fluxo`, no desktop e no celular: venda em
+dinheiro com troco, o comodato entrando no saldo do cliente, e a venda fiada
+virando título em Contas a Receber.
+
+Três decisões que valem revisão com o cliente:
+
+- **Preço não vem do navegador.** O carrinho manda produto e quantidade; o
+  servidor resolve tabela do cliente → tabela padrão → preço do cadastro. Só o
+  desconto é digitado, e fica como coluna própria para o relatório conseguir
+  responder "quanto demos de desconto no mês".
+- **Falta de estoque não trava a venda.** O saldo aparece em vermelho antes.
+  Travar com o cliente na frente é como se ensina a operadora a lançar por fora:
+  estoque negativo é problema visível, venda fora do sistema é invisível.
+- **Venda avulsa não gera comodato.** `entregue` é dívida, e dívida precisa de
+  devedor. Sem cliente identificado o contador nem aparece — e a tela avisa,
+  antes de fechar, que os galões retornáveis não serão registrados.
 
 > **Lacuna conhecida:** não tivemos acesso ao PDV do sistema atual ("Acesso negado").
-> Esta etapa é desenhada a partir das colunas da listagem de vendas. **Validar o fluxo
-> com o cliente antes do Nível 3** — é a etapa de maior risco de retrabalho.
+> O fluxo acima foi desenhado a partir das colunas da listagem de vendas.
+> **Validar com o cliente antes do Nível 3** — é a etapa de maior risco de retrabalho.
+
+> **Falta para o Nível 3:** uma forma de pagamento por venda (pagamento dividido
+> entre dinheiro e cartão ainda não existe), atalhos de teclado além do Enter na
+> busca, e cancelamento de venda — hoje o status `cancelada` existe no banco e
+> não tem tela.
 
 ### Etapa 4 — Financeiro
 - Contas a Receber e a Pagar, com as colunas deles
@@ -237,7 +274,7 @@ de gravar e sumindo depois do estorno.
 
 | Item | Bloqueia a partir de |
 |---|---|
-| Acesso ao PDV do sistema atual | Etapa 3 (Nível 3) |
+| Acesso ao PDV do sistema atual | Etapa 3 (Nível 3) — construído sem ele, validar |
 | Confirmar emissão de NF-e | Etapa 3 |
 | Onde cai a venda do porta a porta (auditoria §1.1) | Etapa 3 |
 | Quais módulos eles realmente usam | Etapa 6 |

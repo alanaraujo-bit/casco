@@ -11,9 +11,13 @@
  * que o Chrome já instalado faz pelo protocolo de depuração, e o `WebSocket`
  * do Node cobre o resto. Menos dependência para manter.
  *
- *     npm run fluxo                       # usa http://127.0.0.1:3210
+ *     npm run fluxo                       # usa http://localhost:3210
  *     npm run fluxo -- --url https://...  # ou outro alvo
  *     npm run fluxo -- --ver              # com janela, para assistir
+ *
+ * Sem `--email` o roteiro semeia o próprio dono e o apaga no fim, então roda
+ * sozinho, sem credencial de ninguém. `--email x@y.com --senha "..."` entra
+ * como uma conta existente, para quando o que se investiga é aquela conta.
  */
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
@@ -46,14 +50,6 @@ const EMAIL = arg('email') ?? process.env.FLUXO_EMAIL
 const SENHA = arg('senha') ?? process.env.FLUXO_SENHA
 const VER = args.includes('--ver')
 const PASTA_FOTOS = arg('fotos') ?? path.join(tmpdir(), 'casco-fluxo-fotos')
-
-if (!EMAIL || !SENHA) {
-  console.error(
-    'Informe as credenciais: npm run fluxo -- --email x@y.com --senha "..."\n' +
-      '     ou defina FLUXO_EMAIL e FLUXO_SENHA no ambiente.',
-  )
-  process.exit(1)
-}
 
 const CHROME = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -99,6 +95,37 @@ const EMAIL_ADMIN_TESTE = 'teste-fluxo@exemplo.invalid'
 const SENHA_ADMIN_PROVISORIA = 'provisoria-do-fluxo'
 const SENHA_ADMIN_NOVA = 'definitiva-do-fluxo'
 
+/**
+ * O acesso de distribuidora que a perna de gestão de acessos cria e destrói.
+ *
+ * Mesmo domínio `.invalid` do admin descartável, e pelo mesmo motivo: é o único
+ * jeito de a faxina apagar por e-mail sem risco de alcançar gente de verdade.
+ * As duas senhas existem porque o roteiro redefine a senha no meio e precisa
+ * provar que a nova passou a valer — e que a antiga parou.
+ */
+const EMAIL_ACESSO_TESTE = 'acesso-fluxo@exemplo.invalid'
+const SENHA_ACESSO_PRIMEIRA = 'primeira-do-acesso'
+const SENHA_ACESSO_SEGUNDA = 'segunda-do-acesso'
+
+/**
+ * O dono descartável com que o roteiro faz login, quando ninguém passa `--email`.
+ *
+ * Antes o teste exigia a credencial de um dono de verdade, e isso era duas
+ * coisas ruins de uma vez: a senha de alguém circulando em linha de comando, e
+ * um roteiro que parava de rodar no dia em que aquela pessoa trocasse de senha
+ * — ou em que a conta deixasse de existir, que foi exatamente o que aconteceu
+ * quando a criação de acesso saiu do terminal e virou tela.
+ *
+ * `--email` continua valendo e passa a ser o caso especial: serve para rodar o
+ * roteiro contra uma conta específica quando se está investigando algo dela.
+ */
+const EMAIL_DONO_TESTE = 'dono-fluxo@exemplo.invalid'
+const SENHA_DONO_TESTE = 'dono-do-fluxo'
+const NOME_DONO_TESTE = 'Teste Dono'
+
+const emailLogin = EMAIL ?? EMAIL_DONO_TESTE
+const senhaLogin = SENHA ?? SENHA_DONO_TESTE
+
 /** 1440×900: o notebook comum do escritório, e bem acima do breakpoint md. */
 const DESKTOP = { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false }
 /** iPhone 14. O dono vai olhar o faturamento daqui, fora da loja. */
@@ -108,6 +135,17 @@ const bancoUrl = process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL
 const banco = bancoUrl
   ? postgres(bancoUrl, { max: 1, prepare: false, onnotice() {} })
   : null
+
+// Sem `--email` o roteiro semeia o próprio dono, e para isso precisa do banco.
+// Falhar aqui, antes de abrir o Chrome, em vez de trinta segundos adiante com
+// "login pelo formulário funciona" vermelho e nenhuma pista do porquê.
+if (!EMAIL && !banco) {
+  console.error(
+    'Sem DIRECT_DATABASE_URL não dá para semear o dono de teste.\n' +
+      '     Informe uma conta existente: npm run fluxo -- --email x@y.com --senha "..."',
+  )
+  process.exit(1)
+}
 
 async function faxina() {
   if (!banco) return
@@ -119,12 +157,43 @@ async function faxina() {
   // histórico. A exceção vive aqui, no script de teste, e não na aplicação.
   const doTeste = banco`select id from produtos where nome like ${PREFIXO + '%'}`
   const clientesDoTeste = banco`select id from clientes where nome like ${PREFIXO + '%'}`
+  /**
+   * Toda venda que tocou num produto de teste ou num cliente de teste.
+   *
+   * Resolvida agora, em memória, e não como subconsulta reusada: as linhas de
+   * `venda_itens` são apagadas no meio da faxina, e uma subconsulta que lê essa
+   * tabela voltaria vazia justo no `delete from vendas` — deixando o cabeçalho
+   * da venda para trás, no faturamento que a operadora lê.
+   */
+  const idsVendas = (
+    await banco`
+      select id from vendas
+       where id in (select venda_id from venda_itens where produto_id in (${doTeste}))
+          or cliente_id in (${clientesDoTeste})
+    `
+  ).map((v) => v.id)
+
   await banco`set session_replication_role = 'replica'`
   await banco`delete from vasilhame_movimentos where produto_id in (${doTeste})
                                                  or cliente_id in (${clientesDoTeste})`
   await banco`delete from vasilhame_saldos where produto_id in (${doTeste})
                                              or cliente_id in (${clientesDoTeste})`
+  // Movimento de estoque também é imutável por trigger, pelo mesmo motivo do
+  // vasilhame: histórico não se apaga. A exceção vive aqui, no teste.
+  await banco`delete from estoque_movimentos where produto_id in (${doTeste})`
+  await banco`delete from estoque_saldos where produto_id in (${doTeste})`
   await banco`set session_replication_role = 'origin'`
+
+  // Ordem ditada pelas FKs `restrict`: o que aponta para a venda sai antes dela,
+  // e o que aponta para o cliente sai antes dele.
+  await banco`delete from contas_receber where cliente_id in (${clientesDoTeste})`
+  if (idsVendas.length > 0) {
+    await banco`delete from caixa_movimentos where origem = 'venda' and origem_id in ${banco(idsVendas)}`
+    await banco`delete from contas_receber where venda_id in ${banco(idsVendas)}`
+    await banco`delete from pagamentos where venda_id in ${banco(idsVendas)}`
+    await banco`delete from venda_itens where venda_id in ${banco(idsVendas)}`
+    await banco`delete from vendas where id in ${banco(idsVendas)}`
+  }
 
   await banco`delete from clientes where nome like ${PREFIXO + '%'}`
   // Retornável primeiro: ele aponta para o galão por `vasilhame_id`.
@@ -151,10 +220,32 @@ async function faxina() {
              (select max(p.codigo) from produtos p where p.company_id = s.company_id), 0)
      where s.nome = 'produtos'
   `
+  // E para venda e título, que o teste do PDV passou a criar. O código da venda
+  // é o que a operadora dita para o cliente — não pode nascer no 40 porque o
+  // fluxo rodou quarenta vezes antes da distribuidora abrir.
+  await banco`
+    update sequencias s
+       set valor = coalesce(
+             (select max(v.codigo) from vendas v where v.company_id = s.company_id), 0)
+     where s.nome = 'vendas'
+  `
+  await banco`
+    update sequencias s
+       set valor = coalesce(
+             (select max(t.codigo) from contas_receber t where t.company_id = s.company_id), 0)
+     where s.nome = 'contas_receber'
+  `
 
   // O admin descartável da perna de administração. Domínio `.invalid` (RFC
   // 2606) para que nenhum admin de verdade caia nesta cláusula por acidente.
   await banco`delete from plataforma_admins where email = ${EMAIL_ADMIN_TESTE}`
+
+  // E o acesso de distribuidora criado pela tela de acessos. Apaga em vez de
+  // desativar: usuário desativado continua ocupando o índice único de e-mail, e
+  // a rodada seguinte falharia acusando "e-mail já em uso" — que é a trava
+  // funcionando, mas parecendo defeito. Só é possível porque o usuário de teste
+  // não vende nada; quem vendeu esbarra no `on delete restrict`, de propósito.
+  await banco`delete from users where email = ${EMAIL_ACESSO_TESTE}`
 }
 
 /**
@@ -165,9 +256,46 @@ async function faxina() {
  * faria uma falha no formulário de produto reprovar a tela de baixa — que é o
  * tipo de teste que ninguém consegue ler quando fica vermelho.
  */
+/**
+ * Cria o dono descartável com que o roteiro faz login.
+ *
+ * Escolhe a distribuidora mais antiga que esteja ativa. Numa instalação com
+ * várias, é a do primeiro cliente — que é onde se quer testar. Quem precisar de
+ * outra passa `--email` de alguém de lá.
+ */
+async function semearDono() {
+  const [empresa] = await banco`
+    select id from companies where ativo order by criado_em limit 1
+  `
+  if (!empresa) throw new Error('nenhuma distribuidora ativa no banco para semear o dono')
+
+  // O `delete` antes é o que torna o roteiro rodável duas vezes seguidas: sem
+  // ele, a sobra da rodada anterior bate no índice único de e-mail.
+  await banco`delete from users where email = ${EMAIL_DONO_TESTE}`
+  const hash = await bcrypt.hash(SENHA_DONO_TESTE, 12)
+  await banco`
+    insert into users (id, company_id, nome, email, senha_hash, papel)
+         values (${randomUUID()}, ${empresa.id}, ${NOME_DONO_TESTE},
+                 ${EMAIL_DONO_TESTE}, ${hash}, 'dono')
+  `
+}
+
+/**
+ * O primeiro nome de quem está logado, que é como o menu da conta se chama.
+ *
+ * Lido do banco em vez de fixo no código: com `--email` o roteiro entra como
+ * outra pessoa, e um 'Alan' escrito à mão aqui faria o teste do menu falhar
+ * acusando "o menu da conta não abre" quando o que mudou foi o nome na tela.
+ */
+async function primeiroNomeDoLogin() {
+  if (!banco) return null
+  const [u] = await banco`select nome from users where lower(email) = ${emailLogin.toLowerCase()}`
+  return u ? u.nome.split(/\s+/)[0] : null
+}
+
 async function semearVasilhame() {
   if (!banco) return null
-  const [dono] = await banco`select company_id from users where email = ${EMAIL}`
+  const [dono] = await banco`select company_id from users where email = ${emailLogin}`
   if (!dono) return null
 
   const galao = randomUUID()
@@ -535,9 +663,102 @@ async function acionarPeloTeclado(rotulo) {
   }
 }
 
+/**
+ * Clica num botão **da linha de um acesso específico**, achada pelo e-mail.
+ *
+ * Existe por um estrago de verdade: `clicar('Redefinir senha')` pega o primeiro
+ * botão com esse texto na página, e a lista de acessos tem um por pessoa. O
+ * roteiro redefiniu a senha, desativou e reativou a conta de quem estava no
+ * topo da lista — uma pessoa de verdade, na distribuidora de verdade — e depois
+ * falhou ao entrar com o acesso de teste, cuja senha nunca havia mudado. A
+ * falha aparecia como "senha errada", a três telas do dano.
+ *
+ * Um teste que escreve no banco do cliente não pode mirar "o primeiro botão".
+ * Aqui ele sobe do botão até o cartão que contém o e-mail alvo, e desiste se o
+ * ancestral já contiver mais de um e-mail — sinal de que subiu demais e está
+ * prestes a acertar a lista inteira.
+ */
+async function clicarNaLinhaDoAcesso(rotulo, email = EMAIL_ACESSO_TESTE, ms = 15_000) {
+  const limite = Date.now() + ms
+  while (Date.now() < limite) {
+    const caixa = await js(`
+      const rotulo = ${JSON.stringify(rotulo)}
+      const email = ${JSON.stringify(email)}
+      const daLinha = (botao) => {
+        let n = botao.parentElement
+        while (n) {
+          const t = n.innerText || ''
+          const arrobas = (t.match(/@/g) || []).length
+          if (arrobas > 1) return false
+          if (arrobas === 1) return t.includes(email)
+          n = n.parentElement
+        }
+        return false
+      }
+      const el = [...document.querySelectorAll('button')]
+        .filter((b) => (b.innerText || '').trim().includes(rotulo) && !b.disabled)
+        .find(daLinha)
+      if (!el) return null
+      el.scrollIntoView({ block: 'center' })
+      const r = el.getBoundingClientRect()
+      if (r.width === 0 || r.height === 0) return null
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+    `).catch(() => null)
+
+    if (caixa) {
+      for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) {
+        await comando(
+          ws,
+          'Input.dispatchMouseEvent',
+          {
+            type,
+            x: caixa.x,
+            y: caixa.y,
+            button: 'left',
+            buttons: type === 'mousePressed' ? 1 : 0,
+            clickCount: type === 'mouseMoved' ? 0 : 1,
+            pointerType: 'mouse',
+          },
+          sessao,
+        )
+      }
+      return
+    }
+    await espera(200)
+  }
+  throw new Error(`não achei "${rotulo}" na linha de ${email}`)
+}
+
+/**
+ * Encerra a sessão, venha ela de onde vier.
+ *
+ * No painel da Aionix "Sair" é um botão à vista; no shell da distribuidora ele
+ * mora dentro do menu da conta, que precisa ser aberto antes. Um trecho do
+ * roteiro que assume um dos dois casos falha no outro — e falha como "não achei
+ * nada clicável com Sair", que não diz nada sobre a causa. O gatilho é achado
+ * pelo `aria-label`, e não pelo nome da pessoa, porque quem está logado muda ao
+ * longo da rodada: dona, acesso de teste, admin da Aionix.
+ */
+async function sair() {
+  const aVista = await js(`
+    return [...document.querySelectorAll('button, a, [role="menuitem"]')]
+      .some((e) => (e.innerText || '').trim().includes('Sair'))
+  `)
+  if (!aVista) {
+    await clicar('', 15_000, '[aria-label^="Conta de"]')
+    await esperarPor(async () => (await texto()).includes('Sair'), 'o menu da conta abrir')
+  }
+  await clicar('Sair')
+}
+
 /* -------------------------------------------------------------- roteiro */
 
 await mkdir(PASTA_FOTOS, { recursive: true })
+
+// Antes do Chrome: sem login não há roteiro, e descobrir isso com o navegador
+// aberto só atrasa o erro.
+if (!EMAIL) await semearDono()
+const nomeNaConta = (await primeiroNomeDoLogin()) ?? 'Conta'
 
 const perfil = await mkdtemp(path.join(tmpdir(), 'casco-fluxo-'))
 const chrome = spawn(
@@ -611,7 +832,7 @@ try {
   await irPara('/painel')
   check('sem sessão, cai no login', (await caminho()).startsWith('/login'))
 
-  await preencher({ email: EMAIL, senha: SENHA })
+  await preencher({ email: emailLogin, senha: senhaLogin })
   await clicar('Entrar')
   await esperarCaminho((p) => p.startsWith('/painel'), 'entrar no painel')
   check('login pelo formulário funciona', true)
@@ -852,6 +1073,134 @@ try {
     falhas.push('vasilhame não testado — sem conexão de banco para semear os produtos')
   }
 
+  /* ---------------------------------------------------------------- PDV
+   *
+   * O que este bloco prova, e nenhum outro prova: uma venda de balcão não é
+   * uma linha em `vendas`. Ela é receita, saída de estoque, entrada de caixa
+   * (ou título a receber) e galão que passou a ser dívida do cliente — tudo na
+   * mesma transação. É por isso que a conferência não para no recibo: ela vai
+   * ver o saldo de vasilhame e a listagem de Contas a Receber depois.
+   */
+  if (semente) {
+    await irPara('/vendas/pdv')
+    const pdv = await texto()
+    check('o PDV lista os produtos com preço', pdv.includes('Água 20L') && pdv.includes('12,00'))
+
+    // --- venda em dinheiro, com vasilhame e troco
+    await clicar(PREFIXO + ' Água 20L')
+    await clicar(PREFIXO + ' Água 20L')
+    await clicar(PREFIXO + ' Água 20L')
+    await esperarPor(
+      async () => (await texto()).includes('36,00'),
+      'o carrinho somar 3 × R$ 12,00',
+    )
+    check('clicar no produto três vezes soma três unidades', true)
+
+    await escolherPorTexto('clienteId', nome)
+    await esperarPor(
+      async () => (await texto()).includes('Galões vazios que ele trouxe'),
+      'o contador de vasilhame aparecer no item retornável',
+    )
+    check('produto retornável pergunta pelo vasilhame devolvido', true)
+
+    await escolherPorTexto('formaId', 'Dinheiro')
+    await preencher({ valorRecebido: '50' })
+    const antesDeFechar = await esperarPor(
+      async () => (await texto()).includes('14,00'),
+      'o troco de R$ 14,00 aparecer antes de fechar',
+    )
+    check('o troco é calculado antes de fechar a venda', Boolean(antesDeFechar))
+    await foto('pdv-carrinho')
+
+    await clicar('Fechar venda')
+    // Esperar por uma frase que **só** existe no recibo. "Venda" e "Troco" já
+    // estão na tela antes de fechar — o resumo mostra os dois — e esperar por
+    // elas voltava na hora, com a action ainda em voo. O roteiro navegava para
+    // a tela seguinte, o pedido morria no meio, e a falha aparecia três
+    // checagens adiante como "a venda não está na listagem".
+    await esperarPor(
+      async () => (await texto()).includes('Ver na listagem de vendas'),
+      'o recibo da venda',
+    )
+    const recibo = await texto()
+    check('a venda fecha e o recibo mostra o troco', recibo.includes('14,00'))
+    check(
+      'o recibo diz quantos galões o cliente ficou devendo',
+      /gal(ã|a)o\(ões\) entregue/i.test(recibo),
+      recibo.slice(0, 400),
+    )
+    await foto('pdv-recibo')
+
+    // O saldo do comodato subiu pelos galões da venda: eram 10 (a quebra de 3
+    // foi estornada logo acima) e a venda entregou mais 3.
+    await irPara('/vasilhame/saldos')
+    check(
+      'a venda lançou o comodato no saldo do cliente (10 + 3 = 13)',
+      /\b13\b/.test(await texto()),
+      (await texto()).slice(0, 300),
+    )
+
+    await irPara('/vendas/produtos')
+    const listagem = await texto()
+    await foto('vendas-listagem')
+    check('a venda aparece na listagem com o valor', listagem.includes('36,00'))
+    check('a listagem mostra a operação e a forma', listagem.includes('PDV') && listagem.includes('Dinheiro'))
+
+    // --- venda no fiado: nada entra no caixa, e nasce título a receber
+    await irPara('/vendas/pdv')
+    await clicar(PREFIXO + ' Água 20L')
+    await clicar(PREFIXO + ' Água 20L')
+    await escolherPorTexto('clienteId', nome)
+    await escolherPorTexto('formaId', 'Fiado')
+    await esperarPor(
+      async () => (await texto()).includes('Nada entra no caixa agora'),
+      'o aviso de que fiado não é dinheiro em caixa',
+    )
+    check('o fiado avisa que não entra no caixa', true)
+
+    await clicar('Fechar venda')
+    // Mesma armadilha: "Contas a Receber" está no menu lateral o tempo todo.
+    await esperarPor(
+      async () => (await texto()).includes('Ver na listagem de vendas'),
+      'o recibo do fiado',
+    )
+    const reciboFiado = await texto()
+    check(
+      'venda fiada vira título em Contas a Receber',
+      /T[íi]tulo gerado em Contas a Receber/.test(reciboFiado),
+      reciboFiado.slice(0, 400),
+    )
+
+    await irPara('/financeiro/receber')
+    const titulos = await texto()
+    await foto('receber-do-pdv')
+    check(
+      'o título gerado pelo PDV aparece em Contas a Receber',
+      titulos.includes(nome) && titulos.includes('24,00'),
+      titulos.slice(0, 300),
+    )
+
+    // --- celular: o balcão também é atendido com o telefone na mão
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', CELULAR, sessao)
+    await irPara('/vendas/pdv')
+    check(
+      'no celular o PDV não rola de lado',
+      await js('return document.documentElement.scrollWidth <= window.innerWidth + 1'),
+      `scrollWidth=${await js('return document.documentElement.scrollWidth')} vs ${await js('return window.innerWidth')}`,
+    )
+    const pequenos = await js(`
+      const alvos = [...document.querySelectorAll('input[name]:not([type="hidden"]), select[name], textarea[name]')]
+        .map((e) => ({ nome: e.name, altura: Math.round(e.getBoundingClientRect().height) }))
+        .filter((c) => c.altura < 44)
+      return JSON.stringify(alvos)
+    `)
+    check('os campos do PDV têm 44px no toque', pequenos === '[]', `abaixo de 44px: ${pequenos}`)
+    await foto('celular-pdv')
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
+  } else {
+    falhas.push('PDV não testado — sem conexão de banco para semear os produtos')
+  }
+
   await irPara('/cadastro/clientes')
 
   /* ---------------------------------------------------------- inativar */
@@ -916,9 +1265,13 @@ try {
     'Contas a Receber abre lendo do banco',
     receber.includes('Contas a Receber') && receber.includes('Total lançado'),
   )
+  // Esta tela era conferida vazia — não havia como um título nascer. Agora há:
+  // a venda fiada do PDV, algumas linhas acima, gerou um. Conferir o vazio aqui
+  // passaria a exigir que o PDV **não** tivesse funcionado.
   check(
-    'Contas a Receber sem título mostra o estado vazio',
-    receber.includes('Nenhum título lançado'),
+    'o título do PDV chega com a situação derivada de vencimento e pagamento',
+    receber.includes('Em aberto'),
+    receber.slice(0, 300),
   )
 
   await irPara('/painel')
@@ -973,7 +1326,7 @@ try {
   // Pelo teclado primeiro. A operadora de balcão trabalha de teclado o dia
   // inteiro, e menu que só abre no mouse a obriga a largar a digitação a cada
   // uso — é a diferença entre um sistema que ela tolera e um que ela adota.
-  await acionarPeloTeclado('Alan')
+  await acionarPeloTeclado(nomeNaConta)
   const abriuNoTeclado = await esperarPor(
     async () => (await texto()).includes('Sair'),
     'o menu da conta abrir pelo teclado',
@@ -982,7 +1335,7 @@ try {
   check('o menu da conta abre pelo teclado', abriuNoTeclado)
 
   if (!abriuNoTeclado) {
-    await clicar('Alan')
+    await clicar(nomeNaConta)
     await esperarPor(async () => (await texto()).includes('Sair'), 'o menu da conta abrir')
   }
   check('o menu da conta abre', true)
@@ -1068,6 +1421,161 @@ try {
       /Distribuidora|Natuclara/i.test(painelAdmin),
       painelAdmin.split('\n').slice(0, 6).join(' / '),
     )
+
+    /* ------------------------------------------- acessos da distribuidora
+     *
+     * Criar login saiu do terminal e virou tela. O que este trecho prova não é
+     * que o formulário grava — é que o acesso criado por ele **entra no
+     * sistema**, que desativar de fato fecha a porta, e que a senha redefinida
+     * é a que passa a valer. Uma tela de gestão de acesso que grava a linha
+     * certa e produz um login que não funciona é pior que não ter tela: o admin
+     * repassa a senha por telefone e descobre pelo cliente.
+     */
+    await clicar('Acessos')
+    await esperarCaminho((p) => p.startsWith('/admin/empresas/'), 'abrir a tela de acessos')
+    const telaAcessos = await texto()
+    await foto('admin-acessos')
+    check('a tela de acessos abre com o nome da distribuidora', /Natuclara|Distribuidora/i.test(telaAcessos))
+
+    // Senha curta: o mínimo é 8, e a mensagem tem que dizer isso. Aqui a pessoa
+    // está inventando senha para outra pessoa, com ela no telefone — mensagem
+    // vaga vira tentativa e erro no meio da ligação.
+    await preencher({
+      nome: PREFIXO + ' Operador',
+      email: EMAIL_ACESSO_TESTE,
+      senha: 'curta',
+      papel: 'operador',
+    })
+    await clicar('Criar acesso')
+    await esperarPor(
+      async () => (await texto()).includes('8 caracteres'),
+      'a mensagem de senha curta no acesso',
+    )
+    check('acesso com senha curta é recusado com mensagem clara', true)
+
+    // E o que já estava digitado continua lá. É a regra do React 19 anotada no
+    // AGENTS.md: sem devolver os valores, o admin redigita nome e e-mail por
+    // causa de uma senha de sete caracteres.
+    check(
+      'o formulário de acesso não perde o que foi digitado ao errar',
+      await js(`
+        const v = (n) => (document.querySelector('[name="' + n + '"]') || {}).value || ''
+        return v('nome').includes('Operador') && v('email').includes('acesso-fluxo')
+      `),
+    )
+
+    await preencher({
+      nome: PREFIXO + ' Operador',
+      email: EMAIL_ACESSO_TESTE,
+      senha: SENHA_ACESSO_PRIMEIRA,
+      papel: 'operador',
+    })
+    await clicar('Criar acesso')
+    await esperarPor(
+      async () => (await texto()).includes('Acesso de'),
+      'a confirmação do acesso criado',
+    )
+    check('criar acesso confirma na tela', true)
+    check('o acesso novo aparece na lista', (await texto()).includes(EMAIL_ACESSO_TESTE))
+
+    // E-mail repetido: o índice é global, então a mensagem não pode ser
+    // "já existe nesta empresa" — pode ser de outra distribuidora.
+    await preencher({
+      nome: PREFIXO + ' Repetido',
+      email: EMAIL_ACESSO_TESTE,
+      senha: SENHA_ACESSO_PRIMEIRA,
+      papel: 'operador',
+    })
+    await clicar('Criar acesso')
+    await esperarPor(
+      async () => (await texto()).includes('já é login'),
+      'a recusa do e-mail repetido',
+    )
+    check('e-mail repetido é recusado com mensagem clara', true)
+
+    // A prova que interessa: o login criado abre o sistema.
+    await clicar('Sair')
+    await esperarCaminho((p) => p.startsWith('/login'), 'sair da Aionix')
+    await preencher({ email: EMAIL_ACESSO_TESTE, senha: SENHA_ACESSO_PRIMEIRA })
+    await clicar('Entrar')
+    await esperarCaminho((p) => p.startsWith('/painel'), 'entrar com o acesso recém-criado')
+    check('o acesso criado no painel realmente entra no sistema', true)
+    await foto('acesso-criado-dentro')
+
+    // Aqui a sessão é a de um operador dentro da distribuidora: o "Sair" está
+    // no menu da conta, não à vista como no painel da Aionix.
+    await sair()
+    await esperarCaminho((p) => p.startsWith('/login'), 'sair do acesso de teste')
+
+    const voltarComoAdmin = async () => {
+      await preencher({ email: EMAIL_ADMIN_TESTE, senha: SENHA_ADMIN_NOVA })
+      await clicar('Entrar')
+      await esperarCaminho((p) => p === '/admin', 'voltar ao painel da Aionix')
+      await clicar('Acessos')
+      await esperarCaminho((p) => p.startsWith('/admin/empresas/'), 'reabrir a tela de acessos')
+    }
+
+    await voltarComoAdmin()
+
+    // Redefinir e desativar na mesma passagem, para conferir a interação entre
+    // os dois: senha nova correta **e** acesso desativado tem que ser recusado.
+    // Testar só o desativado com a senha antiga não provaria nada — a recusa
+    // poderia estar vindo da senha.
+    await clicarNaLinhaDoAcesso('Redefinir senha')
+    await preencher({ novaSenha: SENHA_ACESSO_SEGUNDA })
+    await clicarNaLinhaDoAcesso('Salvar senha')
+    await esperarPor(
+      async () => (await texto()).includes('Senha redefinida'),
+      'a confirmação da senha redefinida',
+    )
+    check('redefinir senha confirma na tela', true)
+
+    await clicarNaLinhaDoAcesso('Desativar')
+    await esperarPor(
+      async () => (await texto()).includes('Desativado'),
+      'o selo de acesso desativado',
+    )
+    check('desativar marca o acesso na lista', true)
+    await foto('admin-acesso-desativado')
+
+    await clicar('Sair')
+    await esperarCaminho((p) => p.startsWith('/login'), 'sair para testar o acesso desativado')
+    await preencher({ email: EMAIL_ACESSO_TESTE, senha: SENHA_ACESSO_SEGUNDA })
+    await clicar('Entrar')
+    await esperarPor(
+      async () => (await texto()).includes('E-mail ou senha incorretos'),
+      'a recusa do acesso desativado',
+    )
+    check('acesso desativado não entra, nem com a senha certa', true)
+
+    await voltarComoAdmin()
+    await clicarNaLinhaDoAcesso('Reativar')
+    await esperarPor(
+      async () => !(await texto()).includes('Desativado'),
+      'o selo de desativado sumir',
+    )
+    check('reativar devolve o acesso à lista de ativos', true)
+
+    await clicar('Sair')
+    await esperarCaminho((p) => p.startsWith('/login'), 'sair para testar a senha nova')
+    await preencher({ email: EMAIL_ACESSO_TESTE, senha: SENHA_ACESSO_SEGUNDA })
+    await clicar('Entrar')
+    await esperarCaminho((p) => p.startsWith('/painel'), 'entrar com a senha redefinida')
+    check('a senha redefinida é a que vale, e reativar reabre a porta', true)
+
+    await sair()
+    await esperarCaminho((p) => p.startsWith('/login'), 'sair do acesso reativado')
+    await preencher({ email: EMAIL_ACESSO_TESTE, senha: SENHA_ACESSO_PRIMEIRA })
+    await clicar('Entrar')
+    await esperarPor(
+      async () => (await texto()).includes('E-mail ou senha incorretos'),
+      'a recusa da senha antiga do acesso',
+    )
+    check('a senha antiga do acesso deixa de funcionar depois de redefinida', true)
+
+    await preencher({ email: EMAIL_ADMIN_TESTE, senha: SENHA_ADMIN_NOVA })
+    await clicar('Entrar')
+    await esperarCaminho((p) => p === '/admin', 'voltar ao painel da Aionix')
 
     await clicar('Entrar')
     await esperarCaminho((p) => p.startsWith('/painel'), 'entrar na distribuidora')
@@ -1173,6 +1681,14 @@ try {
   // Sem `catch` silencioso: faxina que falha deixa cadastro de teste no banco
   // da distribuidora, e isso precisa aparecer no relatório.
   await faxina().catch((err) => falhas.push(`faxina falhou: ${err.message}`))
+  // O dono descartável sai aqui e não dentro da `faxina()`: ela também roda no
+  // meio do roteiro, com esse login em uso — apagar o usuário da sessão ativa
+  // derrubaria a rodada de um jeito difícil de ler.
+  if (!EMAIL && banco) {
+    await banco`delete from users where email = ${EMAIL_DONO_TESTE}`.catch((err) =>
+      falhas.push(`não consegui apagar o dono de teste: ${err.message}`),
+    )
+  }
   await banco?.end({ timeout: 5 }).catch(() => {})
 }
 

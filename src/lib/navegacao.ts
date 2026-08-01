@@ -43,7 +43,7 @@ export type GrupoNav = {
  *
  * **Os rótulos são os do sistema antigo, de propósito.** "Contas a Receber",
  * "PDV", "DRE", "Fluxo de Caixa Diário" — nenhum sinônimo, nenhuma melhoria de
- * nomenclatura. O usuário da LM já sabe operar um sistema; nosso trabalho não é
+ * nomenclatura. O usuário da JM já sabe operar um sistema; nosso trabalho não é
  * ensinar outro, é entregar o mesmo mapa mental bem executado. Ganhar discussão
  * de nomenclatura não vale perder a adoção.
  *
@@ -56,7 +56,18 @@ export const NAVEGACAO: GrupoNav[] = [
     itens: [{ rotulo: 'Painel Gerencial', href: '/painel' }],
   },
   {
-    // Não existe no sistema antigo. É a razão pela qual a LM está trocando:
+    // Primeiro grupo do sistema deles, e o primeiro aqui: é onde a operadora
+    // passa o dia. Orçamento e Comissão continuam em `PROXIMAS` — o PDV e a
+    // listagem gravam de verdade, os outros dois ainda não existem.
+    rotulo: 'Vendas',
+    Icone: ShoppingCart,
+    itens: [
+      { rotulo: 'PDV', href: '/vendas/pdv' },
+      { rotulo: 'Vendas de Produtos', href: '/vendas/produtos' },
+    ],
+  },
+  {
+    // Não existe no sistema antigo. É a razão pela qual a JM está trocando:
     // sem lugar para lançar galão quebrado, a operadora registra venda de
     // centavos e contamina o faturamento.
     //
@@ -101,8 +112,8 @@ export const NAVEGACAO: GrupoNav[] = [
  * Financeiro · Estoque · Relatórios · Configurações.
  *
  * **Pendências a confirmar com o cliente** (ver `docs/00-auditoria-sistema-legado.md` §3):
- * - O legado tem 6 telas de NF-e. Ficam fora até confirmarmos se a LM emite nota.
- * - O legado tem "Serviços" em Vendas e Cadastro. A LM vende água, não serviço —
+ * - O legado tem 6 telas de NF-e. Ficam fora até confirmarmos se a JM emite nota.
+ * - O legado tem "Serviços" em Vendas e Cadastro. A JM vende água, não serviço —
  *   confirmar se usam.
  * - O legado tem Agenda, Etiquetas e Analytics. Vieram vazios na auditoria;
  *   confirmar se são usados antes de construir.
@@ -112,8 +123,6 @@ export const PROXIMAS: GrupoNav[] = [
     rotulo: 'Vendas',
     Icone: ShoppingCart,
     itens: [
-      { rotulo: 'PDV', href: '/vendas/pdv' },
-      { rotulo: 'Vendas de Produtos', href: '/vendas/produtos' },
       { rotulo: 'Orçamento', href: '/vendas/orcamento' },
       { rotulo: 'Comissão', href: '/vendas/comissao' },
     ],

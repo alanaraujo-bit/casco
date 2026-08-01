@@ -184,6 +184,46 @@ export function formatarData(valor: Date | string): string {
   return new Date(valor).toLocaleDateString('pt-BR', { timeZone: FUSO })
 }
 
+/**
+ * A data de hoje **na loja**, como `YYYY-MM-DD`, opcionalmente deslocada em dias.
+ *
+ * É o par de escrita das funções de cima: elas resolvem o fuso na hora de
+ * mostrar, esta resolve na hora de gravar. Toda coluna `date` do banco —
+ * emissão e vencimento de título, data de movimento de caixa — passa por aqui.
+ *
+ * `new Date().toISOString().slice(0, 10)` no servidor da Vercel devolve a data
+ * em UTC: uma venda fechada às 21h de Tucumã nasceria com a data do dia
+ * seguinte, e o fechamento de caixa da operadora não bateria com a tela. Ela
+ * teria razão, e o erro só apareceria no fim do mês.
+ *
+ * A aritmética é feita em UTC de propósito: somar dias sobre um `Date` no fuso
+ * local erra na virada do horário de verão. A data já vem resolvida no fuso da
+ * loja antes de qualquer soma.
+ */
+export function dataNaLoja(deslocamentoDias = 0): string {
+  // `en-CA` é o locale que formata como `2026-08-01` — o mesmo formato que o
+  // Postgres aceita em coluna `date`, sem passo de conversão no meio.
+  const hoje = new Date().toLocaleDateString('en-CA', { timeZone: FUSO })
+  const [ano, mes, dia] = hoje.split('-').map(Number)
+  const base = new Date(Date.UTC(ano, mes - 1, dia))
+  base.setUTCDate(base.getUTCDate() + deslocamentoDias)
+  return base.toISOString().slice(0, 10)
+}
+
+/**
+ * `2026-08-01` → `01/08/2026`. Para coluna `date`, que **não tem hora**.
+ *
+ * Não é redundante com `formatarData`: aquela recebe um instante e precisa
+ * decidir em que dia ele caiu, aqui em Tucumã. Esta recebe um dia que já é um
+ * dia — vencimento, emissão — e a única coisa que pode fazer de errado é
+ * convertê-lo. `new Date('2026-08-01')` vira meia-noite **UTC**, que em
+ * UTC−3 ainda é 31 de julho: o título venceria um dia antes na tela.
+ */
+export function formatarDataISO(iso: string): string {
+  const [ano, mes, dia] = iso.split('-')
+  return `${dia}/${mes}/${ano}`
+}
+
 /** `16:08` — para o que aconteceu hoje, onde a data é redundante. */
 export function formatarHora(valor: Date | string): string {
   return new Date(valor).toLocaleTimeString('pt-BR', {
