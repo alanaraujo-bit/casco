@@ -25,19 +25,15 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { cn, moeda } from '@/lib/utils'
 import { centavos, deCentavos, paraNumero, type EstadoVenda } from '@/modules/vendas/esquema'
-import type {
-  ClienteVenda,
-  FormaVenda,
-  PrecoTabela,
-  ProdutoVenda,
-} from '@/modules/vendas/consultas'
+import type { FormaPagamentoOpcao } from '@/modules/financeiro/consultas'
+import type { ClienteVenda, PrecoTabela, ProdutoVenda } from '@/modules/vendas/consultas'
 
 type Props = {
   acao: (anterior: EstadoVenda, form: FormData) => Promise<EstadoVenda>
   produtos: ProdutoVenda[]
   precos: PrecoTabela[]
   clientes: ClienteVenda[]
-  formas: FormaVenda[]
+  formas: FormaPagamentoOpcao[]
   tabelaPadraoId: string | null
 }
 

@@ -184,6 +184,26 @@ async function faxina() {
   await banco`delete from estoque_saldos where produto_id in (${doTeste})`
   await banco`set session_replication_role = 'origin'`
 
+  /**
+   * Os títulos do teste, resolvidos antes de sumirem.
+   *
+   * A baixa de título lança caixa com `origem = 'receber'` e `origem_id` do
+   * título. Apagar o título primeiro deixaria esse movimento órfão no Fluxo de
+   * Caixa da distribuidora — dinheiro que entrou por um recebimento que não
+   * existe mais é exatamente o tipo de linha que ninguém consegue explicar.
+   */
+  const idsTitulos = (
+    await banco`
+      select id from contas_receber
+       where cliente_id in (${clientesDoTeste})
+          ${idsVendas.length > 0 ? banco`or venda_id in ${banco(idsVendas)}` : banco``}
+    `
+  ).map((t) => t.id)
+
+  if (idsTitulos.length > 0) {
+    await banco`delete from caixa_movimentos where origem = 'receber' and origem_id in ${banco(idsTitulos)}`
+  }
+
   // Ordem ditada pelas FKs `restrict`: o que aponta para a venda sai antes dela,
   // e o que aponta para o cliente sai antes dele.
   await banco`delete from contas_receber where cliente_id in (${clientesDoTeste})`
@@ -1178,6 +1198,87 @@ try {
       'o título gerado pelo PDV aparece em Contas a Receber',
       titulos.includes(nome) && titulos.includes('24,00'),
       titulos.slice(0, 300),
+    )
+
+    // --- baixa do título: o dinheiro do fiado entrando no caixa
+    //
+    // O seletor mira o link da linha (`/financeiro/receber/<uuid>`) e não o
+    // texto "Receber": o item de menu "Contas a Receber" também contém essa
+    // palavra, e o roteiro clicaria na barra lateral.
+    await clicar('Receber', 15_000, 'a[href^="/financeiro/receber/"]')
+    await esperarCaminho(
+      (p) => /\/financeiro\/receber\/[0-9a-f-]{36}/.test(p),
+      'abrir a baixa do título',
+    )
+    const baixa = await texto()
+    check(
+      'a baixa já vem preenchida com o valor cobrado',
+      baixa.includes('24,00'),
+      baixa.slice(0, 300),
+    )
+    await foto('receber-baixa')
+
+    await clicar('Confirmar recebimento')
+    await esperarPor(
+      async () => (await texto()).includes('Voltar para Contas a Receber'),
+      'o recibo da baixa',
+    )
+    check('receber o título confirma na tela com o valor e a conta', true)
+
+    await irPara('/financeiro/receber')
+    check(
+      'o título baixado aparece como Recebido',
+      (await texto()).includes('Recebido'),
+      (await texto()).slice(0, 300),
+    )
+
+    // --- desfazer: o título volta a ficar em aberto, e o caixa não perde a linha
+    await clicar('Ver baixa', 15_000, 'a[href^="/financeiro/receber/"]')
+    await esperarPor(
+      async () => (await texto()).includes('Desfazer baixa'),
+      'a tela do título já recebido',
+    )
+    await clicar('Desfazer baixa')
+    await clicar('Confirmar: título volta a ficar em aberto')
+    await esperarPor(
+      async () => (await texto()).includes('Confirmar recebimento'),
+      'o título voltar a ficar em aberto',
+    )
+    check('desfazer a baixa devolve o título para em aberto', true)
+
+    // Recebe de novo, para o restante da rodada encontrar o caixa movimentado.
+    await clicar('Confirmar recebimento')
+    await esperarPor(
+      async () => (await texto()).includes('Voltar para Contas a Receber'),
+      'a segunda baixa do mesmo título',
+    )
+    check('o título pode ser recebido de novo depois de desfeito', true)
+
+    // --- caixa: o dinheiro das duas pontas chegando no mesmo lugar
+    //
+    // A venda em dinheiro (R$ 36,00) entrou na hora; o título do fiado
+    // (R$ 24,00) entrou na baixa. Conferir os dois juntos é o que prova que
+    // Contas a Receber e Fluxo de Caixa contam a mesma história — que é
+    // exatamente onde o sistema antigo diverge, por lançar as duas coisas em
+    // telas separadas.
+    await irPara('/financeiro/caixa')
+    const caixa = await texto()
+    await foto('financeiro-caixa')
+    check(
+      'a venda em dinheiro aparece no caixa',
+      caixa.includes('36,00'),
+      caixa.slice(0, 400),
+    )
+    check(
+      'o título baixado aparece no caixa',
+      caixa.includes('24,00'),
+      caixa.slice(0, 400),
+    )
+    check('o caixa mostra o saldo por conta', caixa.includes('Caixa Loja'))
+    check(
+      'o caixa registra o estorno da baixa desfeita, em vez de apagar a entrada',
+      caixa.includes('Baixa desfeita'),
+      caixa.slice(0, 400),
     )
 
     // --- celular: o balcão também é atendido com o telefone na mão

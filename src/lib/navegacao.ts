@@ -4,6 +4,7 @@ import {
   Contact,
   FileBarChart,
   History,
+  Landmark,
   LayoutDashboard,
   Package,
   Receipt,
@@ -97,7 +98,10 @@ export const NAVEGACAO: GrupoNav[] = [
   {
     rotulo: 'Financeiro',
     Icone: Wallet,
-    itens: [{ rotulo: 'Contas a Receber', href: '/financeiro/receber' }],
+    itens: [
+      { rotulo: 'Contas a Receber', href: '/financeiro/receber' },
+      { rotulo: 'Caixa', href: '/financeiro/caixa' },
+    ],
   },
 ]
 
@@ -133,7 +137,6 @@ export const PROXIMAS: GrupoNav[] = [
     itens: [
       { rotulo: 'Contas a Pagar', href: '/financeiro/pagar' },
       { rotulo: 'Despesas', href: '/financeiro/despesas' },
-      { rotulo: 'Caixa', href: '/financeiro/caixa' },
     ],
   },
   {
@@ -174,6 +177,7 @@ export const ICONES_ITEM: Record<string, LucideIcon> = {
   '/cadastro/clientes': Users,
   '/cadastro/produtos': Package,
   '/financeiro/receber': Wallet,
+  '/financeiro/caixa': Landmark,
   '/estoque/saldo': Boxes,
 }
 

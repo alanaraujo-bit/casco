@@ -1,7 +1,15 @@
 import 'server-only'
 
-import { asc, sql } from 'drizzle-orm'
-import { clientes, contasBancarias, contasReceber, formasPagamento } from '@/db/schema'
+import { asc, desc, eq, sql } from 'drizzle-orm'
+import {
+  caixaMovimentos,
+  clientes,
+  contasBancarias,
+  contasReceber,
+  formasPagamento,
+  users,
+  type TipoPagamento,
+} from '@/db/schema'
 import { comTenant } from '@/lib/dal'
 
 /**
@@ -102,6 +110,203 @@ export function metricasReceber() {
         venceEm7: sql<number>`count(*) filter (where ${aberto} and ${contasReceber.vencimento} between current_date and current_date + 7)::int`,
       })
       .from(contasReceber)
+
+    return linha
+  })
+}
+
+/* ------------------------------------------------------ meios de recebimento
+ *
+ * Moram aqui, e não no módulo de vendas, porque conta e forma de pagamento são
+ * cadastro financeiro: o PDV é um dos consumidores, a baixa de título é outro,
+ * e Contas a Pagar será o terceiro. Deixá-los em `vendas` faria o financeiro
+ * depender de venda para saber onde o dinheiro cai.
+ */
+
+export interface FormaPagamentoOpcao {
+  id: string
+  nome: string
+  tipo: TipoPagamento
+  taxaPercentual: string
+  prazoDias: number
+}
+
+export function listarFormasPagamento() {
+  return comTenant(async (tx) =>
+    tx
+      .select({
+        id: formasPagamento.id,
+        nome: formasPagamento.nome,
+        tipo: formasPagamento.tipo,
+        taxaPercentual: formasPagamento.taxaPercentual,
+        prazoDias: formasPagamento.prazoDias,
+      })
+      .from(formasPagamento)
+      .where(eq(formasPagamento.ativo, true))
+      .orderBy(asc(formasPagamento.nome)),
+  ) as Promise<FormaPagamentoOpcao[]>
+}
+
+export interface ContaOpcao {
+  id: string
+  nome: string
+  tipo: string
+}
+
+export function listarContas() {
+  return comTenant(async (tx) =>
+    tx
+      .select({ id: contasBancarias.id, nome: contasBancarias.nome, tipo: contasBancarias.tipo })
+      .from(contasBancarias)
+      .where(eq(contasBancarias.ativo, true))
+      .orderBy(asc(contasBancarias.nome)),
+  ) as Promise<ContaOpcao[]>
+}
+
+/* --------------------------------------------------------- um título só */
+
+export interface TituloParaBaixa {
+  id: string
+  codigo: number | null
+  cliente: string
+  descricao: string | null
+  emissao: string
+  vencimento: string
+  valorParcela: string
+  parcela: string
+  pagoEm: string | null
+  valorPago: string | null
+  taxas: string
+  conta: string | null
+  forma: string | null
+}
+
+export function acharTitulo(id: string) {
+  return comTenant(async (tx) => {
+    const [linha] = await tx
+      .select({
+        id: contasReceber.id,
+        codigo: contasReceber.codigo,
+        cliente: sql<string>`coalesce(${clientes.nome}, ${contasReceber.descricao}, '—')`,
+        descricao: contasReceber.descricao,
+        emissao: sql<string>`to_char(${contasReceber.emissao}, 'DD/MM/YYYY')`,
+        vencimento: sql<string>`to_char(${contasReceber.vencimento}, 'DD/MM/YYYY')`,
+        valorParcela: contasReceber.valorParcela,
+        parcela: sql<string>`${contasReceber.parcelaNumero} || '/' || ${contasReceber.parcelaTotal}`,
+        pagoEm: sql<string | null>`to_char(${contasReceber.pagoEm}, 'DD/MM/YYYY')`,
+        valorPago: contasReceber.valorPago,
+        taxas: contasReceber.taxas,
+        conta: contasBancarias.nome,
+        forma: formasPagamento.nome,
+      })
+      .from(contasReceber)
+      .leftJoin(clientes, sql`${clientes.id} = ${contasReceber.clienteId}`)
+      .leftJoin(contasBancarias, sql`${contasBancarias.id} = ${contasReceber.contaId}`)
+      .leftJoin(formasPagamento, sql`${formasPagamento.id} = ${contasReceber.formaId}`)
+      .where(eq(contasReceber.id, id))
+      .limit(1)
+    return (linha ?? null) as TituloParaBaixa | null
+  })
+}
+
+/* ------------------------------------------------------------------- caixa
+ *
+ * **Só dinheiro que entrou ou saiu de fato.** É o que separa esta tela do DRE,
+ * e a ausência mais importante aqui é a perda de vasilhame: galão quebrado é
+ * custo, mas nenhum real sai do caixa quando ele quebra. A perda vive em
+ * `vasilhame_perdas` e aparece no resultado, nunca aqui.
+ */
+
+export interface MovimentoCaixa {
+  id: string
+  data: string
+  conta: string
+  sentido: 'entrada' | 'saida'
+  categoria: string | null
+  descricao: string | null
+  valor: string
+  usuario: string | null
+}
+
+export function listarCaixa(limite = 500) {
+  return comTenant(async (tx) =>
+    tx
+      .select({
+        id: caixaMovimentos.id,
+        data: sql<string>`to_char(${caixaMovimentos.data}, 'DD/MM/YYYY')`,
+        conta: contasBancarias.nome,
+        sentido: caixaMovimentos.sentido,
+        categoria: caixaMovimentos.categoria,
+        descricao: caixaMovimentos.descricao,
+        valor: caixaMovimentos.valor,
+        usuario: users.nome,
+      })
+      .from(caixaMovimentos)
+      .innerJoin(contasBancarias, eq(contasBancarias.id, caixaMovimentos.contaId))
+      .leftJoin(users, eq(users.id, caixaMovimentos.usuarioId))
+      .orderBy(desc(caixaMovimentos.data), desc(caixaMovimentos.criadoEm))
+      .limit(limite),
+  ) as Promise<MovimentoCaixa[]>
+}
+
+/**
+ * Saldo de cada conta: o saldo inicial mais tudo que entrou, menos tudo que saiu.
+ *
+ * Somado no banco a cada leitura, e não guardado numa coluna. Saldo guardado é
+ * saldo que descola do extrato no primeiro lançamento que falhar pela metade —
+ * e aí ninguém sabe qual dos dois números está certo. São dezenas de linhas por
+ * mês; a soma é barata e é sempre explicável pelo que a lista mostra.
+ */
+export interface SaldoConta {
+  id: string
+  nome: string
+  tipo: string
+  saldo: string
+  entradasMes: string
+  saidasMes: string
+}
+
+export function saldosPorConta() {
+  const doMes = sql`date_trunc('month', ${caixaMovimentos.data})
+                    = date_trunc('month', (now() at time zone 'America/Belem')::date)`
+
+  return comTenant(async (tx) =>
+    tx
+      .select({
+        id: contasBancarias.id,
+        nome: contasBancarias.nome,
+        tipo: contasBancarias.tipo,
+        saldo: sql<string>`${contasBancarias.saldoInicial} + coalesce(sum(
+          case when ${caixaMovimentos.sentido} = 'entrada'
+               then ${caixaMovimentos.valor} else -${caixaMovimentos.valor} end
+        ), 0)`,
+        entradasMes: sql<string>`coalesce(sum(${caixaMovimentos.valor})
+          filter (where ${caixaMovimentos.sentido} = 'entrada' and ${doMes}), 0)`,
+        saidasMes: sql<string>`coalesce(sum(${caixaMovimentos.valor})
+          filter (where ${caixaMovimentos.sentido} = 'saida' and ${doMes}), 0)`,
+      })
+      .from(contasBancarias)
+      .leftJoin(caixaMovimentos, eq(caixaMovimentos.contaId, contasBancarias.id))
+      .where(eq(contasBancarias.ativo, true))
+      .groupBy(contasBancarias.id, contasBancarias.nome, contasBancarias.tipo, contasBancarias.saldoInicial)
+      .orderBy(asc(contasBancarias.nome)),
+  ) as Promise<SaldoConta[]>
+}
+
+/** O fechamento do dia, que é a pergunta das 18h: quanto entrou, quanto saiu. */
+export function metricasCaixa() {
+  return comTenant(async (tx) => {
+    const hoje = sql`${caixaMovimentos.data} = (now() at time zone 'America/Belem')::date`
+    const entrada = sql`${caixaMovimentos.sentido} = 'entrada'`
+
+    const [linha] = await tx
+      .select({
+        entradasHoje: sql<string>`coalesce(sum(${caixaMovimentos.valor}) filter (where ${hoje} and ${entrada}), 0)`,
+        saidasHoje: sql<string>`coalesce(sum(${caixaMovimentos.valor}) filter (where ${hoje} and not ${entrada}), 0)`,
+        qtdHoje: sql<number>`count(*) filter (where ${hoje})::int`,
+        movimentos: sql<number>`count(*)::int`,
+      })
+      .from(caixaMovimentos)
 
     return linha
   })

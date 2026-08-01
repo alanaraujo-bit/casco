@@ -5,14 +5,12 @@ import {
   clientes,
   contasReceber,
   estoqueSaldos,
-  formasPagamento,
   precos,
   produtos,
   tabelasPreco,
   users,
   vendaItens,
   vendas,
-  type TipoPagamento,
 } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
 
@@ -127,30 +125,6 @@ export function listarClientesParaVenda() {
       .where(eq(clientes.ativo, true))
       .orderBy(asc(clientes.nome)),
   ) as Promise<ClienteVenda[]>
-}
-
-export interface FormaVenda {
-  id: string
-  nome: string
-  tipo: TipoPagamento
-  taxaPercentual: string
-  prazoDias: number
-}
-
-export function listarFormasPagamento() {
-  return comTenant(async (tx) =>
-    tx
-      .select({
-        id: formasPagamento.id,
-        nome: formasPagamento.nome,
-        tipo: formasPagamento.tipo,
-        taxaPercentual: formasPagamento.taxaPercentual,
-        prazoDias: formasPagamento.prazoDias,
-      })
-      .from(formasPagamento)
-      .where(eq(formasPagamento.ativo, true))
-      .orderBy(asc(formasPagamento.nome)),
-  ) as Promise<FormaVenda[]>
 }
 
 /** A tabela usada quando o cliente não tem uma, e na venda avulsa de balcão. */

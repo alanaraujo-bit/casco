@@ -3,11 +3,11 @@ import Link from 'next/link'
 import { Receipt } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Button } from '@/components/ui/button'
+import { listarFormasPagamento } from '@/modules/financeiro/consultas'
 import { fecharVenda } from '@/modules/vendas/acoes'
 import {
   acharTabelaPadrao,
   listarClientesParaVenda,
-  listarFormasPagamento,
   listarPrecosDeVenda,
   listarProdutosParaVenda,
 } from '@/modules/vendas/consultas'

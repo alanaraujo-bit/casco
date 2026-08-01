@@ -1,6 +1,9 @@
 'use client'
 
+import Link from 'next/link'
+import { Wallet } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
 import type { TituloLista } from '@/modules/financeiro/consultas'
@@ -133,6 +136,35 @@ const colunas: Coluna<TituloLista>[] = [
     numerica: true,
     ocultaPorPadrao: true,
     papelMobile: 'oculto',
+  },
+  {
+    // A coluna que faltava para a tela sair do papel de relatório. Sem ela, o
+    // título gerado pelo PDV nasce e fica: dá para ver que o cliente deve, e
+    // não dá para registrar que ele pagou.
+    chave: 'acoes',
+    cabecalho: 'Baixa',
+    texto: (c) => (c.situacao === 'Recebido' ? 'Recebido' : 'Receber'),
+    celula: (c) => (
+      <Button
+        asChild
+        variant={c.situacao === 'Recebido' ? 'fantasma' : 'suave'}
+        size="sm"
+      >
+        <Link href={`/financeiro/receber/${c.id}`}>
+          {c.situacao === 'Recebido' ? (
+            'Ver baixa'
+          ) : (
+            <>
+              <Wallet aria-hidden />
+              Receber
+            </>
+          )}
+        </Link>
+      </Button>
+    ),
+    ordenavel: false,
+    alinhamento: 'direita',
+    larguraMin: '8rem',
   },
 ]
 
