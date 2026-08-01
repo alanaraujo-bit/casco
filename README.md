@@ -6,7 +6,10 @@ Produto da [Aionix](https://www.aionixdev.com).
 O que separa o Casco de um ERP genérico: o vasilhame é tratado como o que ele é —
 um ativo emprestado que circula, quebra e às vezes some. Não como uma linha de venda.
 
-**Produção:** https://casco.vercel.app
+**Produção:** https://casco.aionixdev.com — domínio da Aionix, é o endereço que
+a distribuidora usa. https://casco.vercel.app continua respondendo: é o domínio
+padrão do projeto na Vercel e serve o mesmo deploy.
+
 Deploy automático a cada push na `main`; cada PR ganha uma URL de preview.
 
 ## Stack
@@ -16,7 +19,7 @@ Deploy automático a cada push na `main`; cada PR ganha uma URL de preview.
 | App | Next.js 16 (App Router) · React 19 · TypeScript |
 | Estilo | Tailwind v4 · shadcn/ui |
 | Banco | Postgres (Railway) · Drizzle · RLS por `company_id` |
-| Auth | Auth.js v5 |
+| Auth | Sessão própria (JWT em cookie) — ver o desvio consciente da Etapa 0.3 |
 | Deploy | Vercel — push na `main` publica |
 
 ## Rodando local

@@ -65,8 +65,11 @@ sem `timeZone` rende textos diferentes nos dois lados — o React derruba a
 hidratação da tela (erro #418) e a hora exibida fica três horas adiantada.
 Toda data com hora passa por `formatarDataHora` / `formatarData` /
 `formatarHora` em `src/lib/formatos.ts`, que fixam o fuso.
-Depois de publicar, rode o fluxo contra produção: `npm run fluxo -- --url https://casco.vercel.app`.
-Foi só assim que este apareceu.
+Depois de publicar, rode o fluxo contra produção — foi só assim que este apareceu:
+
+```
+npm run fluxo -- --url https://casco.aionixdev.com
+```
 
 Três armadilhas que custaram caro e estão anotadas no código:
 
