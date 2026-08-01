@@ -1,16 +1,25 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { sql } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
+import { uuidv7 } from 'uuidv7'
 import { z } from 'zod'
 import { db } from '@/db/client'
 import { exigirAdmin } from '@/lib/dal'
 import { criarSessao, criarSessaoAdmin, encerrarSessao } from '@/lib/sessao'
+import {
+  CAMPOS_ACESSO,
+  esquemaAcesso,
+  esquemaNovaSenha,
+  type CampoAcesso,
+  type EstadoAcesso,
+} from './esquema'
 
 /**
  * As ações do painel da Aionix: trocar a senha provisória, entrar numa
- * distribuidora, e sair dela.
+ * distribuidora, sair dela, e gerir os acessos de quem trabalha nela.
  */
 
 /** Mesmo custo do resto do sistema. Ver `scripts/criar-empresa.mjs`. */
@@ -143,4 +152,152 @@ export async function voltarAoPainel() {
   await exigirAdmin()
   await encerrarSessao()
   redirect('/admin')
+}
+
+// -------------------------------------------------------- acessos da empresa
+
+/**
+ * Criar, desativar e redefinir senha de quem trabalha na distribuidora.
+ *
+ * As três passam por `exigirAdmin()` e por funções `security definer` da
+ * migration 0009. Duas coisas valem para todas:
+ *
+ * - **O `companyId` vem do formulário, e isso é seguro aqui — só aqui.** Numa
+ *   tela de negócio seria falha grave: o tenant vem da sessão, nunca do
+ *   navegador. O painel da Aionix é a exceção por definição, porque a sessão de
+ *   admin não tem tenant nenhum e a tela existe justamente para escolher em qual
+ *   empresa agir. Quem confere que o id é de empresa real e ativa é a função do
+ *   banco, e todas elas casam `company_id` junto do `id` do usuário.
+ * - **A senha é digitada pelo admin, não sorteada.** Foi escolha explícita: sem
+ *   `senha_provisoria` em `users`, sem tela de primeiro acesso do lado da
+ *   distribuidora. O preço é conhecido — a senha do dono nasce sabida por quem
+ *   criou, e nada obriga a troca. Quando isso incomodar, o caminho é copiar o
+ *   mecanismo que `plataforma_admins` já tem.
+ */
+
+/** Só para o guard de digitação; quem valida de verdade é o banco. */
+const ehUuid = (v: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
+
+export async function criarAcesso(anterior: EstadoAcesso, form: FormData): Promise<EstadoAcesso> {
+  await exigirAdmin()
+
+  const companyId = String(form.get('companyId') ?? '')
+  const tentativa = (anterior.tentativa ?? 0) + 1
+
+  const bruto = Object.fromEntries(
+    CAMPOS_ACESSO.map((campo) => [campo, String(form.get(campo) ?? '')]),
+  ) as Record<CampoAcesso, string>
+
+  // Tudo menos a senha volta para o formulário quando dá erro. Ver `EstadoAcesso`.
+  const valores = { nome: bruto.nome, email: bruto.email, papel: bruto.papel }
+
+  if (!ehUuid(companyId)) return { erro: 'Distribuidora inválida.', valores, tentativa }
+
+  const analise = esquemaAcesso.safeParse(bruto)
+  if (!analise.success) {
+    const porCampo = z.flattenError(analise.error).fieldErrors as Record<
+      string,
+      string[] | undefined
+    >
+    const campos: Partial<Record<CampoAcesso, string>> = {}
+    for (const campo of CAMPOS_ACESSO) {
+      const msg = porCampo[campo]?.[0]
+      if (msg) campos[campo] = msg
+    }
+    return { campos, valores, tentativa }
+  }
+
+  const { nome, email, senha, papel } = analise.data
+  const hash = await bcrypt.hash(senha, CUSTO_BCRYPT)
+
+  const [resultado] = await db.execute<{ admin_criar_usuario: string }>(
+    sql`select admin_criar_usuario(${uuidv7()}, ${companyId}, ${nome}, ${email}, ${hash}, ${papel})`,
+  )
+
+  switch (resultado?.admin_criar_usuario) {
+    case 'ok':
+      break
+    case 'email':
+      return {
+        campos: { email: 'Este e-mail já é login de alguém no sistema' },
+        valores,
+        tentativa,
+      }
+    default:
+      return { erro: 'Essa distribuidora não existe mais ou foi desativada.', valores, tentativa }
+  }
+
+  revalidatePath(`/admin/empresas/${companyId}`)
+  // A contagem de usuários da portaria fica errada sem isto.
+  revalidatePath('/admin')
+
+  return { ok: `Acesso de ${nome} criado. Repasse o e-mail e a senha.`, tentativa }
+}
+
+/**
+ * Desativa ou reativa, conforme o estado que o formulário mandar.
+ *
+ * Uma ação para os dois sentidos porque é uma operação só — o botão da linha
+ * envia o valor oposto ao atual. Duas actions quase idênticas seria a mesma
+ * regra escrita duas vezes, e a segunda envelheceria.
+ */
+export async function alternarAcesso(form: FormData) {
+  await exigirAdmin()
+
+  const companyId = String(form.get('companyId') ?? '')
+  const usuarioId = String(form.get('usuarioId') ?? '')
+  const ativo = String(form.get('ativo') ?? '') === 'true'
+
+  if (!ehUuid(companyId) || !ehUuid(usuarioId)) return
+
+  await db.execute(sql`select admin_definir_ativo(${usuarioId}, ${companyId}, ${ativo})`)
+
+  revalidatePath(`/admin/empresas/${companyId}`)
+  revalidatePath('/admin')
+}
+
+export async function redefinirSenhaAcesso(
+  anterior: EstadoAcesso,
+  form: FormData,
+): Promise<EstadoAcesso> {
+  await exigirAdmin()
+
+  const companyId = String(form.get('companyId') ?? '')
+  const tentativa = (anterior.tentativa ?? 0) + 1
+
+  if (!ehUuid(companyId)) return { erro: 'Distribuidora inválida.', tentativa }
+
+  // O campo se chama `novaSenha` no HTML e `senha` no esquema: a tela de
+  // acessos tem o formulário de criar e o de redefinir no mesmo documento, e
+  // dois campos `senha` ali dentro seriam ambíguos. Ver `linha-acesso.tsx`.
+  const analise = esquemaNovaSenha.safeParse({
+    usuarioId: String(form.get('usuarioId') ?? ''),
+    senha: String(form.get('novaSenha') ?? ''),
+  })
+
+  if (!analise.success) {
+    const porCampo = z.flattenError(analise.error).fieldErrors as Record<
+      string,
+      string[] | undefined
+    >
+    return {
+      campos: { senha: porCampo.senha?.[0] },
+      erro: porCampo.usuarioId?.[0],
+      tentativa,
+    }
+  }
+
+  const hash = await bcrypt.hash(analise.data.senha, CUSTO_BCRYPT)
+
+  const [resultado] = await db.execute<{ admin_redefinir_senha: boolean }>(
+    sql`select admin_redefinir_senha(${analise.data.usuarioId}, ${companyId}, ${hash})`,
+  )
+
+  if (!resultado?.admin_redefinir_senha) {
+    return { erro: 'Esse acesso não existe mais nessa distribuidora.', tentativa }
+  }
+
+  revalidatePath(`/admin/empresas/${companyId}`)
+  return { ok: 'Senha redefinida. Repasse a nova senha.', tentativa }
 }

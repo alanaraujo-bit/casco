@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
-import { ArrowRight, TriangleAlert } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowRight, TriangleAlert, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -72,23 +73,35 @@ export default async function PainelAdmin({ searchParams }: Props) {
                   </p>
                 </div>
 
-                {/* `<form action>` porque isto grava um cookie de sessão: é uma
-                    mudança de estado, não uma navegação. Um `<Link>` aqui seria
-                    um GET que troca a empresa da sessão — exatamente o tipo de
-                    coisa que um prefetch dispara sem ninguém clicar. */}
-                <form action={entrarNaEmpresa} className="shrink-0">
-                  <input type="hidden" name="empresaId" value={e.id} />
-                  <Button
-                    type="submit"
-                    variant={e.ativo ? 'primario' : 'secundario'}
-                    size="sm"
-                    disabled={!e.ativo}
-                    className="w-full sm:w-auto"
-                  >
-                    Entrar
-                    <ArrowRight aria-hidden />
+                <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                  {/* Este é `<Link>` e o de baixo é `<form>`, e a diferença
+                      importa: ver acessos é leitura, entrar na empresa grava
+                      cookie de sessão. */}
+                  <Button asChild variant="secundario" size="sm" className="w-full sm:w-auto">
+                    <Link href={`/admin/empresas/${e.id}`}>
+                      <Users aria-hidden />
+                      Acessos
+                    </Link>
                   </Button>
-                </form>
+
+                  {/* `<form action>` porque isto grava um cookie de sessão: é uma
+                      mudança de estado, não uma navegação. Um `<Link>` aqui seria
+                      um GET que troca a empresa da sessão — exatamente o tipo de
+                      coisa que um prefetch dispara sem ninguém clicar. */}
+                  <form action={entrarNaEmpresa}>
+                    <input type="hidden" name="empresaId" value={e.id} />
+                    <Button
+                      type="submit"
+                      variant={e.ativo ? 'primario' : 'secundario'}
+                      size="sm"
+                      disabled={!e.ativo}
+                      className="w-full sm:w-auto"
+                    >
+                      Entrar
+                      <ArrowRight aria-hidden />
+                    </Button>
+                  </form>
+                </div>
               </Card>
             </li>
           ))}

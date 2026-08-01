@@ -7,8 +7,8 @@
  * loja. Distribuidora que entra e encontra o combo de forma de pagamento vazio
  * não consegue registrar a primeira venda.
  *
- *     npm run empresa:criar -- --nome "LM Distribuidora Natuclara" \
- *                              --email dono@lm.com.br --senha "..."
+ *     npm run empresa:criar -- --nome "JM Distribuidora Natuclara" \
+ *                              --email dono@jm.com.br --senha "..."
  *
  * Idempotente pelo e-mail: rodar de novo com o mesmo e-mail atualiza a senha em
  * vez de duplicar a empresa.
