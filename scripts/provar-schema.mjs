@@ -70,6 +70,9 @@ async function limpar() {
     await dono.unsafe(`delete from ${t} where company_id in ('${A}','${B}')`)
   }
   await dono`delete from companies where id in (${A}, ${B})`
+  // O admin de prova não tem company_id para filtrar; o domínio reservado
+  // `.invalid` (RFC 2606) é o que garante que nenhum admin de verdade case.
+  await dono`delete from plataforma_admins where email like '%@exemplo.invalid'`
   await dono`set session_replication_role = 'origin'`
 }
 
@@ -255,6 +258,43 @@ try {
          values (${randomUUID()}, ${A}, ${c1}, 100, 100, current_date, current_date)`),
     'contas_receber_baixa_completa',
   )
+
+  // ------------------------------------------- admins da plataforma (0008)
+  //
+  // A tabela guarda o hash da credencial que abre TODAS as distribuidoras. Se
+  // um dia ela ficar legível pela aplicação, nada quebra e nenhum teste
+  // reclama — o vazamento é silencioso por natureza. Por isso a prova é
+  // explícita, e roda como `casco_app` fora e dentro de tenant.
+  const adminId = randomUUID()
+  await dono`
+    insert into plataforma_admins (id, nome, email, senha_hash)
+         values (${adminId}, 'PROVA', ${`prova-${adminId}@exemplo.invalid`}, 'x')
+  `
+
+  await deveFalhar(
+    'aplicação não consegue ler plataforma_admins',
+    () => app`select id from plataforma_admins`,
+    'permission denied',
+  )
+  await deveFalhar(
+    'nem dentro de um tenant',
+    () => comTenant(A, (tx) => tx`select id from plataforma_admins`),
+    'permission denied',
+  )
+
+  // O caminho legítimo continua aberto: a porta estreita `security definer`.
+  // Sem esta checagem, revogar demais passaria por "mais seguro" e derrubaria
+  // o login de admin em produção.
+  const achado = await app`select id from admin_find(${`prova-${adminId}@exemplo.invalid`})`
+  check('admin_find continua funcionando para a aplicação',
+        achado[0]?.id === adminId, `veio ${achado[0]?.id}`)
+
+  // `admin_listar_empresas` roda como dono e por isso enxerga as duas empresas
+  // de teste — é justamente o poder que o painel precisa e que a RLS negaria.
+  const listadas = await app`select id from admin_listar_empresas()`
+  const ids = listadas.map((l) => l.id)
+  check('admin_listar_empresas enxerga além da RLS',
+        ids.includes(A) && ids.includes(B), `viu ${listadas.length} empresas`)
 } catch (err) {
   falhas.push(`ERRO INESPERADO: ${err.message}`)
 } finally {

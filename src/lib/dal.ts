@@ -3,7 +3,7 @@ import 'server-only'
 import { cache } from 'react'
 import { redirect } from 'next/navigation'
 import { withTenant, type Tx } from '@/db/tenant'
-import { lerSessao, type Sessao } from '@/lib/sessao'
+import { lerSessao, lerSessaoAdmin, type Sessao, type SessaoAdmin } from '@/lib/sessao'
 
 /**
  * Camada de acesso a dados.
@@ -44,3 +44,37 @@ export async function comTenant<T>(fn: (tx: Tx, sessao: Sessao) => Promise<T>): 
   const sessao = await exigirSessao()
   return withTenant(sessao.companyId, (tx) => fn(tx, sessao))
 }
+
+/**
+ * Sessão de admin da Aionix, ou redirecionamento para o login.
+ *
+ * O par de `exigirSessao`, para as telas de `/admin`. Note que é uma checagem
+ * **independente**: ter sessão de trabalho não faz de ninguém admin, e ser
+ * admin não abre nenhuma tela de negócio por si só — para isso ele precisa
+ * entrar numa empresa e receber a sessão de trabalho correspondente.
+ *
+ * `trocaSenha` não é tratado aqui de propósito: quem redireciona para a troca
+ * é o layout de `/admin`, que é o único lugar por onde essas telas passam.
+ * Colocar aqui faria a própria tela de troca redirecionar para si mesma.
+ */
+export const exigirAdmin = cache(async (): Promise<SessaoAdmin> => {
+  const admin = await lerSessaoAdmin()
+  if (!admin) redirect('/login')
+  return admin
+})
+
+/**
+ * Admin que já trocou a senha provisória.
+ *
+ * Separado de `exigirAdmin()` porque a própria tela de troca precisa da versão
+ * de cima — se ela usasse esta, redirecionaria para si mesma para sempre.
+ *
+ * Quem chama isto não é cada página: é o layout do grupo `(painel)`, que é pai
+ * de toda tela de admin exceto a de senha. A separação é de pasta, não de
+ * disciplina — uma tela nova nasce guardada por estar onde está.
+ */
+export const exigirAdminPronto = cache(async (): Promise<SessaoAdmin> => {
+  const admin = await exigirAdmin()
+  if (admin.trocaSenha) redirect('/admin/senha')
+  return admin
+})

@@ -1,4 +1,5 @@
 export * from './tenancy'
+export * from './plataforma'
 export * from './cadastros'
 export * from './vasilhame'
 export * from './operacao'

@@ -15,7 +15,14 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
 
   return (
     <AppShell
-      usuario={{ nome: sessao.nome, empresa: sessao.empresa, papel: sessao.papel }}
+      usuario={{
+        nome: sessao.nome,
+        empresa: sessao.empresa,
+        papel: sessao.papel,
+        // `adminId` só está na sessão quando quem entrou aqui veio do painel da
+        // Aionix. Vira a faixa de aviso no topo — ver `AppShell`.
+        admin: Boolean(sessao.adminId),
+      }}
     >
       {children}
     </AppShell>

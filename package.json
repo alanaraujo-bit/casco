@@ -11,6 +11,7 @@
     "db:migrate": "node --env-file-if-exists=.env.local scripts/migrate.mjs",
     "db:provar": "node --env-file-if-exists=.env.local scripts/provar-schema.mjs",
     "empresa:criar": "node --env-file-if-exists=.env.local scripts/criar-empresa.mjs",
+    "admin:criar": "node --env-file-if-exists=.env.local scripts/criar-admin.mjs",
     "fluxo": "node --env-file-if-exists=.env.local scripts/fluxo.mjs"
   },
   "dependencies": {

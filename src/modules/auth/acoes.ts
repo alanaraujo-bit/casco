@@ -7,7 +7,12 @@ import { z } from 'zod'
 import { db } from '@/db/client'
 import { withTenant } from '@/db/tenant'
 import type { Papel } from '@/db/schema'
-import { criarSessao, encerrarSessao } from '@/lib/sessao'
+import {
+  criarSessao,
+  criarSessaoAdmin,
+  encerrarSessao,
+  encerrarSessaoAdmin,
+} from '@/lib/sessao'
 
 /**
  * Entrar e sair.
@@ -70,14 +75,59 @@ export async function entrar(
 
   const usuario = encontrados[0]
 
-  // Sempre compara, mesmo sem usuário: a comparação falsa consome o mesmo tempo
-  // que a verdadeira. Ver HASH_FALSO.
-  const confere = await bcrypt.compare(senha, usuario?.senha_hash ?? HASH_FALSO)
+  // Uma tela de login só.
+  //
+  // A Aionix podia ter `/admin/login` separado, e seria mais fácil de escrever.
+  // Seria também uma URL a mais para alguém achar e ficar batendo senha, e uma
+  // segunda tela de login para manter em pé. O e-mail já é único no sistema
+  // inteiro (índice em `users`, índice em `plataforma_admins`), então ele
+  // sozinho decide para onde a pessoa vai. Quem opera balcão nunca descobre
+  // que este caminho existe.
+  const admins = usuario
+    ? []
+    : await db.execute<{
+        id: string
+        nome: string
+        email: string
+        senha_hash: string
+        senha_provisoria: boolean
+      }>(sql`select * from admin_find(${email})`)
 
-  if (!usuario || !confere) {
+  const admin = admins[0]
+
+  // Sempre compara, mesmo sem usuário nem admin: a comparação falsa consome o
+  // mesmo tempo que a verdadeira. Ver HASH_FALSO.
+  const confere = await bcrypt.compare(
+    senha,
+    usuario?.senha_hash ?? admin?.senha_hash ?? HASH_FALSO,
+  )
+
+  if (!confere || (!usuario && !admin)) {
     // Mensagem única de propósito. "E-mail não encontrado" transforma a tela de
     // login numa consulta de quem tem cadastro.
     return { erro: 'E-mail ou senha incorretos.', email }
+  }
+
+  if (admin) {
+    await db.execute(sql`select admin_registrar_acesso(${admin.id})`)
+
+    // O admin **não** herda `destino`. O parâmetro guarda a tela de negócio em
+    // que alguém estava quando a sessão expirou, e admin não tem sessão de
+    // negócio antes de escolher a empresa — mandá-lo para `/vasilhame/baixa`
+    // renderizaria a tela sem tenant nenhum.
+    await criarSessaoAdmin({
+      adminId: admin.id,
+      nome: admin.nome,
+      email: admin.email,
+      trocaSenha: admin.senha_provisoria,
+    })
+
+    // Sessão de trabalho antiga tem que morrer aqui. Sem isso, quem entrou como
+    // admin depois de ter usado o sistema como funcionário continuaria com a
+    // empresa anterior colada na sessão.
+    await encerrarSessao()
+
+    redirect(admin.senha_provisoria ? '/admin/senha' : '/admin')
   }
 
   // Dentro do `withTenant`, e não solto como estava.
@@ -105,7 +155,15 @@ export async function entrar(
   redirect(destino.startsWith('/') && !destino.startsWith('//') ? destino : '/painel')
 }
 
+/**
+ * Sai de tudo: sessão de trabalho e identidade de admin.
+ *
+ * Apagar só a de trabalho deixaria o admin numa meia-saída — clicou em "Sair",
+ * viu o login, e ainda estava logado na Aionix. Para voltar ao painel sem
+ * relogar existe `voltarAoPainel()`, que é outra ação e tem outro rótulo.
+ */
 export async function sair() {
   await encerrarSessao()
+  await encerrarSessaoAdmin()
   redirect('/login')
 }

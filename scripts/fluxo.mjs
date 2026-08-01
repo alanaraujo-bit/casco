@@ -22,6 +22,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import postgres from 'postgres'
+import bcrypt from 'bcryptjs'
 
 const args = process.argv.slice(2)
 const arg = (n) => {
@@ -86,6 +87,18 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms))
  */
 const PREFIXO = '[teste-fluxo]'
 
+/**
+ * Credenciais do admin descartável da perna de administração.
+ *
+ * Um admin próprio, criado e apagado a cada rodada, em vez de usar o do Alan
+ * ou do Rafael: o roteiro exercita justamente a **troca da senha provisória**,
+ * e rodar isso contra uma conta real queimaria a senha de quem ainda não
+ * entrou. Também deixa o teste rodável quantas vezes for preciso.
+ */
+const EMAIL_ADMIN_TESTE = 'teste-fluxo@exemplo.invalid'
+const SENHA_ADMIN_PROVISORIA = 'provisoria-do-fluxo'
+const SENHA_ADMIN_NOVA = 'definitiva-do-fluxo'
+
 /** 1440×900: o notebook comum do escritório, e bem acima do breakpoint md. */
 const DESKTOP = { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false }
 /** iPhone 14. O dono vai olhar o faturamento daqui, fora da loja. */
@@ -138,6 +151,10 @@ async function faxina() {
              (select max(p.codigo) from produtos p where p.company_id = s.company_id), 0)
      where s.nome = 'produtos'
   `
+
+  // O admin descartável da perna de administração. Domínio `.invalid` (RFC
+  // 2606) para que nenhum admin de verdade caia nesta cláusula por acidente.
+  await banco`delete from plataforma_admins where email = ${EMAIL_ADMIN_TESTE}`
 }
 
 /**
@@ -329,24 +346,69 @@ async function esperarCaminho(condicao, oque) {
  * campo controlado. Com o setter do protótipo o React enxerga a mudança.
  */
 async function preencher(campos) {
-  const r = await js(`
-    const dados = ${JSON.stringify(campos)}
-    const faltando = []
-    for (const [nome, valor] of Object.entries(dados)) {
-      const el = document.querySelector(\`[name="\${nome}"]\`)
-      if (!el) { faltando.push(nome); continue }
-      const proto = el instanceof HTMLSelectElement
-        ? HTMLSelectElement.prototype
-        : el instanceof HTMLTextAreaElement
-          ? HTMLTextAreaElement.prototype
-          : HTMLInputElement.prototype
-      Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, valor)
-      el.dispatchEvent(new Event('input', { bubbles: true }))
-      el.dispatchEvent(new Event('change', { bubbles: true }))
-    }
-    return faltando
-  `)
-  if (r.length) throw new Error(`campos inexistentes no formulário: ${r.join(', ')}`)
+  const digitar = () =>
+    js(`
+      const dados = ${JSON.stringify(campos)}
+      const faltando = []
+      const vazios = []
+      for (const [nome, valor] of Object.entries(dados)) {
+        const el = document.querySelector(\`[name="\${nome}"]\`)
+        if (!el) { faltando.push(nome); continue }
+        const proto = el instanceof HTMLSelectElement
+          ? HTMLSelectElement.prototype
+          : el instanceof HTMLTextAreaElement
+            ? HTMLTextAreaElement.prototype
+            : HTMLInputElement.prototype
+        Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, valor)
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+        el.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+      return JSON.stringify(faltando)
+    `)
+
+  /** Campos que deveriam ter valor e estão vazios. Campo com máscara devolve o
+   *  valor reformatado, então comparar igualdade seria briga com a máscara — o
+   *  que importa é ter sobrado alguma coisa. */
+  const vazios = () =>
+    js(`
+      const dados = ${JSON.stringify(campos)}
+      return JSON.stringify(Object.entries(dados)
+        .filter(([nome, valor]) => {
+          const el = document.querySelector(\`[name="\${nome}"]\`)
+          return valor !== '' && el && el.value === ''
+        })
+        .map(([nome]) => nome))
+    `)
+
+  const faltando = JSON.parse(await digitar())
+  if (faltando.length) {
+    throw new Error(`campos inexistentes no formulário: ${faltando.join(', ')}`)
+  }
+
+  /*
+   * Confere um instante depois, e redigita se o formulário tiver limpado.
+   *
+   * O React 19 limpa o `<form action>` quando a action termina — o mesmo
+   * comportamento que o `AGENTS.md` documenta. A limpeza **não** vem no commit
+   * que mostra a mensagem de erro, vem logo depois: o roteiro via a mensagem,
+   * digitava, e a limpeza chegava em seguida e apagava tudo. O envio seguinte
+   * ia vazio, e a falha aparecia como "a tela não avançou" — três telas longe
+   * da causa, com uma foto de dois campos em branco que não explicava nada.
+   *
+   * É artefato de velocidade de máquina, não defeito do produto: a pessoa lê a
+   * mensagem e leva quase um segundo até o primeiro caractere. Mas um teste que
+   * perde a corrida é um teste que falha uma vez a cada cinco, e teste instável
+   * não prova nada.
+   */
+  for (let tentativa = 0; tentativa < 12; tentativa++) {
+    await espera(150)
+    const limpos = JSON.parse(await vazios())
+    if (!limpos.length) return
+    await digitar()
+  }
+
+  const limpos = JSON.parse(await vazios())
+  if (limpos.length) throw new Error(`o formulário limpou os campos: ${limpos.join(', ')}`)
 }
 
 /**
@@ -919,6 +981,163 @@ try {
 
   await irPara('/cadastro/clientes')
   check('depois de sair, as telas não abrem mais', (await caminho()).startsWith('/login'))
+
+  /* ------------------------------------------------ administração (Aionix)
+   *
+   * O primeiro acesso de um admin, de ponta a ponta: entrar com a senha
+   * provisória, ser trancado na troca, escolher a definitiva, ver a lista de
+   * distribuidoras, entrar numa, e sair dela.
+   *
+   * A perna que mais importa é a da tranca. "Trocar a senha no primeiro
+   * acesso" é o tipo de regra que se escreve num redirect e funciona no
+   * caminho feliz — e falha no dia em que alguém digita `/painel` direto na
+   * barra de endereço, que é exatamente o que este roteiro faz abaixo.
+   */
+  if (banco) {
+    await banco`delete from plataforma_admins where email = ${EMAIL_ADMIN_TESTE}`
+    const hashProvisorio = await bcrypt.hash(SENHA_ADMIN_PROVISORIA, 12)
+    await banco`
+      insert into plataforma_admins (id, nome, email, senha_hash, senha_provisoria)
+           values (${randomUUID()}, 'Teste Fluxo', ${EMAIL_ADMIN_TESTE}, ${hashProvisorio}, true)
+    `
+
+    await irPara('/login')
+    await preencher({ email: EMAIL_ADMIN_TESTE, senha: SENHA_ADMIN_PROVISORIA })
+    await clicar('Entrar')
+    await esperarCaminho((p) => p.startsWith('/admin/senha'), 'cair na troca de senha')
+    check('admin com senha provisória cai direto na troca de senha', true)
+
+    // A tranca. Digitar a URL na mão é o caminho que passa por fora de todo
+    // link da interface — se a regra só existisse no `redirect` do login, isto
+    // abriria o sistema inteiro com a senha que nós entregamos por WhatsApp.
+    await irPara('/painel')
+    check(
+      'senha provisória não abre o sistema nem pela URL',
+      (await caminho()).startsWith('/admin/senha'),
+      await caminho(),
+    )
+    await irPara('/admin')
+    check(
+      'senha provisória não abre nem o painel da Aionix',
+      (await caminho()).startsWith('/admin/senha'),
+      await caminho(),
+    )
+
+    await foto('admin-troca-senha')
+
+    // Senhas diferentes: erro claro, e a pessoa continua na tela.
+    await preencher({ senha: SENHA_ADMIN_NOVA, confirmacao: 'outra-coisa-qualquer' })
+    await clicar('Salvar e entrar')
+    await esperarPor(
+      async () => (await texto()).includes('não conferem'),
+      'a mensagem de senhas diferentes',
+    )
+    check('senhas diferentes são recusadas com mensagem clara', true)
+
+    // Curta demais: o mínimo é 10, e a mensagem precisa dizer isso.
+    await preencher({ senha: 'curta', confirmacao: 'curta' })
+    await clicar('Salvar e entrar')
+    await esperarPor(
+      async () => (await texto()).includes('10 caracteres'),
+      'a mensagem de senha curta',
+    )
+    check('senha curta é recusada com mensagem clara', true)
+
+    await preencher({ senha: SENHA_ADMIN_NOVA, confirmacao: SENHA_ADMIN_NOVA })
+    await clicar('Salvar e entrar')
+    await esperarCaminho((p) => p === '/admin', 'chegar no painel da Aionix')
+    check('trocar a senha destranca e leva ao painel', true)
+
+    const painelAdmin = await texto()
+    await foto('admin-painel')
+    check('o painel lista as distribuidoras', painelAdmin.includes('Distribuidoras'))
+    check(
+      'a distribuidora do cliente aparece na lista',
+      /Distribuidora|Natuclara/i.test(painelAdmin),
+      painelAdmin.split('\n').slice(0, 6).join(' / '),
+    )
+
+    await clicar('Entrar')
+    await esperarCaminho((p) => p.startsWith('/painel'), 'entrar na distribuidora')
+    const dentro = await texto()
+    await foto('admin-dentro-da-empresa')
+    check('admin entra na distribuidora e cai no painel dela', true)
+
+    // A faixa é a defesa contra o erro mais caro que este acesso permite:
+    // lançar na empresa errada com três abas abertas.
+    check(
+      'a faixa avisa em qual empresa o admin está',
+      dentro.includes('Acesso Aionix em'),
+      dentro.split('\n').slice(0, 3).join(' / '),
+    )
+
+    // A faixa é o elemento mais apertado do sistema no celular: ícone, nome da
+    // empresa e um botão na mesma linha de 390px. Se ela empurrar a página
+    // para o lado, todas as telas herdam a rolagem horizontal — e o suporte
+    // pelo celular acontece justamente na rua, que é quando ele é urgente.
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', CELULAR, sessao)
+    await irPara('/painel')
+    await foto('celular-admin-dentro-da-empresa')
+    check(
+      'no celular a faixa de admin não empurra a página para o lado',
+      await js('return document.documentElement.scrollWidth <= window.innerWidth + 1'),
+      `scrollWidth=${await js('return document.documentElement.scrollWidth')} vs ${await js('return window.innerWidth')}`,
+    )
+    // O nome da empresa, e não o texto "Acesso Aionix em": no celular o rótulo
+    // some para dar a largura inteira ao nome, que é a única coisa que a faixa
+    // precisa conseguir dizer ali. Conferir o rótulo seria conferir o enfeite.
+    check(
+      'no celular a faixa continua dizendo a empresa',
+      /Natuclara|Distribuidora/i.test(await texto()),
+      (await texto()).split('\n').slice(0, 3).join(' / '),
+    )
+
+    // Clicado ainda no celular, de propósito, e pelo `aria-label`: no telefone
+    // o rótulo visível encolhe para "Sair", e é o rótulo acessível que segura
+    // a frase inteira. Procurar por ele aqui prova as duas coisas de uma vez —
+    // que o botão existe no tamanho pequeno e que continua se anunciando.
+    await clicar('Sair', 15_000, '[aria-label="Sair da empresa"]')
+    await esperarCaminho((p) => p === '/admin', 'voltar ao painel da Aionix')
+    check('sair da empresa volta ao painel sem pedir login de novo', true)
+
+    await foto('celular-admin-painel')
+    check(
+      'no celular o painel da Aionix não rola de lado',
+      await js('return document.documentElement.scrollWidth <= window.innerWidth + 1'),
+      `scrollWidth=${await js('return document.documentElement.scrollWidth')} vs ${await js('return window.innerWidth')}`,
+    )
+    check(
+      'no celular o botão de entrar mantém os 44px de toque',
+      await js(`
+        const b = [...document.querySelectorAll('button')]
+          .find((e) => (e.innerText || '').trim().startsWith('Entrar'))
+        return b ? Math.round(b.getBoundingClientRect().height) >= 44 : false
+      `),
+    )
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
+
+    // E a senha nova de fato substituiu a provisória: sai, entra com ela, e
+    // desta vez o sistema não pede troca nenhuma.
+    await clicar('Sair')
+    await esperarCaminho((p) => p.startsWith('/login'), 'sair da Aionix')
+    await preencher({ email: EMAIL_ADMIN_TESTE, senha: SENHA_ADMIN_NOVA })
+    await clicar('Entrar')
+    await esperarCaminho((p) => p === '/admin', 'entrar com a senha definitiva')
+    check('a senha nova vale e não pede troca de novo', true)
+
+    // E a provisória morreu junto. Sair antes é obrigatório: com sessão de
+    // admin no cookie, o `/login` redireciona para `/admin` e o teste
+    // "passaria" sem nunca ter chegado ao formulário.
+    await clicar('Sair')
+    await esperarCaminho((p) => p.startsWith('/login'), 'voltar ao login')
+    await preencher({ email: EMAIL_ADMIN_TESTE, senha: SENHA_ADMIN_PROVISORIA })
+    await clicar('Entrar')
+    await esperarPor(
+      async () => (await texto()).includes('E-mail ou senha incorretos'),
+      'a recusa da senha provisória antiga',
+    )
+    check('a senha provisória deixa de funcionar depois da troca', true)
+  }
 
   /* ------------------------------------------------------ erro no console */
   // Recolhido pelo protocolo durante a rodada inteira, e não lido da página no

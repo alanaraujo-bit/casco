@@ -3,10 +3,11 @@
 import * as React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { usePathname } from 'next/navigation'
-import { Menu, X } from 'lucide-react'
+import { LogOut, Menu, ShieldCheck, X } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { ConteudoSidebar, Sidebar } from '@/components/layout/sidebar'
 import { MenuUsuario } from '@/components/layout/menu-usuario'
+import { voltarAoPainel } from '@/modules/admin/acoes'
 import { acharItem } from '@/lib/navegacao'
 import { cn } from '@/lib/utils'
 
@@ -15,6 +16,58 @@ export interface UsuarioShell {
   nome: string
   empresa: string
   papel: string
+  /** Quem está aqui é da Aionix, dando suporte — não é funcionário da empresa. */
+  admin?: boolean
+}
+
+/**
+ * Faixa de "você está dentro da empresa X".
+ *
+ * Existe para responder uma pergunta antes de ela ser feita: **em qual
+ * distribuidora eu estou digitando?** Suporte com três abas abertas lança uma
+ * baixa de vasilhame na empresa errada em dois segundos, e depois passa uma
+ * hora descobrindo o que aconteceu — porque nada na tela era diferente.
+ *
+ * Fica grudada no topo junto da topbar, e não rolando com o conteúdo: o risco
+ * não é na primeira tela, é na décima quinta, com a página já rolada.
+ */
+function FaixaAdmin({ empresa }: { empresa: string }) {
+  return (
+    <div className="flex items-center gap-2 bg-alerta-bg px-3 py-1.5 text-alerta md:px-5">
+      <ShieldCheck className="size-4 shrink-0" aria-hidden />
+      {/* No celular sobra o nome da empresa e mais nada.
+          "Acesso Aionix em LM Distribui…" gasta 18 caracteres dizendo o que o
+          ícone e a cor já dizem, e come justamente a única informação que a
+          faixa existe para dar. O texto completo volta a partir de `sm`. */}
+      <p className="min-w-0 flex-1 truncate text-xs">
+        <span className="hidden sm:inline">Acesso Aionix em </span>
+        <strong className="font-semibold">{empresa}</strong>
+      </p>
+      {/* `<form action>` de novo: sair da empresa apaga cookie, então é
+          mudança de estado e precisa funcionar sem JavaScript. */}
+      <form action={voltarAoPainel}>
+        <button
+          type="submit"
+          // O rótulo acessível é fixo; só o visível encolhe. No celular o botão
+          // mostra só "Sair" para dar largura ao nome da empresa, e "Sair" ao
+          // lado do "Sair" da topbar seria ambiguidade num botão que troca o
+          // contexto inteiro do sistema. Com `aria-label` o leitor de tela
+          // anuncia a frase inteira nos dois tamanhos.
+          aria-label="Sair da empresa"
+          className={cn(
+            'flex shrink-0 items-center gap-1.5 rounded px-1.5 py-0.5',
+            'text-xs font-medium underline-offset-2 hover:underline',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foco',
+          )}
+        >
+          <LogOut className="size-3.5" aria-hidden />
+          {/* String explícita e não texto solto no JSX: o espaço da frente
+              seria comido na compilação, e viraria "Sairda empresa". */}
+          Sair<span className="hidden sm:inline">{' da empresa'}</span>
+        </button>
+      </form>
+    </div>
+  )
 }
 
 function Topbar({
@@ -30,12 +83,7 @@ function Topbar({
   return (
     <header
       className={cn(
-        'sticky top-0 z-10 flex items-center gap-3 border-b border-borda bg-superficie px-3 md:px-5',
-        // A altura SOMA a safe-area em vez de reservá-la por dentro. Com
-        // `h-14` + `padding-top`, o inset comeria o espaço do conteúdo: num
-        // iPhone com notch em modo standalone o inset chega a 47px e sobrariam
-        // 9px para o título e o seletor de tema.
-        'h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)]',
+        'flex h-14 items-center gap-3 border-b border-borda bg-superficie px-3 md:px-5',
       )}
     >
       <button
@@ -164,7 +212,14 @@ export function AppShell({
         </Dialog.Portal>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar aoAbrirMenu={() => setMenuAberto(true)} usuario={usuario} />
+          {/* A safe-area subiu do header para cá quando a faixa de admin
+              nasceu: ela passa a ser o primeiro elemento sob o notch, e o
+              inset precisa reservar espaço acima de quem estiver no topo —
+              não dentro do header, que nem sempre é o primeiro. */}
+          <div className="sticky top-0 z-20 pt-[env(safe-area-inset-top)] bg-superficie">
+            {usuario?.admin && <FaixaAdmin empresa={usuario.empresa} />}
+            <Topbar aoAbrirMenu={() => setMenuAberto(true)} usuario={usuario} />
+          </div>
 
           {/* `tabIndex={-1}` é obrigatório: sem ele vários navegadores movem a
               âncora mas não o foco, e o link de pular não pula nada. */}
