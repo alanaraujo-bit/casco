@@ -123,22 +123,56 @@ e no celular, com dados de verdade. Build passando não conta como pronto.
   > **Falta para o Nível 3:** os 3 modos de visualização que eles já usam
   > (Tabela · Cards · Lista) — hoje só existe Tabela. E a importação da planilha do
   > Fature, sem a qual a LM recomeçaria o cadastro do zero.
-- **Produtos** — incluindo a marcação de retornável e o vínculo com o vasilhame
-- **Fornecedores**
-- **Tabelas de preço** — revenda, mercadinho e consumidor final pagam diferente
+- **Produtos** ✅ *(Nível 1 — lendo e gravando no banco)*
+  Listagem com busca, ordenação e Exportar Excel; cabeçalho de métricas
+  (Total · Ativos · Retornáveis · Sem preço); cadastro e edição com campos
+  condicionais (estoque mín/máx só aparece se controla estoque; vasilhame só
+  aparece se retornável); validação de NCM; inativar em vez de apagar.
+  Alerta visual para produto sem preço e estoque abaixo do mínimo.
+- **Fornecedores** ✅ *(Nível 1 — lendo e gravando no banco)*
+  Listagem com busca, métricas (Total · Com CPF/CNPJ · Com telefone · Inativos);
+  cadastro e edição com máscara de CPF/CNPJ e telefone; detecção de documento
+  duplicado; inativar em vez de apagar.
+- **Tabelas de preço** ✅ *(Nível 1 — lendo e gravando no banco)*
+  Listagem em cards com contagem de produtos; criação com flag de tabela padrão
+  (ao marcar, desmarca a anterior); edição de preços inline por produto com
+  left join mostrando o preço padrão como referência; inativar/reativar.
 
-### Etapa 2 — Vasilhame ← *o diferencial*
+### Etapa 2 — Vasilhame ✅ ← *o diferencial*
 *Pequena, autocontida, e é o que ganha o cliente.*
 
-- Movimentos com `motivo`: entregue · devolvido · quebrado · trincado · perdido ·
-  enviado à fábrica · retornou da fábrica · ajuste de inventário
-- Saldo por cliente ("quem está devendo galão")
-- Tela de baixa rápida — o que hoje ela faz criando venda de R$ 0,13
-- Extrato por cliente, auditável galão a galão
-- Perda vira **custo** no financeiro, nunca receita
+- **Movimentos com `motivo`** ✅ — os oito, com o sinal derivado do motivo:
+  a operadora escolhe o que aconteceu e digita quantos galões, sempre positivo.
+  As travas de sinal e de cliente moram no banco (`migrations/0005`), e o
+  `esquema.ts` as repete em português para que a tela nunca chegue perto delas.
+- **Saldo por cliente** ✅ — mantido por trigger, nunca escrito pela aplicação.
+  Cabeçalho com galões na rua, clientes devendo, devolvidos e perdidos no mês,
+  e atalho para os maiores saldos.
+- **Tela de baixa rápida** ✅ — motivo primeiro, em botões de 44px; saldo do
+  cliente visível *antes* de gravar; recibo com o novo saldo, para repetir ao
+  cliente antes dele sair; e o painel "Isto não é uma venda" com o custo do
+  lançamento, no momento em que ela faria a venda de R$ 0,13.
+- **Extrato por cliente** ✅ — auditável galão a galão, com saldo corrente por
+  função de janela, particionado por vasilhame (devolver um 10L não abate um 20L).
+- **Perda vira custo, nunca receita** ✅ — custo congelado no lançamento, lido
+  da view `vasilhame_perdas`. Uma fonte só, que o DRE vai reusar na Etapa 6.
+- **Estorno** ✅ *(não estava previsto — `migrations/0007`)* — movimento é
+  imutável por trigger, então corrigir é lançar o contrário com o mesmo motivo.
+  A view de perdas ignora estorno e estornado: sem isso, um `quebrado 50`
+  digitado errado custaria no DRE para sempre, e teríamos trocado a receita
+  inflada do sistema antigo por um custo inflado no nosso.
 
-> Motivos ligados a venda (`entregue`/`devolvido`) só fecham na Etapa 3.
-> As baixas internas — o problema real — funcionam já aqui.
+Coberto por 6 provas de banco (`npm run db:provar`, 23 no total) e 14 checagens
+do `npm run fluxo`, no desktop e no celular, incluindo o custo aparecendo antes
+de gravar e sumindo depois do estorno.
+
+> Motivos ligados a venda (`entregue`/`devolvido`) só fecham na Etapa 3 — hoje
+> são lançados à mão, que é o que a LM precisa desde o primeiro dia. As baixas
+> internas, o problema real, funcionam por inteiro aqui.
+
+> **Falta para o Nível 3:** filtro por período e por motivo na listagem de
+> movimentos (hoje só a busca em texto da `TabelaDados`), e a baixa em lote —
+> a conferência de retorno do caminhão lança um cliente por vez.
 
 ### Etapa 3 — Vendas
 - Registro de venda com as colunas que eles já leem: Operação · Código · Data · Cliente ·

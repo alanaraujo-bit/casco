@@ -63,6 +63,13 @@ export const vasilhameMovimentos = pgTable(
     custoUnitario: numeric('custo_unitario', { precision: 12, scale: 2 }).notNull().default('0'),
     usuarioId: uuid('usuario_id').references(() => users.id),
     observacao: text('observacao'),
+    /**
+     * Movimento que esta linha desfaz (`migrations/0007`). Movimento e imutavel:
+     * corrigir e lancar o contrario, com o motivo original e o sinal invertido.
+     * O que a coluna protege esta no SQL — a view de perdas ignora estorno e
+     * estornado, senao um `quebrado 50` digitado errado viraria custo eterno.
+     */
+    estornoDe: uuid('estorno_de'),
     criadoEm: timestamp('criado_em', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

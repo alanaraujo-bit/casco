@@ -157,10 +157,11 @@ try {
   )
 
   // ------------------------------------------------- perda vira custo, não venda
+  const quebra = randomUUID()
   await comTenant(A, (tx) =>
     tx`insert into vasilhame_movimentos
          (id, company_id, cliente_id, produto_id, quantidade, motivo, custo_unitario)
-       values (${randomUUID()}, ${A}, ${c1}, ${galao}, -3, 'quebrado', 38)`)
+       values (${quebra}, ${A}, ${c1}, ${galao}, -3, 'quebrado', 38)`)
   const [perda] = await comTenant(A, (tx) =>
     tx`select sum(unidades)::int as un, sum(custo)::numeric as custo from vasilhame_perdas`)
   check('perda de 3 galões vira custo de R$ 114', Number(perda.custo) === 114,
@@ -169,6 +170,63 @@ try {
                                   where cliente_id = ${c1} and produto_id = ${galao}`
   check('galão quebrado baixa a dívida do cliente (60 − 3 = 57)',
         Number(aposQuebra.quantidade) === 57, `veio ${aposQuebra.quantidade}`)
+
+  // ---------------------------------------------------------------- estorno
+  //
+  // Movimento é imutável, então corrigir é lançar o contrário. O que precisa
+  // ser provado aqui não é que a linha entra — é que o custo SAI do relatório.
+  // Sem isso, um `quebrado 3` digitado por engano ficaria custando R$ 114 no
+  // DRE para sempre, e teríamos trocado a receita inflada do sistema antigo
+  // por um custo inflado no nosso.
+  await deveFalhar(
+    'estorno com quantidade que não espelha o original é rejeitado',
+    () => comTenant(A, (tx) =>
+      tx`insert into vasilhame_movimentos
+           (id, company_id, cliente_id, produto_id, quantidade, motivo, estorno_de)
+         values (${randomUUID()}, ${A}, ${c1}, ${galao}, 99, 'quebrado', ${quebra})`),
+    'quantidade oposta',
+  )
+
+  const estorno = randomUUID()
+  await comTenant(A, (tx) =>
+    tx`insert into vasilhame_movimentos
+         (id, company_id, cliente_id, produto_id, quantidade, motivo, estorno_de)
+       values (${estorno}, ${A}, ${c1}, ${galao}, 3, 'quebrado', ${quebra})`)
+
+  const [semPerda] = await comTenant(A, (tx) =>
+    tx`select coalesce(sum(custo), 0)::numeric as custo from vasilhame_perdas`)
+  check('perda estornada sai do custo do DRE', Number(semPerda.custo) === 0,
+        `veio ${semPerda.custo}`)
+
+  const [aposEstorno] = await dono`select quantidade from vasilhame_saldos
+                                   where cliente_id = ${c1} and produto_id = ${galao}`
+  check('estorno devolve a dívida do cliente (57 + 3 = 60)',
+        Number(aposEstorno.quantidade) === 60, `veio ${aposEstorno.quantidade}`)
+
+  // O custo congelado vem do original, não do produto hoje: senão estornar uma
+  // perda de maio devolveria o custo de agosto, e o mês fecharia com a diferença.
+  const [custoEstorno] = await dono`select custo_unitario from vasilhame_movimentos
+                                    where id = ${estorno}`
+  check('estorno herda o custo congelado do original (R$ 38)',
+        Number(custoEstorno.custo_unitario) === 38, `veio ${custoEstorno.custo_unitario}`)
+
+  await deveFalhar(
+    'estornar duas vezes o mesmo movimento é rejeitado',
+    () => comTenant(A, (tx) =>
+      tx`insert into vasilhame_movimentos
+           (id, company_id, cliente_id, produto_id, quantidade, motivo, estorno_de)
+         values (${randomUUID()}, ${A}, ${c1}, ${galao}, 3, 'quebrado', ${quebra})`),
+    'vasilhame_mov_estorno_unico',
+  )
+
+  await deveFalhar(
+    'estorno de estorno é rejeitado',
+    () => comTenant(A, (tx) =>
+      tx`insert into vasilhame_movimentos
+           (id, company_id, cliente_id, produto_id, quantidade, motivo, estorno_de)
+         values (${randomUUID()}, ${A}, ${c1}, ${galao}, -3, 'quebrado', ${estorno})`),
+    'estorna um estorno',
+  )
 
   // ---------------------------------------------------------- custo médio
   await comTenant(A, async (tx) => {

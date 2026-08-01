@@ -3,6 +3,7 @@ import {
   Boxes,
   Contact,
   FileBarChart,
+  History,
   LayoutDashboard,
   Package,
   Receipt,
@@ -55,9 +56,32 @@ export const NAVEGACAO: GrupoNav[] = [
     itens: [{ rotulo: 'Painel Gerencial', href: '/painel' }],
   },
   {
+    // Não existe no sistema antigo. É a razão pela qual a LM está trocando:
+    // sem lugar para lançar galão quebrado, a operadora registra venda de
+    // centavos e contamina o faturamento.
+    //
+    // Vem antes de Cadastro, e não na ordem do sistema deles, porque é a tela
+    // que a operadora abre várias vezes por dia — enquanto cadastro se mexe uma
+    // vez por semana. A regra da familiaridade fala sobre não renomear e não
+    // reorganizar o que eles já conhecem; este grupo eles não conhecem de
+    // lugar nenhum, então não há mapa mental a preservar aqui.
+    rotulo: 'Vasilhame',
+    Icone: Truck,
+    itens: [
+      { rotulo: 'Baixa de Vasilhame', href: '/vasilhame/baixa' },
+      { rotulo: 'Saldo por Cliente', href: '/vasilhame/saldos' },
+      { rotulo: 'Movimentos', href: '/vasilhame/movimentos' },
+    ],
+  },
+  {
     rotulo: 'Cadastro',
     Icone: Contact,
-    itens: [{ rotulo: 'Clientes', href: '/cadastro/clientes' }],
+    itens: [
+      { rotulo: 'Clientes', href: '/cadastro/clientes' },
+      { rotulo: 'Produtos', href: '/cadastro/produtos' },
+      { rotulo: 'Fornecedores', href: '/cadastro/fornecedores' },
+      { rotulo: 'Tabelas de Preço', href: '/cadastro/tabelas-preco' },
+    ],
   },
   {
     rotulo: 'Financeiro',
@@ -92,27 +116,6 @@ export const PROXIMAS: GrupoNav[] = [
       { rotulo: 'Vendas de Produtos', href: '/vendas/produtos' },
       { rotulo: 'Orçamento', href: '/vendas/orcamento' },
       { rotulo: 'Comissão', href: '/vendas/comissao' },
-    ],
-  },
-  {
-    // Não existe no sistema antigo. É a razão pela qual a LM está trocando:
-    // sem lugar para lançar galão quebrado, a operadora registra venda de
-    // centavos e contamina o faturamento.
-    rotulo: 'Vasilhame',
-    Icone: Truck,
-    itens: [
-      { rotulo: 'Baixa de Vasilhame', href: '/vasilhame/baixa' },
-      { rotulo: 'Saldo por Cliente', href: '/vasilhame/saldos' },
-      { rotulo: 'Movimentos', href: '/vasilhame/movimentos' },
-    ],
-  },
-  {
-    rotulo: 'Cadastro',
-    Icone: Contact,
-    itens: [
-      { rotulo: 'Produtos e Serviços', href: '/cadastro/produtos' },
-      { rotulo: 'Fornecedores', href: '/cadastro/fornecedores' },
-      { rotulo: 'Tabelas de Preço', href: '/cadastro/tabelas-preco' },
     ],
   },
   {
@@ -158,6 +161,7 @@ export const ICONES_ITEM: Record<string, LucideIcon> = {
   '/vendas/produtos': Receipt,
   '/vasilhame/baixa': ArrowLeftRight,
   '/vasilhame/saldos': Truck,
+  '/vasilhame/movimentos': History,
   '/cadastro/clientes': Users,
   '/cadastro/produtos': Package,
   '/financeiro/receber': Wallet,

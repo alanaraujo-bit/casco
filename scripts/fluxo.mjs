@@ -16,6 +16,7 @@
  *     npm run fluxo -- --ver              # com janela, para assistir
  */
 import { spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -99,7 +100,23 @@ async function faxina() {
   if (!banco) return
   // Sem RLS aqui de propósito: roda como dono, e a limpeza precisa alcançar
   // qualquer tenant onde o teste tenha rodado.
+
+  // `replica` desliga os triggers, e é a única forma de apagar movimento de
+  // vasilhame: ele é imutável por trigger justamente para que ninguém apague
+  // histórico. A exceção vive aqui, no script de teste, e não na aplicação.
+  const doTeste = banco`select id from produtos where nome like ${PREFIXO + '%'}`
+  const clientesDoTeste = banco`select id from clientes where nome like ${PREFIXO + '%'}`
+  await banco`set session_replication_role = 'replica'`
+  await banco`delete from vasilhame_movimentos where produto_id in (${doTeste})
+                                                 or cliente_id in (${clientesDoTeste})`
+  await banco`delete from vasilhame_saldos where produto_id in (${doTeste})
+                                             or cliente_id in (${clientesDoTeste})`
+  await banco`set session_replication_role = 'origin'`
+
   await banco`delete from clientes where nome like ${PREFIXO + '%'}`
+  // Retornável primeiro: ele aponta para o galão por `vasilhame_id`.
+  await banco`delete from produtos where retornavel and nome like ${PREFIXO + '%'}`
+  await banco`delete from produtos where nome like ${PREFIXO + '%'}`
 
   // Devolve o contador de códigos ao maior que sobrou.
   //
@@ -114,6 +131,39 @@ async function faxina() {
              (select max(c.codigo) from clientes c where c.company_id = s.company_id), 0)
      where s.nome = 'clientes'
   `
+  // Mesma coisa para produtos, agora que o teste também cria dois deles.
+  await banco`
+    update sequencias s
+       set valor = coalesce(
+             (select max(p.codigo) from produtos p where p.company_id = s.company_id), 0)
+     where s.nome = 'produtos'
+  `
+}
+
+/**
+ * Cria o par de produtos sem o qual a tela de baixa não tem o que mostrar.
+ *
+ * Semeado pelo banco e não pela interface de propósito: o que está sendo testado
+ * aqui é o vasilhame, e fazer o teste passar antes por dois cadastros de produto
+ * faria uma falha no formulário de produto reprovar a tela de baixa — que é o
+ * tipo de teste que ninguém consegue ler quando fica vermelho.
+ */
+async function semearVasilhame() {
+  if (!banco) return null
+  const [dono] = await banco`select company_id from users where email = ${EMAIL}`
+  if (!dono) return null
+
+  const galao = randomUUID()
+  const agua = randomUUID()
+  await banco`
+    insert into produtos (id, company_id, nome, unidade, custo, retornavel)
+    values (${galao}, ${dono.company_id}, ${PREFIXO + ' Galão 20L'}, 'gl', 38, false)
+  `
+  await banco`
+    insert into produtos (id, company_id, nome, unidade, preco_padrao, retornavel, vasilhame_id)
+    values (${agua}, ${dono.company_id}, ${PREFIXO + ' Água 20L'}, 'gl', 12, true, ${galao})
+  `
+  return { companyId: dono.company_id, galao, agua }
 }
 
 /**
@@ -300,6 +350,27 @@ async function preencher(campos) {
 }
 
 /**
+ * Escolhe a opção de um `<select>` pelo texto visível.
+ *
+ * `preencher` grava o `value`, que para um select é um UUID — e um teste que
+ * carrega UUID de produto passa a falhar quando o dado de semente muda, por
+ * motivo nenhum. Aqui o teste procura o que a operadora leria na lista.
+ */
+async function escolherPorTexto(campo, trecho) {
+  const r = await js(`
+    const el = document.querySelector('[name=${JSON.stringify(campo)}]')
+    if (!el) return 'campo não existe'
+    const opcao = [...el.options].find((o) => o.text.includes(${JSON.stringify(trecho)}))
+    if (!opcao) return 'opções: ' + [...el.options].map((o) => o.text).join(' | ')
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(el, opcao.value)
+    el.dispatchEvent(new Event('input', { bubbles: true }))
+    el.dispatchEvent(new Event('change', { bubbles: true }))
+    return 'ok'
+  `)
+  if (r !== 'ok') throw new Error(`não escolhi "${trecho}" em ${campo} — ${r}`)
+}
+
+/**
  * Clica no primeiro elemento cujo texto contém `rotulo`, esperando ele aparecer.
  *
  * Esperar aqui dentro, e não em cada chamada, é o que separa um teste confiável
@@ -308,14 +379,14 @@ async function preencher(campos) {
  * documento antigo e não faz nada, sem erro nenhum. Foi assim que o botão
  * "Inativar" ficou dez minutos parecendo quebrado quando estava correto.
  */
-async function clicar(rotulo, ms = 15_000) {
+async function clicar(rotulo, ms = 15_000, seletor = 'button, a, [role="button"], [role="menuitem"]') {
   const limite = Date.now() + ms
   while (Date.now() < limite) {
     // Rola até o elemento e devolve o centro dele, para o clique cair no lugar
     // certo mesmo com o rodapé grudento por cima.
     const caixa = await js(`
       const alvo = ${JSON.stringify(rotulo)}
-      const els = [...document.querySelectorAll('button, a, [role="button"], [role="menuitem"]')]
+      const els = [...document.querySelectorAll(${JSON.stringify(seletor)})]
       const el = els.find((e) => (e.innerText || '').trim().includes(alvo) && !e.disabled)
       if (!el) return null
       el.scrollIntoView({ block: 'center' })
@@ -489,6 +560,7 @@ try {
   /* ----------------------------------------------------------- clientes */
   // Antes e depois: rodada interrompida no meio não deixa herança para a próxima.
   await faxina()
+  const semente = await semearVasilhame()
 
   await irPara('/cadastro/clientes')
   const listaVazia = await texto()
@@ -578,6 +650,135 @@ try {
   await clicar('Salvar alterações')
   await esperarCaminho((p) => p === '/cadastro/clientes', 'voltar da edição')
   check('edição persiste', (await texto()).includes('Setor Industrial'))
+
+  /* --------------------------------------------------------- vasilhame */
+  //
+  // O módulo que motiva a troca de sistema. O que este bloco prova, e nenhum
+  // outro prova, é que a operadora consegue dar baixa em galão quebrado sem
+  // passar por venda — e que o valor da perda aparece como custo.
+  if (semente) {
+    await irPara('/vasilhame/baixa')
+    const baixa = await texto()
+    const MOTIVOS = [
+      'Entregue ao cliente',
+      'Devolvido pelo cliente',
+      'Quebrado',
+      'Trincado',
+      'Perdido pelo cliente',
+      'Enviado à fábrica',
+      'Retornou da fábrica',
+      'Ajuste de inventário',
+    ]
+    const faltando = MOTIVOS.filter((m) => !baixa.includes(m))
+    check('a baixa oferece os oito motivos', faltando.length === 0, faltando.join(', '))
+    await foto('vasilhame-baixa')
+
+    // --- entrega: o cliente passa a dever
+    await clicar('Entregue ao cliente', 15_000, 'label')
+    await esperarPor(
+      async () => (await js(`return !!document.querySelector('[name="clienteId"]')`)) === true,
+      'o campo de cliente aparecer para o motivo que exige cliente',
+    )
+    check('motivo que exige cliente mostra o campo de cliente', true)
+
+    await escolherPorTexto('produtoId', 'Galão 20L')
+    await escolherPorTexto('clienteId', nome)
+    await preencher({ quantidade: '10' })
+    await clicar('Lançar baixa')
+    await esperarPor(
+      async () => (await texto()).includes('fica com 10'),
+      'o recibo confirmando o saldo do cliente',
+    )
+    check('entrega lançada e o saldo do cliente aparece no recibo', true)
+
+    // --- quebra: o momento que substitui a venda de R$ 0,13
+    await clicar('Quebrado', 15_000, 'label')
+    const naQuebra = await esperarPor(
+      async () => (await texto()).includes('Isto não é uma venda'),
+      'o aviso de que perda não gera receita',
+    )
+    check('perda avisa, na hora, que não gera receita', Boolean(naQuebra))
+
+    await escolherPorTexto('produtoId', 'Galão 20L')
+    await escolherPorTexto('clienteId', nome)
+    await preencher({ quantidade: '3' })
+    const antesDaQuebra = await texto()
+    // 3 galões a R$ 38 de custo. O número aparece antes de gravar, que é
+    // quando ele ainda serve para a operadora desistir se estiver errado.
+    check(
+      'o custo da perda aparece antes de gravar',
+      antesDaQuebra.includes('114,00'),
+      'não achei R$ 114,00 na tela',
+    )
+    await foto('vasilhame-perda')
+    await clicar('Lançar baixa')
+    await esperarPor(
+      async () => (await texto()).includes('Registrado como custo'),
+      'o recibo da perda',
+    )
+    check('perda lançada como custo, não como venda', true)
+
+    // --- saldo por cliente
+    await irPara('/vasilhame/saldos')
+    const saldos = await texto()
+    await foto('vasilhame-saldos')
+    check('o cliente aparece devendo galão', saldos.includes(nome))
+    check('o saldo desconta a quebra (10 − 3 = 7)', /\b7\b/.test(saldos), saldos.slice(0, 200))
+
+    // --- extrato, galão a galão
+    await clicar(nome)
+    await esperarCaminho(
+      (p) => /\/vasilhame\/saldos\/[0-9a-f-]{36}/.test(p),
+      'abrir o extrato do cliente',
+    )
+    const extrato = await texto()
+    await foto('vasilhame-extrato')
+    check(
+      'o extrato explica o saldo movimento a movimento',
+      extrato.includes('Entregue ao cliente') && extrato.includes('Quebrado'),
+    )
+    check('o extrato mostra os sinais dos movimentos', extrato.includes('+10'))
+
+    // --- movimentos e o custo do mês
+    await irPara('/vasilhame/movimentos')
+    const movimentos = await texto()
+    await foto('vasilhame-movimentos')
+    check(
+      'a perda do mês aparece como custo',
+      movimentos.includes('Custo do mês, não receita') && movimentos.includes('114,00'),
+    )
+
+    // --- estorno: a perda digitada errada não pode custar para sempre
+    await clicar('Estornar')
+    await clicar('Confirmar')
+    await esperarPor(
+      async () => !(await texto()).includes('114,00'),
+      'a perda estornada sair do custo',
+    )
+    check('estorno tira a perda do custo do mês', true)
+
+    // --- celular: o dono olha isso fora da loja
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', CELULAR, sessao)
+    await irPara('/vasilhame/baixa')
+    check(
+      'no celular a baixa não rola de lado',
+      await js('return document.documentElement.scrollWidth <= window.innerWidth + 1'),
+      `scrollWidth=${await js('return document.documentElement.scrollWidth')} vs ${await js('return window.innerWidth')}`,
+    )
+    const baixinhos = await js(`
+      const alvos = [...document.querySelectorAll('input[name]:not([type="hidden"]):not(.sr-only), select[name], label:has(input[type="radio"])')]
+        .map((e) => ({ nome: e.getAttribute('name') || e.innerText.trim().slice(0, 20), altura: Math.round(e.getBoundingClientRect().height) }))
+        .filter((c) => c.altura < 44)
+      return JSON.stringify(alvos)
+    `)
+    check('os alvos de toque da baixa têm 44px', baixinhos === '[]', `abaixo de 44px: ${baixinhos}`)
+    await foto('celular-vasilhame-baixa')
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
+  } else {
+    falhas.push('vasilhame não testado — sem conexão de banco para semear os produtos')
+  }
+
+  await irPara('/cadastro/clientes')
 
   /* ---------------------------------------------------------- inativar */
   await clicar(nome)
