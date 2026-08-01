@@ -4,6 +4,7 @@ import { Undo2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
+import { formatarDataHora } from '@/lib/formatos'
 import { REGRA } from '@/modules/vasilhame/esquema'
 import type { LinhaExtrato } from '@/modules/vasilhame/consultas'
 
@@ -19,14 +20,7 @@ const colunas: Coluna<LinhaExtrato>[] = [
   {
     chave: 'criadoEm',
     cabecalho: 'Data',
-    texto: (l) =>
-      new Date(l.criadoEm).toLocaleString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
+    texto: (l) => formatarDataHora(l.criadoEm),
     valor: (l) => new Date(l.criadoEm),
     larguraMin: '9rem',
     papelMobile: 'campo',

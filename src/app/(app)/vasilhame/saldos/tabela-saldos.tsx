@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
-import { formatarTelefone } from '@/lib/formatos'
+import { formatarData, formatarTelefone } from '@/lib/formatos'
 import type { SaldoLista } from '@/modules/vasilhame/consultas'
 
 /**
@@ -82,7 +82,7 @@ const colunas: Coluna<SaldoLista>[] = [
   {
     chave: 'atualizadoEm',
     cabecalho: 'Última movimentação',
-    texto: (s) => new Date(s.atualizadoEm).toLocaleDateString('pt-BR'),
+    texto: (s) => formatarData(s.atualizadoEm),
     valor: (s) => new Date(s.atualizadoEm),
     ocultaPorPadrao: true,
     papelMobile: 'campo',

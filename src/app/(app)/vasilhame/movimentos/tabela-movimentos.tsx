@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
+import { formatarDataHora } from '@/lib/formatos'
 import { REGRA } from '@/modules/vasilhame/esquema'
 import type { MovimentoLista } from '@/modules/vasilhame/consultas'
 import { BotaoEstornar } from './botao-estornar'
@@ -26,14 +27,7 @@ const colunas: Coluna<MovimentoLista>[] = [
   {
     chave: 'criadoEm',
     cabecalho: 'Data',
-    texto: (m) =>
-      new Date(m.criadoEm).toLocaleString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
+    texto: (m) => formatarDataHora(m.criadoEm),
     valor: (m) => new Date(m.criadoEm),
     larguraMin: '9rem',
     papelMobile: 'campo',

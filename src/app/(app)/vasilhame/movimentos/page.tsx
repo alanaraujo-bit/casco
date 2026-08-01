@@ -12,9 +12,18 @@ function moeda(valor: string | number): string {
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+/**
+ * `2026-08` → `agosto de 2026`.
+ *
+ * Em UTC nos dois lados, e não no fuso da distribuidora como o resto das datas:
+ * isto é um balde de mês, não um instante. Construir a data em UTC e formatar
+ * em `America/Belem` daria 31 de julho às 21h — e o cartão de agosto apareceria
+ * escrito "julho".
+ */
 function nomeDoMes(chave: string): string {
   const [ano, mes] = chave.split('-')
-  return new Date(Number(ano), Number(mes) - 1, 1).toLocaleDateString('pt-BR', {
+  return new Date(Date.UTC(Number(ano), Number(mes) - 1, 1)).toLocaleDateString('pt-BR', {
+    timeZone: 'UTC',
     month: 'long',
     year: 'numeric',
   })

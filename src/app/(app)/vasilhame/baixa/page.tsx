@@ -5,6 +5,7 @@ import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { formatarHora } from '@/lib/formatos'
 import { lancarMovimento } from '@/modules/vasilhame/acoes'
 import {
   listarClientesParaBaixa,
@@ -73,10 +74,7 @@ export default async function PaginaBaixa() {
                     dateTime={m.criadoEm.toISOString()}
                     className="shrink-0 text-xs tabular-nums text-texto-fraco"
                   >
-                    {m.criadoEm.toLocaleTimeString('pt-BR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                    {formatarHora(m.criadoEm)}
                   </time>
                 </li>
               )

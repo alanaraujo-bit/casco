@@ -58,7 +58,17 @@ Três comandos tornam isso verificável, e cada um pega o que os outros não peg
 | `npm run fluxo` | O fluxo real num Chrome de verdade: login digitado, botões clicados, celular emulado. Pega o que `tsc` não vê. |
 | `npm run build` | Por último, e só confirma que compila. |
 
-Duas armadilhas que custaram caro e estão anotadas no código:
+**O `next dev` esconde uma classe inteira de bug: a de fuso horário.** Ali
+servidor e navegador são a mesma máquina, no mesmo fuso. Na Vercel o servidor
+roda em UTC e o navegador da operadora em UTC−3, então `toLocaleString('pt-BR')`
+sem `timeZone` rende textos diferentes nos dois lados — o React derruba a
+hidratação da tela (erro #418) e a hora exibida fica três horas adiantada.
+Toda data com hora passa por `formatarDataHora` / `formatarData` /
+`formatarHora` em `src/lib/formatos.ts`, que fixam o fuso.
+Depois de publicar, rode o fluxo contra produção: `npm run fluxo -- --url https://casco.vercel.app`.
+Foi só assim que este apareceu.
+
+Três armadilhas que custaram caro e estão anotadas no código:
 
 - **Use `localhost`, nunca `127.0.0.1`, no `next dev`.** São origens diferentes para o
   navegador, o Next 16 recusa servir os pacotes do cliente para a origem errada, e a

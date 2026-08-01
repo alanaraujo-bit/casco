@@ -141,6 +141,58 @@ export function telefoneValido(valor: string | null | undefined): boolean {
   return d.length === 0 || d.length === 10 || d.length === 11
 }
 
+/* --------------------------------------------------------------- data e hora
+ *
+ * **Toda data com hora passa por aqui, e o fuso é explícito.**
+ *
+ * `toLocaleString('pt-BR')` sem `timeZone` usa o fuso de quem está formatando.
+ * No servidor da Vercel isso é UTC; no navegador da operadora, UTC−3. O mesmo
+ * lançamento então rende "16:08" de um lado e "13:08" do outro, e o React
+ * derruba a hidratação da tela inteira ao encontrar a diferença (erro #418).
+ *
+ * O sintoma é o erro; o estrago é a hora errada. Um movimento de vasilhame
+ * lançado às 17h aparecendo como 20h destrói justamente a utilidade do extrato,
+ * que é reconstruir o que aconteceu no balcão e quando.
+ *
+ * Não pegamos isso no `next dev` porque ali servidor e navegador são a mesma
+ * máquina, no mesmo fuso. Só apareceu rodando o fluxo contra produção.
+ */
+
+/**
+ * Tucumã/PA. Sem horário de verão desde 2019, então é UTC−3 o ano inteiro.
+ *
+ * Constante e não configuração porque hoje toda distribuidora atendida está no
+ * Pará. No dia em que uma não estiver, isto vira coluna em `companies` — e o
+ * lugar de mudar é este, não as quinze telas que mostram data.
+ */
+export const FUSO = 'America/Belem'
+
+/** `01/08/26, 16:08` — o formato das listagens de movimento. */
+export function formatarDataHora(valor: Date | string): string {
+  return new Date(valor).toLocaleString('pt-BR', {
+    timeZone: FUSO,
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+/** `01/08/2026` — quando a hora não acrescenta nada. */
+export function formatarData(valor: Date | string): string {
+  return new Date(valor).toLocaleDateString('pt-BR', { timeZone: FUSO })
+}
+
+/** `16:08` — para o que aconteceu hoje, onde a data é redundante. */
+export function formatarHora(valor: Date | string): string {
+  return new Date(valor).toLocaleTimeString('pt-BR', {
+    timeZone: FUSO,
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export const UFS = [
   'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT',
   'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO',

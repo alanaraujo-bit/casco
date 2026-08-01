@@ -12,6 +12,7 @@ import {
   type MotivoVasilhame,
 } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
+import { formatarDataHora } from '@/lib/formatos'
 import {
   CAMPOS_MOVIMENTO,
   REGRA,
@@ -216,7 +217,10 @@ export async function estornarMovimento(id: string): Promise<ResultadoEstorno> {
         // o mesmo valor aqui evita que os dois discordem se o trigger mudar.
         custoUnitario: original.custoUnitario,
         usuarioId: sessao.usuarioId,
-        observacao: `Estorno de "${rotulo}" lançado em ${original.criadoEm.toLocaleString('pt-BR')}.`,
+        // Fuso explícito: esta frase fica gravada no banco e é lida meses
+        // depois. A hora do servidor da Vercel (UTC) apontaria para um momento
+        // em que a loja estava fechada.
+        observacao: `Estorno de "${rotulo}" lançado em ${formatarDataHora(original.criadoEm)}.`,
         estornoDe: original.id,
       })
 
