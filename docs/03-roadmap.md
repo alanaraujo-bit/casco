@@ -270,13 +270,69 @@ Coberto por 40 provas de banco (eram 23) e 120 checagens do `npm run fluxo`.
 > tira o custo do galão envasado. Enquanto não sabemos, o campo vem
 > pré-preenchido com o custo médio vigente e ela confirma.
 
-### Etapa 6 — Dashboard e Relatórios
+### Etapa 6 — Dashboard e Relatórios ✅ *(Nível 1 e 2 — lendo do banco)*
 *Depois que existe dado real para relatar.*
 
-- Dashboard em 1–2 queries agregadas (contra ~50 chamadas do legado)
-- **DRE que fecha** — sem `NaN`, com custo de verdade
-- Fluxo de Caixa Diário e Mensal — **12 meses**, não 10
-- Perda de vasilhame como linha de custo visível
+É a etapa que ataca os defeitos (a), (b) e (c) da auditoria de uma vez — os três
+são do mesmo tipo: números que o sistema deles não sabe dizer, e diz assim mesmo.
+
+- **DRE que fecha** ✅ — por competência, mês na URL. Lá as linhas de custo e
+  despesa exibem literalmente `NaN`, e o lucro líquido junto. `NaN` não nasce de
+  conta errada: nasce de dividir por um total que ninguém garantiu que existe.
+  Aqui a base da análise vertical devolve `null` quando não há receita no mês, e
+  a tela mostra um travessão em vez de afirmar "0,0% da receita".
+- **A compra não conta duas vezes** ✅ — `contas_pagar.origem` (`migrations/0012`).
+  A compra de mercadoria gera dois registros na mesma transação: a entrada no
+  estoque e o título a pagar. Somar o CMV das saídas *e* as contas de natureza
+  `custo` contaria a mesma mercadoria uma vez quando chega e outra quando sai.
+  Dava para excluir pela `categoria`, e aí o dia em que alguém traduzisse aquele
+  rótulo o DRE mudaria de resposta sem ninguém tocar no relatório.
+- **Perda de vasilhame como linha de custo visível** ✅ — com o nome do que
+  aconteceu, e o detalhamento por motivo ao lado. No sistema deles cada galão
+  quebrado vira uma venda de centavos e **sobe** o faturamento.
+- **Fluxo de Caixa Diário e Mensal — 12 meses** ✅ — a régua vem do
+  `generate_series`, não das linhas da tabela. O deles vai de janeiro a outubro
+  porque novembro e dezembro não tinham lançamento; mês parado é uma resposta,
+  linha ausente não é. O Diário traz as colunas deles mais o acumulado, partindo
+  do saldo anterior ao mês.
+- **Painel Gerencial com o que a Etapa 3 destravou** ✅ — faturamento, vendido
+  hoje, resultado do mês, ticket médio e mix de produtos. O resultado usa **as
+  mesmas fontes do DRE**, não uma segunda contabilidade escrita no painel. No
+  deles, custo e despesa aparecem como `0,00` e Faturamento = Lucro Bruto =
+  Lucro Líquido = R$ 86.134,08 — uma fábrica de água com custo zero.
+- **O mês fecha no fuso da loja** ✅ — `date_trunc` sobre `timestamptz` fecha em
+  UTC, então um galão quebrado às 21h de 31 de julho em Tucumã caía no DRE de
+  agosto. Sozinho, sem lançamento correspondente, num mês que a operadora já
+  tinha fechado e conferido. As views de perda e de CMV convertem antes de
+  truncar.
+
+Duas coisas foram achadas rodando, e nenhuma delas `tsc` veria:
+
+- **O DRE levava 15,1 s** e estourava o próprio roteiro. Eram subconsultas
+  correlacionadas reexecutadas uma vez por mês, e as views de perda carregam um
+  `not exists` por linha. Cada fonte passou a ser agregada uma vez e casada com
+  a régua depois: **3,7 s**. O Diário fazia 31 varreduras de `caixa_movimentos`;
+  o Mensal, 12.
+- **No celular a barra deixava 76px para o título** — medidos. "Fluxo de Caixa
+  Mensal" virava "Fluxo d…" e as duas telas de fluxo ficavam indistinguíveis
+  exatamente onde o usuário precisa saber onde está. O seletor de tema comia
+  140px, 36% da largura do telefone, em toda tela, para uma preferência que se
+  ajusta uma vez: foi para dentro do menu da conta, com rótulo e os mesmos 44px.
+
+Coberto por 147 checagens do `npm run fluxo` (eram 120), no desktop e no celular,
+incluindo a que prova que a compra de estoque fica fora de "Outros custos" — se a
+exclusão por origem quebrar, a linha vira R$ 330,00 em vez de R$ 300,00.
+
+> **Falta para o Nível 3:** exportar o DRE e os fluxos em PDF e Excel — hoje só
+> a `TabelaDados` exporta, e estes três relatórios não a usam, porque a ordem
+> cronológica *é* o relatório e uma coluna de acumulado reordenada por "maior
+> entrada" não significa nada. Comparativo com o mesmo mês do ano anterior no
+> DRE. E **Conciliação Bancária**, a quarta tela de Relatórios do legado, que
+> continua em `PROXIMAS`.
+>
+> **A pergunta em aberto com o cliente:** o regime do DRE é competência, com as
+> contas a pagar entrando pela **emissão**. Se o contador da JM fechar por
+> caixa, a linha de despesa muda de mês — vale confirmar antes do Nível 3.
 
 ### ~~Etapa 7 — Rotas e app do entregador~~ — **ADIADA**
 *Fora do caminho crítico desde 30/07/2026. Entra depois da entrega do ERP.*
@@ -296,7 +352,7 @@ Coberto por 40 provas de banco (eram 23) e 120 checagens do `npm run fluxo`.
 
 ```
 0 Fundação → 1 Cadastros → 2 Vasilhame → 3 Vendas → 4 Financeiro
-  → 5 Estoque → 6 Relatórios ┊ (7 Rotas — adiada)
+  → 5 Estoque → 6 Relatórios ✅ ┊ (7 Rotas — adiada)
 ```
 
 - **Cadastros antes de tudo**: nada funciona sem cliente e produto.
@@ -315,5 +371,6 @@ Coberto por 40 provas de banco (eram 23) e 120 checagens do `npm run fluxo`.
 | Acesso ao PDV do sistema atual | Etapa 3 (Nível 3) — construído sem ele, validar |
 | Confirmar emissão de NF-e | Etapa 3 |
 | Onde cai a venda do porta a porta (auditoria §1.1) | Etapa 3 |
-| Quais módulos eles realmente usam | Etapa 6 |
+| Quais módulos eles realmente usam | Etapa 6 — construída sem isso; Conciliação Bancária ficou de fora até confirmarmos |
+| Se o contador fecha o DRE por competência ou por caixa | Etapa 6 (Nível 3) |
 | Nome do produto | Etapa 0 |

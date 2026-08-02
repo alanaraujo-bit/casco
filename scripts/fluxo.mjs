@@ -1967,6 +1967,63 @@ try {
     await comando(ws, 'Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, sessao)
     await foto('celular-caixa-mensal')
     await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
+
+    /* ------------------------------------------------------------- painel
+     *
+     * Roda por último porque o painel é a soma de tudo que os blocos acima
+     * lançaram — e é a tela onde o defeito (b) da auditoria mora: lá custos e
+     * despesas aparecem como 0,00, então Faturamento, Lucro Bruto e Lucro
+     * Líquido saem com o mesmo valor. Uma fábrica de água com custo zero.
+     */
+    await irPara('/painel')
+    await esperarPor(
+      async () => (await texto()).includes('Faturamento do mês'),
+      'o painel terminar de montar',
+    )
+    const painel = await texto()
+    await foto('painel')
+
+    check(
+      'o painel traz o faturamento e o resultado do mês',
+      painel.includes('Faturamento do mês') &&
+        painel.includes('Vendido hoje') &&
+        painel.includes('Resultado do mês'),
+      painel.slice(0, 400),
+    )
+    check('nenhum NaN no painel', !painel.includes('NaN'), painel.slice(0, 600))
+    check(
+      'a venda do PDV chega ao faturamento do painel',
+      /Faturamento do mês[\s\S]{0,120}R\$\s?[1-9]/.test(painel),
+      painel.slice(0, 600),
+    )
+    /**
+     * O resultado **difere** do faturamento, e é esse o ponto da tela.
+     *
+     * No sistema deles os dois são iguais porque o custo nunca entra. Aqui a
+     * venda de R$ 60 do PDV convive com R$ 300 de conta a pagar e R$ 76 de
+     * galão quebrado, e o mês fecha negativo. Se algum dia esta checagem
+     * falhar por "os dois são iguais", o custo parou de ser somado.
+     */
+    check(
+      'o resultado do mês não repete o faturamento — o custo entra na conta',
+      /Resultado do mês[\s\S]{0,120}-\s?R\$/.test(painel),
+      painel.slice(0, 900),
+    )
+    check(
+      'o mix de produtos do mês aparece com o que foi vendido',
+      painel.includes('Mais vendidos no mês') && painel.includes(PREFIXO),
+      painel.slice(0, 900),
+    )
+
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', CELULAR, sessao)
+    await irPara('/painel')
+    check(
+      'no celular o painel não rola de lado',
+      await js('return document.documentElement.scrollWidth <= window.innerWidth + 1'),
+      `scrollWidth=${await js('return document.documentElement.scrollWidth')} vs ${await js('return window.innerWidth')}`,
+    )
+    await foto('celular-painel')
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
   } else {
     falhas.push('estoque não testado — sem conexão de banco para semear os produtos')
   }

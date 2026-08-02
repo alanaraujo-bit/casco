@@ -6,16 +6,30 @@ import {
   Contact,
   Droplets,
   PhoneOff,
+  Scale,
+  ShoppingCart,
+  TrendingDown,
+  TrendingUp,
   UserPlus,
   Wallet,
 } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
-import { AcaoRapida, CartaoKpi, Chip } from '@/components/painel/pecas'
+import {
+  AcaoRapida,
+  Bloco,
+  CartaoKpi,
+  Chip,
+  Variacao,
+  corDoTom,
+  type Tom,
+} from '@/components/painel/pecas'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { BarraProgresso, GraficoArea } from '@/components/ui/graficos'
 import { exigirSessao } from '@/lib/dal'
 import { resumoPainel } from '@/modules/painel/consultas'
+import { mesCurto } from '@/modules/relatorios/periodo'
 import { moeda } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Painel Gerencial' }
@@ -23,14 +37,24 @@ export const metadata: Metadata = { title: 'Painel Gerencial' }
 /**
  * Painel Gerencial.
  *
- * **Mostra só o que o banco sabe responder.** Faturamento do mês, vendas do
- * dia, mix de produtos e ranking de clientes saíram daqui: eles dependem da
- * Etapa 3 (Vendas), que ainda não existe. Enquanto não existir, esses cartões
- * seriam número inventado — e é assim que se perde a confiança do dono de uma
- * vez só: ele confere um contra a realidade, erra, e a partir daí não acredita
- * em mais nenhum número da tela.
+ * **Mostra só o que o banco sabe responder.** Foi assim que esta tela nasceu,
+ * sem faturamento nem vendas do dia, porque a Etapa 3 não existia e um cartão
+ * com número inventado é pior que um cartão ausente — o dono confere um contra
+ * a realidade, erra, e a partir daí não acredita em mais nenhum número.
  *
- * Conforme cada etapa entra, os blocos voltam — com dado de verdade.
+ * Agora eles existem, e voltaram: venda grava em seis tabelas numa transação,
+ * o custo sai do estoque ao custo médio e a perda de vasilhame tem view
+ * própria. O resultado do mês aqui é a **mesma conta do DRE**, lendo as mesmas
+ * fontes — não uma segunda contabilidade escrita no painel, que é como se
+ * chega a duas telas que discordam sobre o mesmo mês.
+ *
+ * O contraste com o que substituímos é literal: lá custos e despesas aparecem
+ * como `0,00`, então Faturamento = Lucro Bruto = Lucro Líquido = R$ 86.134,08
+ * — uma fábrica de água com custo zero (auditoria §4b).
+ *
+ * O que ainda não está aqui é **ranking de clientes**: exigiria decidir se
+ * "melhor cliente" é quem compra mais ou quem paga em dia, e as duas respostas
+ * mandam a operadora ligar para pessoas diferentes.
  */
 function hojePorExtenso() {
   return new Intl.DateTimeFormat('pt-BR', {
@@ -45,7 +69,10 @@ function hojePorExtenso() {
 export default async function PainelGerencial() {
   const [sessao, r] = await Promise.all([exigirSessao(), resumoPainel()])
 
-  const semNada = r.clientes.total === 0 && r.receber.qtdAberto === 0
+  const faturamentoMes = Number(r.vendas.mes)
+  const resultadoMes = Number(r.resultadoMes)
+  const semNada =
+    r.clientes.total === 0 && r.receber.qtdAberto === 0 && r.vendas.qtdMes === 0
 
   return (
     <div className="space-y-6">
@@ -86,8 +113,70 @@ export default async function PainelGerencial() {
         </Card>
       ) : (
         <>
-          {/* ------------------------------------------------------------- KPIs */}
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {/* ------------------------------------------------------------- KPIs
+              O faturamento vem primeiro porque é a primeira pergunta do dono.
+              Ele saiu daqui enquanto a Etapa 3 não existia — número inventado
+              é pior que cartão ausente — e volta agora com a venda gravando em
+              seis tabelas numa transação.
+
+              **Líquido de desconto, e não bruto.** O sistema deles soma o valor
+              cheio, então o painel mostra um faturamento que ninguém recebeu.
+              Aqui é o que entrou no acordo com o cliente; o desconto tem linha
+              própria no DRE, para responder "quanto demos de desconto no mês". */}
+          {/* Três colunas e não quatro: são seis cartões, que fecham 3+3 sem
+              deixar buraco na última linha — e o cartão do faturamento, que
+              carrega o gráfico, ganha a largura que ele precisa. */}
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <CartaoKpi
+              rotulo="Faturamento do mês"
+              valor={moeda(faturamentoMes)}
+              Icone={TrendingUp}
+              tom="acento"
+              // Contra o mês anterior INTEIRO. Comparar 2 dias de agosto com os
+              // 31 de julho renderia "−94%" todo dia 2, e uma variação que
+              // sempre grita não é lida por ninguém no dia em que importa.
+              variacao={
+                <Variacao atual={faturamentoMes} anterior={Number(r.vendas.mesAnterior)} />
+              }
+              detalhe={`${r.vendas.qtdMes} ${r.vendas.qtdMes === 1 ? 'venda' : 'vendas'} · ticket ${moeda(Number(r.vendas.ticketMes))}`}
+              href="/vendas/produtos"
+              grafico={
+                <GraficoArea
+                  serie={r.serie.map((s) => ({ rotulo: mesCurto(s.mes), valor: s.valor }))}
+                  titulo="Faturamento dos últimos seis meses"
+                  formato="moeda"
+                  altura={44}
+                />
+              }
+            />
+
+            <CartaoKpi
+              rotulo="Vendido hoje"
+              valor={moeda(Number(r.vendas.hoje))}
+              Icone={ShoppingCart}
+              tom="cat-6"
+              detalhe={
+                r.vendas.qtdHoje > 0
+                  ? `${r.vendas.qtdHoje} ${r.vendas.qtdHoje === 1 ? 'venda fechada' : 'vendas fechadas'}`
+                  : 'nenhuma venda ainda hoje'
+              }
+              href="/vendas/pdv"
+            />
+
+            <CartaoKpi
+              rotulo="Resultado do mês"
+              valor={moeda(resultadoMes)}
+              Icone={resultadoMes >= 0 ? Scale : TrendingDown}
+              // Só fica vermelho quando o mês fecha no negativo de verdade.
+              tom={resultadoMes < 0 ? 'perigo' : 'cat-5'}
+              detalhe={
+                faturamentoMes > 0
+                  ? `margem de ${((resultadoMes / faturamentoMes) * 100).toFixed(1).replace('.', ',')}%`
+                  : 'sem faturamento no mês'
+              }
+              href="/relatorios/dre"
+            />
+
             <CartaoKpi
               rotulo="A receber"
               valor={moeda(Number(r.receber.aberto))}
@@ -131,18 +220,10 @@ export default async function PainelGerencial() {
               href="/cadastro/clientes"
             />
 
-            <CartaoKpi
-              rotulo="Galões com clientes"
-              valor={r.vasilhame.comClientes.toLocaleString('pt-BR')}
-              Icone={Droplets}
-              tom="cat-4"
-              detalhe={
-                r.vasilhame.clientesDevendo > 0
-                  ? `com ${r.vasilhame.clientesDevendo} ${r.vasilhame.clientesDevendo === 1 ? 'cliente' : 'clientes'}`
-                  : 'nenhum vasilhame na rua'
-              }
-              href="/cadastro/clientes"
-            />
+            {/* "Galões com clientes" era o sétimo cartão aqui, e saiu: a faixa
+                logo abaixo mostra o mesmo número com mais contexto. Repetir o
+                dado a 200px de distância não dá ênfase, dá dúvida — o olho
+                para para conferir se são a mesma coisa. */}
           </div>
 
           {/* -------------------------------------------- faixa do vasilhame */}
@@ -191,6 +272,39 @@ export default async function PainelGerencial() {
                 </dl>
               </div>
             </Card>
+          )}
+
+          {/* ----------------------------------------------- mix de produtos */}
+          {/* Só com venda no mês. Um cartão "Mais vendidos" vazio no dia 1º
+              ocupa a mesma altura para não dizer nada. */}
+          {r.topProdutos.length > 0 && (
+            <Bloco
+              titulo="Mais vendidos no mês"
+              descricao="por faturamento, entre os produtos que saíram"
+              href="/vendas/produtos"
+            >
+              <ul className="space-y-3">
+                {r.topProdutos.map((p, i) => (
+                  <li key={p.nome}>
+                    <BarraProgresso
+                      rotulo={p.nome}
+                      valor={Number(p.valor)}
+                      maximo={Number(r.topProdutos[0].valor)}
+                      formato="moeda"
+                      // A cor separa as linhas sem afirmar nada sobre elas: a
+                      // família categórica existe para isso. Verde no primeiro
+                      // colocado sugeriria "este está bom", que é leitura que
+                      // ninguém pediu.
+                      cor={corDoTom(`cat-${(i % 6) + 1}` as Tom)}
+                    />
+                    <p className="mt-0.5 text-2xs text-texto-fraco">
+                      {p.unidades.toLocaleString('pt-BR')}{' '}
+                      {p.unidades === 1 ? 'unidade' : 'unidades'}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </Bloco>
           )}
 
           {/* -------------------------------------------------- ações rápidas */}
