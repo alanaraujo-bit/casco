@@ -104,6 +104,19 @@ export const NAVEGACAO: GrupoNav[] = [
       { rotulo: 'Caixa', href: '/financeiro/caixa' },
     ],
   },
+  {
+    // "Entradas" é o rótulo deles (`Control/WarehouseInputs`), e a tela faz
+    // mais do que entrada — lança também ajuste, perda e devolução. Mantido
+    // assim mesmo: é o nome que a operadora procura no menu, e "Movimentos de
+    // Estoque" seria mais preciso e menos encontrável. O título dentro da tela
+    // diz o que ela faz.
+    rotulo: 'Estoque',
+    Icone: Boxes,
+    itens: [
+      { rotulo: 'Saldo em Estoque', href: '/estoque/saldo' },
+      { rotulo: 'Entradas', href: '/estoque/entradas' },
+    ],
+  },
 ]
 
 /**
@@ -136,14 +149,6 @@ export const PROXIMAS: GrupoNav[] = [
     rotulo: 'Financeiro',
     Icone: Wallet,
     itens: [{ rotulo: 'Despesas', href: '/financeiro/despesas' }],
-  },
-  {
-    rotulo: 'Estoque',
-    Icone: Boxes,
-    itens: [
-      { rotulo: 'Saldo em Estoque', href: '/estoque/saldo' },
-      { rotulo: 'Entradas', href: '/estoque/entradas' },
-    ],
   },
   {
     rotulo: 'Relatórios',

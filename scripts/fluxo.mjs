@@ -205,8 +205,13 @@ async function faxina() {
   }
 
   // Contas a pagar do teste, e a saída de caixa que o pagamento gerou.
+  //
+  // O prefixo é procurado em qualquer posição, não só no começo: o título que a
+  // compra de estoque gera nasce como "Compra [teste-fluxo] Água 20L", com o
+  // nome do produto no meio da frase. Ancorado no início, ele escapava da
+  // faxina e ia se acumulando em Contas a Pagar a cada rodada.
   const idsPagar = (
-    await banco`select id from contas_pagar where descricao like ${PREFIXO + '%'}`
+    await banco`select id from contas_pagar where descricao like ${'%' + PREFIXO + '%'}`
   ).map((c) => c.id)
   if (idsPagar.length > 0) {
     await banco`delete from caixa_movimentos where origem = 'pagar' and origem_id in ${banco(idsPagar)}`
@@ -901,6 +906,9 @@ try {
     '/financeiro/pagar',
     '/financeiro/pagar/nova',
     '/financeiro/caixa',
+    '/estoque/saldo',
+    '/estoque/entradas',
+    '/estoque/entradas/nova',
   ]
   const naoAbriram = []
   for (const rota of rotas) {
@@ -1423,6 +1431,205 @@ try {
     await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
   } else {
     falhas.push('PDV não testado — sem conexão de banco para semear os produtos')
+  }
+
+  /* ------------------------------------------------------------- estoque
+   *
+   * O que este bloco prova, e nenhum outro prova: o estoque sabe subir.
+   *
+   * Ele roda depois do PDV de propósito. As vendas acima consumiram 5 unidades
+   * de um produto que nunca teve entrada, então o saldo chega aqui negativo —
+   * que era o estado permanente do sistema antes desta etapa, e é o ponto de
+   * partida honesto para testar a entrada.
+   */
+  if (semente) {
+    await irPara('/estoque/saldo')
+    const saldo = await texto()
+    await foto('estoque-saldo')
+    check('o saldo lista o produto que controla estoque', saldo.includes('Água 20L'))
+    check(
+      'a venda do PDV deixou o saldo negativo, e a tela mostra',
+      /[-−]\s?5\b/.test(saldo),
+      saldo.slice(0, 400),
+    )
+
+    // --- produção: o caminho que a JM usa todo dia
+    await irPara('/estoque/entradas/nova')
+    const nova = await texto()
+    const TIPOS = ['Produção', 'Compra', 'Ajuste de inventário', 'Perda', 'Devolução de cliente']
+    const semTipo = TIPOS.filter((t) => !nova.includes(t))
+    check('o lançamento oferece os cinco tipos', semTipo.length === 0, semTipo.join(', '))
+
+    await clicar('Produção', 15_000, 'label')
+    await escolherPorTexto('produtoId', 'Água 20L')
+    await preencher({ quantidade: '100', custoUnitario: '2,50' })
+    // O saldo resultante aparece **antes** de gravar: é quando ele ainda serve
+    // para a operadora desistir se o número estiver errado.
+    await esperarPor(
+      async () => (await texto()).includes('95'),
+      'o saldo previsto (−5 + 100) aparecer antes de gravar',
+    )
+    check('a tela mostra onde o saldo vai parar antes de gravar', true)
+    await foto('estoque-producao')
+
+    await clicar('Lançar movimento')
+    /*
+     * Esperar pelo recibo **daquele** lançamento, e não por "Saldo agora".
+     *
+     * O recibo anterior continua na tela — é o ponto dele, a operadora confere
+     * o que gravou antes de seguir. Uma espera por texto genérico casava com o
+     * recibo de antes e voltava na hora, com a action ainda em voo: o roteiro
+     * começava a preencher o lançamento seguinte e a resposta chegava por cima.
+     * Mesma armadilha já anotada no bloco do PDV.
+     */
+    await esperarPor(
+      async () => (await texto()).includes('Produção:'),
+      'o recibo da produção',
+    )
+    const reciboProducao = await texto()
+    check('produção lançada e o saldo sai do negativo', reciboProducao.includes('95'))
+    check(
+      'o recibo mostra o custo médio resultante',
+      reciboProducao.includes('2,50'),
+      reciboProducao.slice(0, 300),
+    )
+
+    // --- ajuste: ela digita o que contou, não a diferença
+    await clicar('Ajuste de inventário', 15_000, 'label')
+    await preencher({ contagem: '90' })
+    await esperarPor(
+      async () => /Lançamento:\s*[-−]\s?5/.test(await texto()),
+      'o ajuste calcular a diferença entre o contado e o sistema',
+    )
+    check('o ajuste faz a subtração no lugar da operadora', true)
+    await clicar('Lançar movimento')
+    await esperarPor(
+      async () => (await texto()).includes('Ajuste de inventário:'),
+      'o recibo do ajuste',
+    )
+    check('ajuste lançado pela contagem física', (await texto()).includes('90'))
+
+    // --- compra a prazo: a mercadoria entra e a dívida nasce juntas
+    await clicar('Compra', 15_000, 'label')
+    await escolherPorTexto('produtoId', 'Água 20L')
+    await preencher({ quantidade: '10', custoUnitario: '3,00' })
+    await clicar('Gerar título em Contas a Pagar', 15_000, 'label')
+    await esperarPor(
+      async () => (await js(`return !!document.querySelector('[name="vencimento"]')`)) === true,
+      'o campo de vencimento aparecer ao marcar o título',
+    )
+    check('marcar o título pede o vencimento', true)
+    await foto('estoque-compra')
+
+    const marcado = await js(
+      `return document.querySelector('[name="gerarContaPagar"]')?.checked === true`,
+    )
+    const qtdAntesDeEnviar = await js(
+      `return document.querySelector('[name="quantidade"]')?.value ?? '(sem campo)'`,
+    )
+    await clicar('Lançar movimento')
+    /*
+     * Esperar pelo recibo **da compra**, e não por "Saldo agora".
+     *
+     * O recibo do lançamento anterior continua na tela — é o ponto dele, a
+     * operadora confere o que gravou antes de seguir. Uma espera por texto
+     * genérico casava com o recibo do ajuste e voltava na hora, com a action da
+     * compra ainda em voo: a checagem seguinte lia a tela antiga e acusava um
+     * bug que não existia. É a mesma armadilha já anotada no bloco do PDV.
+     */
+    await esperarPor(
+      async () => {
+        const t = await texto()
+        return t.includes('Compra:') || t.includes('Não foi')
+      },
+      'o recibo da compra',
+    )
+    const reciboCompra = await texto()
+    const recorte = await js(
+      `return [...document.querySelectorAll('[role="alert"], [role="status"]')].map((e) => e.innerText).join(' | ')`,
+    )
+    check(
+      'a compra gera o título em Contas a Pagar',
+      reciboCompra.includes('Título de') && reciboCompra.includes('30,00'),
+      `checkbox=${marcado} quantidade=${qtdAntesDeEnviar} · na tela: ${recorte}`,
+    )
+
+    await irPara('/financeiro/pagar')
+    const pagar = await texto()
+    check(
+      'o título da compra chega em Contas a Pagar',
+      pagar.includes('Água 20L') && pagar.includes('30,00'),
+      pagar.slice(0, 400),
+    )
+
+    // --- estorno: a compra digitada errada não pode inflar o custo médio
+    await irPara('/estoque/entradas')
+    const movimentos = await texto()
+    await foto('estoque-movimentos')
+    check(
+      'o razão mostra os lançamentos com tipo e sinal',
+      movimentos.includes('Produção') && movimentos.includes('Compra') && movimentos.includes('+100'),
+    )
+
+    await clicar('Estornar')
+    await clicar('Confirmar')
+    await esperarPor(
+      async () => (await texto()).includes('estornado'),
+      'o movimento marcado como estornado',
+    )
+    check('a compra errada pode ser estornada', true)
+
+    // O custo médio tem que voltar ao que era antes da compra. Sem a remoção da
+    // camada no trigger da 0011, a quantidade voltava e o custo ficava inflado
+    // — e o CMV do mês sairia errado sem nenhuma linha visível explicando.
+    await irPara('/estoque/saldo')
+    const depoisDoEstorno = await texto()
+    check(
+      'o estorno devolve o custo médio ao valor anterior',
+      depoisDoEstorno.includes('2,50'),
+      depoisDoEstorno.slice(0, 400),
+    )
+
+    // --- extrato: o histórico explica o saldo linha a linha
+    await clicar(PREFIXO + ' Água 20L')
+    await esperarCaminho(
+      (p) => /\/estoque\/saldo\/[0-9a-f-]{36}/.test(p),
+      'abrir o extrato do produto',
+    )
+    const extrato = await texto()
+    await foto('estoque-extrato')
+    check(
+      'o extrato lista os movimentos do produto',
+      extrato.includes('Produção') && extrato.includes('Ajuste de inventário'),
+    )
+    check('o extrato traz o saldo corrente para auditar a conta', extrato.includes('+100'))
+
+    // --- celular: o dono confere o estoque fora da loja
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', CELULAR, sessao)
+    await irPara('/estoque/entradas/nova')
+    check(
+      'no celular o lançamento de estoque não rola de lado',
+      await js('return document.documentElement.scrollWidth <= window.innerWidth + 1'),
+      `scrollWidth=${await js('return document.documentElement.scrollWidth')} vs ${await js('return window.innerWidth')}`,
+    )
+    const miudos = await js(`
+      const alvos = [...document.querySelectorAll('input[name]:not([type="hidden"]):not([type="checkbox"]):not(.sr-only), select[name], label:has(input[type="radio"])')]
+        .map((e) => ({ nome: e.getAttribute('name') || e.innerText.trim().slice(0, 20), altura: Math.round(e.getBoundingClientRect().height) }))
+        .filter((c) => c.altura < 44)
+      return JSON.stringify(alvos)
+    `)
+    check('os alvos de toque do estoque têm 44px', miudos === '[]', `abaixo de 44px: ${miudos}`)
+    await foto('celular-estoque')
+
+    await irPara('/estoque/saldo')
+    check(
+      'no celular o saldo em estoque não rola de lado',
+      await js('return document.documentElement.scrollWidth <= window.innerWidth + 1'),
+      `scrollWidth=${await js('return document.documentElement.scrollWidth')} vs ${await js('return window.innerWidth')}`,
+    )
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
+  } else {
+    falhas.push('estoque não testado — sem conexão de banco para semear os produtos')
   }
 
   await irPara('/cadastro/clientes')

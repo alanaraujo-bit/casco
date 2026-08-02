@@ -1,0 +1,277 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { eq } from 'drizzle-orm'
+import { z } from 'zod'
+import { uuidv7 } from 'uuidv7'
+import {
+  contasPagar,
+  estoqueMovimentos,
+  estoqueSaldos,
+  fornecedores,
+  produtos,
+  type TipoEstoque,
+} from '@/db/schema'
+import { comTenant } from '@/lib/dal'
+import { dataNaLoja, formatarDataHora } from '@/lib/formatos'
+import { centavos, deCentavos } from '@/modules/vendas/esquema'
+import {
+  CAMPOS_MOVIMENTO,
+  REGRA,
+  aplicarSinal,
+  esquemaMovimento,
+  rotuloTipo,
+  type CampoMovimento,
+  type EstadoFormularioMovimento,
+} from './esquema'
+
+/**
+ * As duas escritas do módulo: lançar e estornar.
+ *
+ * Não existe editar nem apagar, e não é omissão — o banco recusa `update` e
+ * `delete` em `estoque_movimentos` por trigger. Movimento é lançamento
+ * contábil: corrigir é lançar o contrário, e as duas linhas ficam à vista no
+ * extrato. É o que faz o saldo continuar explicável pelo histórico que o gerou.
+ */
+
+function lerFormulario(form: FormData) {
+  return Object.fromEntries(
+    CAMPOS_MOVIMENTO.map((campo) => [campo, String(form.get(campo) ?? '')]),
+  ) as Record<CampoMovimento, string>
+}
+
+function erroDeValidacao(
+  erro: z.ZodError,
+  valores: Record<CampoMovimento, string>,
+  tentativa: number,
+): EstadoFormularioMovimento {
+  const porCampo = z.flattenError(erro).fieldErrors as Record<string, string[] | undefined>
+  const campos: Partial<Record<CampoMovimento, string>> = {}
+  for (const campo of CAMPOS_MOVIMENTO) {
+    const msg = porCampo[campo]?.[0]
+    if (msg) campos[campo] = msg
+  }
+  const geral = z.flattenError(erro).formErrors[0]
+  return { campos, valores, tentativa, erro: Object.keys(campos).length ? undefined : geral }
+}
+
+function revalidarTudo() {
+  revalidatePath('/estoque/saldo')
+  revalidatePath('/estoque/entradas')
+  revalidatePath('/cadastro/produtos')
+  revalidatePath('/vendas/pdv')
+  revalidatePath('/financeiro/pagar')
+}
+
+/**
+ * Traduz a recusa do banco para uma frase que serve a quem está no depósito.
+ *
+ * Os check constraints da 0011 não deveriam ser alcançáveis pela tela — o
+ * `esquema.ts` barra antes. Existem para o caso de alcançarem: script solto,
+ * requisição forjada, ou um bug nosso. Quando acontecer, o que a operadora não
+ * pode ver é `violates check constraint "estoque_mov_sinal_coerente"`.
+ */
+function mensagemDoBanco(err: unknown): string {
+  const texto = err instanceof Error ? err.message : String(err)
+  if (texto.includes('estoque_mov_sinal_coerente'))
+    return 'O sentido do movimento não combina com o tipo escolhido.'
+  if (texto.includes('estoque_mov_fornecedor_so_compra'))
+    return 'Só a compra tem fornecedor.'
+  if (texto.includes('estoque_mov_estorno_unico')) return 'Este movimento já foi estornado.'
+  if (texto.includes('estorna um estorno')) return 'Não se estorna um estorno.'
+  if (texto.includes('quantidade oposta'))
+    return 'O estorno precisa espelhar o movimento original. Recarregue a tela.'
+  if (texto.includes('quantidade <> 0')) return 'A quantidade não pode ser zero.'
+  return 'Não foi possível gravar o movimento. Tente de novo.'
+}
+
+export async function lancarMovimento(
+  anterior: EstadoFormularioMovimento,
+  form: FormData,
+): Promise<EstadoFormularioMovimento> {
+  const tentativa = (anterior.tentativa ?? 0) + 1
+  const valores = lerFormulario(form)
+  const analise = esquemaMovimento.safeParse(valores)
+  if (!analise.success) return erroDeValidacao(analise.error, valores, tentativa)
+
+  const dados = analise.data
+  const quantidade = aplicarSinal(dados.tipo, dados.quantidade, dados.sentido)
+
+  try {
+    return await comTenant(async (tx, sessao) => {
+      /**
+       * Produto e fornecedor relidos aqui, não confiados no que veio do
+       * formulário. O `select` roda dentro do tenant, então um `produtoId` de
+       * outra distribuidora simplesmente não é encontrado — e a RLS vira
+       * validação de autorização de graça, sem uma checagem que dê para esquecer.
+       */
+      const [produto] = await tx
+        .select({
+          id: produtos.id,
+          nome: produtos.nome,
+          unidade: produtos.unidade,
+          controlaEstoque: produtos.controlaEstoque,
+        })
+        .from(produtos)
+        .where(eq(produtos.id, dados.produtoId))
+        .limit(1)
+
+      if (!produto) return { erro: 'Produto não encontrado.', valores, tentativa }
+      if (!produto.controlaEstoque) {
+        return {
+          erro: `${produto.nome} não controla estoque. Marque a opção no cadastro do produto antes de movimentar.`,
+          valores,
+          tentativa,
+        }
+      }
+
+      let nomeFornecedor: string | null = null
+      if (dados.fornecedorId) {
+        const [f] = await tx
+          .select({ nome: fornecedores.nome })
+          .from(fornecedores)
+          .where(eq(fornecedores.id, dados.fornecedorId))
+          .limit(1)
+        if (!f) return { erro: 'Fornecedor não encontrado.', valores, tentativa }
+        nomeFornecedor = f.nome
+      }
+
+      await tx.insert(estoqueMovimentos).values({
+        id: uuidv7(),
+        companyId: sessao.companyId,
+        produtoId: dados.produtoId,
+        quantidade: String(quantidade),
+        tipo: dados.tipo,
+        // Zero aqui não vira zero no banco: o trigger `estoque_custo_padrao`
+        // troca pelo custo médio vigente. Ver a 0011.
+        custoUnitario: dados.custoUnitario.toFixed(2),
+        fornecedorId: dados.fornecedorId,
+        documento: dados.documento,
+        origem: 'balcao',
+        usuarioId: sessao.usuarioId,
+        observacao: dados.observacao,
+      })
+
+      /**
+       * O título nasce na mesma transação do movimento, e é o ponto do
+       * "gerar Conta a Pagar": ou a mercadoria entra e a dívida existe, ou
+       * nenhuma das duas. Gravar em duas transações é como se descobre, no
+       * fechamento, um estoque que entrou sem ninguém a quem pagar.
+       */
+      let tituloGerado: { valor: number; vencimento: string } | null = null
+      if (dados.gerarContaPagar && dados.vencimento) {
+        const total = deCentavos(centavos(dados.custoUnitario) * dados.quantidade)
+        await tx.insert(contasPagar).values({
+          id: uuidv7(),
+          companyId: sessao.companyId,
+          fornecedorId: dados.fornecedorId,
+          descricao: dados.documento
+            ? `Compra ${produto.nome} — nota ${dados.documento}`
+            : `Compra ${produto.nome}`,
+          // Mercadoria para revenda é custo, não despesa: entra no CMV e é o
+          // que faz o DRE da Etapa 6 fechar em vez de exibir NaN.
+          natureza: 'custo',
+          categoria: 'Compra de mercadoria',
+          emissao: dataNaLoja(),
+          vencimento: dados.vencimento,
+          valorPrevisto: total.toFixed(2),
+          observacao: dados.observacao,
+        })
+        tituloGerado = { valor: total, vencimento: dados.vencimento }
+      }
+
+      // Lido depois do insert, já com os triggers aplicados: é o número que a
+      // operadora confere antes de lançar o próximo.
+      const [saldo] = await tx
+        .select({ quantidade: estoqueSaldos.quantidade, custoMedio: estoqueSaldos.custoMedio })
+        .from(estoqueSaldos)
+        .where(eq(estoqueSaldos.produtoId, dados.produtoId))
+        .limit(1)
+
+      revalidarTudo()
+
+      return {
+        tentativa,
+        sucesso: {
+          tipo: dados.tipo,
+          quantidade: dados.quantidade,
+          produto: nomeFornecedor ? `${produto.nome} · ${nomeFornecedor}` : produto.nome,
+          unidade: produto.unidade,
+          saldo: Number(saldo?.quantidade ?? 0),
+          custoMedio: Number(saldo?.custoMedio ?? 0),
+          tituloGerado,
+        },
+      }
+    })
+  } catch (err) {
+    return { erro: mensagemDoBanco(err), valores, tentativa }
+  }
+}
+
+export interface ResultadoEstorno {
+  ok: boolean
+  erro?: string
+}
+
+/**
+ * Desfaz um movimento lançando o oposto, com o mesmo tipo.
+ *
+ * O mesmo tipo é o detalhe que importa: estornar uma `compra 800` como
+ * `perda 800` faria o extrato afirmar que a mercadoria estragou. Ela não
+ * estragou — nós erramos, e a diferença aparece no DRE como custo de perda que
+ * nunca existiu.
+ *
+ * O trigger `estoque_valida_estorno` garante o espelhamento e devolve o custo
+ * congelado do original, e é disso que o trigger de saldo depende para remover
+ * do custo médio exatamente a camada que a entrada colocou.
+ *
+ * **O título em Contas a Pagar não é cancelado junto.** A dívida com o
+ * fornecedor é um fato do mundo, e some do sistema só quando alguém decide que
+ * sumiu — a tela avisa e manda para Contas a Pagar.
+ */
+export async function estornarMovimento(id: string): Promise<ResultadoEstorno> {
+  try {
+    return await comTenant(async (tx, sessao) => {
+      const [original] = await tx
+        .select()
+        .from(estoqueMovimentos)
+        .where(eq(estoqueMovimentos.id, id))
+        .limit(1)
+
+      if (!original) return { ok: false, erro: 'Movimento não encontrado.' }
+      if (original.estornoDe) return { ok: false, erro: 'Não se estorna um estorno.' }
+      if (!REGRA[original.tipo as TipoEstoque]?.lancavelNaMao) {
+        return {
+          ok: false,
+          erro: 'Baixa de venda se desfaz cancelando a venda, não estornando o estoque.',
+        }
+      }
+
+      await tx.insert(estoqueMovimentos).values({
+        id: uuidv7(),
+        companyId: sessao.companyId,
+        produtoId: original.produtoId,
+        quantidade: String(-Number(original.quantidade)),
+        tipo: original.tipo,
+        // O trigger reescreve com o custo do original de qualquer forma; passar
+        // o mesmo valor aqui evita que os dois discordem se o trigger mudar.
+        custoUnitario: original.custoUnitario,
+        fornecedorId: original.fornecedorId,
+        documento: original.documento,
+        origem: 'ajuste',
+        origemId: original.id,
+        usuarioId: sessao.usuarioId,
+        // Fuso explícito: esta frase fica gravada no banco e é lida meses
+        // depois. A hora do servidor da Vercel (UTC) apontaria para um momento
+        // em que a loja estava fechada.
+        observacao: `Estorno de "${rotuloTipo(original.tipo)}" lançado em ${formatarDataHora(original.criadoEm)}.`,
+        estornoDe: original.id,
+      })
+
+      revalidarTudo()
+      return { ok: true }
+    })
+  } catch (err) {
+    return { ok: false, erro: mensagemDoBanco(err) }
+  }
+}
