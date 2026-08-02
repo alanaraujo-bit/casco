@@ -1253,6 +1253,63 @@ try {
     const pdv = await texto()
     check('o PDV lista os produtos com preço', pdv.includes('Água 20L') && pdv.includes('12,00'))
 
+    /*
+     * --- a venda sobrevive a sair da tela
+     *
+     * O que este bloco prova: o carrinho não é estado perdido ao trocar de
+     * aba. `irPara` navega de verdade (é `Page.navigate` do protocolo de
+     * depuração, não um clique em `<Link>`), então desmonta o PDV por
+     * completo — é o mesmo efeito de fechar a aba e abrir de novo. Se o
+     * rascunho estivesse só em `useState`, o carrinho chegaria vazio.
+     */
+    await clicar(PREFIXO + ' Água 10L')
+    await escolherPorTexto('clienteId', nome)
+    await preencher({ observacao: `${PREFIXO} não perder isto` })
+    // `texto()` lê `innerText`, que não inclui o valor digitado num
+    // `<textarea>` — só o `.value` do elemento mostra o que foi digitado.
+    await esperarPor(
+      async () =>
+        (await js(`return document.querySelector('[name="observacao"]')?.value ?? ''`)).includes(
+          `${PREFIXO} não perder isto`,
+        ),
+      'a observação entrar no rascunho antes de navegar',
+    )
+    await irPara('/painel')
+    await irPara('/vendas/pdv')
+    const pdvDepoisDeVoltar = await texto()
+    check(
+      'o carrinho continua depois de sair da tela e voltar',
+      pdvDepoisDeVoltar.includes(`${PREFIXO} Água 10L`),
+      pdvDepoisDeVoltar.slice(0, 400),
+    )
+    check(
+      'o cliente escolhido também sobrevive à troca de tela',
+      pdvDepoisDeVoltar.includes(nome),
+      pdvDepoisDeVoltar.slice(0, 400),
+    )
+    const observacaoRestaurada = await js(`
+      return document.querySelector('[name="observacao"]')?.value ?? ''
+    `)
+    check(
+      'a observação digitada volta no campo, não só na tela',
+      observacaoRestaurada.includes(`${PREFIXO} não perder isto`),
+      observacaoRestaurada,
+    )
+
+    // Esvazia o rascunho antes da venda de verdade: ele cumpriu o que tinha
+    // que provar, e um carrinho residual somaria unidades a mais no total que
+    // os blocos de estoque e caixa, mais abaixo, esperam.
+    await clicar('', 15_000, `[aria-label="Remover ${PREFIXO} Água 10L"]`)
+    await esperarPor(
+      async () => (await texto()).includes('Carrinho vazio'),
+      'o carrinho voltar a ficar vazio',
+    )
+    // Cliente e observação também eram deste teste, não da venda de verdade
+    // que vem a seguir — limpos aqui para não vazar "não perder isto" para o
+    // recibo de outra venda.
+    await escolherPorTexto('clienteId', 'Consumidor no balcão')
+    await preencher({ observacao: '' })
+
     // --- venda em dinheiro, com vasilhame e troco
     await clicar(PREFIXO + ' Água 20L')
     await clicar(PREFIXO + ' Água 20L')

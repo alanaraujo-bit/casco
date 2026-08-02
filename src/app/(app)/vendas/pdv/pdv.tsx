@@ -35,12 +35,26 @@ type Props = {
   clientes: ClienteVenda[]
   formas: FormaPagamentoOpcao[]
   tabelaPadraoId: string | null
+  /** Escopa o rascunho salvo no navegador — ver a nota em `chaveRascunho`. */
+  companyId: string
 }
 
 interface LinhaCarrinho {
   produtoId: string
   quantidade: number
   vasilhameDevolvido: number
+}
+
+/** O que sobrevive a um recarregamento de página ou uma troca de aba. */
+interface RascunhoVenda {
+  carrinho: LinhaCarrinho[]
+  clienteId: string
+  formaId: string
+  desconto: string
+  descontoModo: 'reais' | 'percentual'
+  parcelas: string
+  valorRecebido: string
+  observacao: string
 }
 
 /**
@@ -63,8 +77,18 @@ interface LinhaCarrinho {
  * é feita de verdade no balcão — e é a única forma de o comodato não depender de
  * alguém lembrar de abrir outra tela depois que o cliente já foi embora.
  */
-export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }: Props) {
+export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, companyId }: Props) {
   const [estado, enviar] = useActionState<EstadoVenda, FormData>(acao, {})
+
+  /**
+   * A chave leva o `companyId` porque este é o rascunho que a `FaixaAdmin`
+   * existe para proteger: suporte com duas empresas abertas no mesmo
+   * navegador não pode ver o carrinho de uma vazar para dentro da outra ao
+   * trocar de aba. `localStorage` (e não `sessionStorage`) porque a queixa
+   * era justamente essa — fechar o navegador não pode ser a mesma coisa que
+   * cancelar a venda.
+   */
+  const chaveRascunho = `casco:pdv:rascunho:${companyId}`
 
   const [carrinho, setCarrinho] = useState<LinhaCarrinho[]>([])
   const [clienteId, setClienteId] = useState('')
@@ -88,6 +112,92 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
   const [busca, setBusca] = useState('')
 
   const buscaRef = useRef<HTMLInputElement>(null)
+
+  /**
+   * Só passa a gravar depois de ler — sem essa trava, o efeito de
+   * persistência dispararia no primeiro render (com o carrinho ainda vazio,
+   * antes do rascunho ser lido) e apagaria o rascunho salvo antes mesmo de a
+   * tela mostrar que ele existia.
+   */
+  const [rascunhoLido, setRascunhoLido] = useState(false)
+
+  useEffect(() => {
+    try {
+      const bruto = localStorage.getItem(chaveRascunho)
+      if (bruto) {
+        const rascunho = JSON.parse(bruto) as Partial<RascunhoVenda>
+        // Cada campo é validado contra o que a tela tem agora, e não contra o
+        // que tinha quando o rascunho foi salvo: produto excluído, cliente
+        // inativado ou forma de pagamento removida entre uma sessão e outra
+        // não pode voltar como um valor fantasma que o `<select>` não lista e
+        // o servidor recusa sem dizer por quê.
+        const carrinhoValido = (rascunho.carrinho ?? []).filter(
+          (l) =>
+            produtos.some((p) => p.id === l.produtoId) &&
+            Number.isInteger(l.quantidade) &&
+            l.quantidade > 0,
+        )
+        if (carrinhoValido.length > 0) setCarrinho(carrinhoValido)
+        if (rascunho.clienteId && clientes.some((c) => c.id === rascunho.clienteId)) {
+          setClienteId(rascunho.clienteId)
+        }
+        if (rascunho.formaId && formas.some((f) => f.id === rascunho.formaId)) {
+          setFormaId(rascunho.formaId)
+        }
+        if (rascunho.desconto) setDesconto(rascunho.desconto)
+        if (rascunho.descontoModo === 'percentual') setDescontoModo('percentual')
+        if (rascunho.parcelas) setParcelas(rascunho.parcelas)
+        if (rascunho.valorRecebido) setValorRecebido(rascunho.valorRecebido)
+        if (rascunho.observacao) setObservacao(rascunho.observacao)
+      }
+    } catch {
+      // Rascunho corrompido (versão antiga do formato, JSON quebrado por
+      // edição manual do storage): melhor começar em branco do que travar a
+      // tela de venda mais usada do sistema.
+    }
+    setRascunhoLido(true)
+    // Só ao montar: os parâmetros (`produtos`, `clientes`, `formas`) são os do
+    // carregamento inicial da página, e re-rodar a cada referência nova deles
+    // reaplicaria o rascunho por cima do que a operadora já digitou.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (!rascunhoLido) return
+    const vazio =
+      carrinho.length === 0 &&
+      !clienteId &&
+      !desconto &&
+      !valorRecebido &&
+      !observacao &&
+      parcelas === '1'
+    if (vazio) {
+      localStorage.removeItem(chaveRascunho)
+      return
+    }
+    const rascunho: RascunhoVenda = {
+      carrinho,
+      clienteId,
+      formaId,
+      desconto,
+      descontoModo,
+      parcelas,
+      valorRecebido,
+      observacao,
+    }
+    localStorage.setItem(chaveRascunho, JSON.stringify(rascunho))
+  }, [
+    rascunhoLido,
+    chaveRascunho,
+    carrinho,
+    clienteId,
+    formaId,
+    desconto,
+    descontoModo,
+    parcelas,
+    valorRecebido,
+    observacao,
+  ])
 
   const cliente = clientes.find((c) => c.id === clienteId) ?? null
   const forma = formas.find((f) => f.id === formaId) ?? null
@@ -234,6 +344,10 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
     setValorRecebido('')
     setObservacao('')
     setBusca('')
+    // A venda gravou: o rascunho que a protegia de um recarregamento acidental
+    // deixou de ter sentido, e mantê-lo devolveria um carrinho fantasma na
+    // próxima venda se o efeito de persistência ainda não tiver rodado.
+    localStorage.removeItem(chaveRascunho)
   }
 
   useEffect(() => {

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { Receipt } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Button } from '@/components/ui/button'
+import { exigirSessao } from '@/lib/dal'
 import { listarFormasPagamento } from '@/modules/financeiro/consultas'
 import { fecharVenda } from '@/modules/vendas/acoes'
 import {
@@ -19,7 +20,8 @@ export default async function PaginaPdv() {
   // Em paralelo, e não em sequência: são cinco consultas independentes, e
   // encadeá-las somaria os cinco tempos de ida e volta ao Railway na abertura
   // da tela que a operadora abre primeiro toda manhã.
-  const [produtos, precos, clientes, formas, tabelaPadraoId] = await Promise.all([
+  const [sessao, produtos, precos, clientes, formas, tabelaPadraoId] = await Promise.all([
+    exigirSessao(),
     listarProdutosParaVenda(),
     listarPrecosDeVenda(),
     listarClientesParaVenda(),
@@ -49,6 +51,7 @@ export default async function PaginaPdv() {
         clientes={clientes}
         formas={formas}
         tabelaPadraoId={tabelaPadraoId}
+        companyId={sessao.companyId}
       />
     </div>
   )

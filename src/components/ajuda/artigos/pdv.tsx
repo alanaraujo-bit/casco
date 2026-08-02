@@ -124,6 +124,11 @@ export function ArtigoPdv() {
             <strong>%</strong>. Alternando para %, a tela mostra embaixo do campo quanto aquele
             percentual representa em reais, antes de fechar a venda.
           </Faq>
+          <Faq pergunta="Saí da tela no meio de uma venda. Perdi tudo?">
+            Não. O carrinho, o cliente, a forma de pagamento e o desconto ficam salvos neste
+            navegador até a venda ser fechada — mesmo trocando de tela, fechando a aba ou
+            desligando o computador. Ao voltar para o PDV, tudo reaparece do jeito que estava.
+          </Faq>
         </ListaFaq>
       </SecaoArtigo>
     </>
