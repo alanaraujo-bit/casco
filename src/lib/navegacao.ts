@@ -1,6 +1,8 @@
 import {
   ArrowLeftRight,
   Boxes,
+  CalendarDays,
+  CalendarRange,
   Contact,
   FileBarChart,
   History,
@@ -123,7 +125,11 @@ export const NAVEGACAO: GrupoNav[] = [
     // lucro líquido (auditoria §4a).
     rotulo: 'Relatórios',
     Icone: FileBarChart,
-    itens: [{ rotulo: 'DRE', href: '/relatorios/dre' }],
+    itens: [
+      { rotulo: 'DRE', href: '/relatorios/dre' },
+      { rotulo: 'Fluxo de Caixa Diário', href: '/relatorios/caixa-diario' },
+      { rotulo: 'Fluxo de Caixa Mensal', href: '/relatorios/caixa-mensal' },
+    ],
   },
 ]
 
@@ -161,11 +167,7 @@ export const PROXIMAS: GrupoNav[] = [
   {
     rotulo: 'Relatórios',
     Icone: FileBarChart,
-    itens: [
-      { rotulo: 'Fluxo de Caixa Diário', href: '/relatorios/caixa-diario' },
-      { rotulo: 'Fluxo de Caixa Mensal', href: '/relatorios/caixa-mensal' },
-      { rotulo: 'Conciliação Bancária', href: '/relatorios/conciliacao' },
-    ],
+    itens: [{ rotulo: 'Conciliação Bancária', href: '/relatorios/conciliacao' }],
   },
   {
     rotulo: 'Configurações',
@@ -190,6 +192,8 @@ export const ICONES_ITEM: Record<string, LucideIcon> = {
   '/financeiro/caixa': Landmark,
   '/estoque/saldo': Boxes,
   '/relatorios/dre': FileBarChart,
+  '/relatorios/caixa-diario': CalendarDays,
+  '/relatorios/caixa-mensal': CalendarRange,
 }
 
 /**

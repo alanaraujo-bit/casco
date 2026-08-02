@@ -2,6 +2,7 @@
 
 import { ChevronDown, LogOut } from 'lucide-react'
 import { Menu, MenuConteudo, MenuGatilho, MenuItem, MenuRotulo, MenuSeparador } from '@/components/ui/menu'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { sair } from '@/modules/auth/acoes'
 import { cn } from '@/lib/utils'
 
@@ -65,6 +66,24 @@ export function MenuUsuario({
         </div>
 
         <MenuSeparador />
+
+        {/* O seletor de tema, **só no celular**.
+
+            Na topbar ele ocupava 140px dos 390px do telefone — 36% da largura,
+            em toda tela, para uma preferência que se ajusta uma vez e não se
+            toca mais. O que sobrava para o título eram 76px, medidos: "Fluxo
+            de Caixa Mensal" virava "Fluxo d…" e as duas telas de fluxo ficavam
+            indistinguíveis exatamente onde o usuário precisa saber onde está.
+
+            Aqui dentro ele mantém os 44px de alvo e ganha o rótulo "Tema", que
+            na barra não cabia. No desktop nada muda: lá a largura sobra, e o
+            seletor continua a um clique de distância. */}
+        <div className="flex items-center justify-between gap-2 px-2 py-1.5 md:hidden">
+          <span className="text-sm text-texto-suave">Tema</span>
+          <ThemeToggle />
+        </div>
+
+        <MenuSeparador className="md:hidden" />
 
         {/* `<form action>` e não `onSelect` chamando a action: sair precisa
             funcionar mesmo se o JavaScript falhar em carregar. Botão de sair

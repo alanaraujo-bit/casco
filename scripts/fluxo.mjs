@@ -309,14 +309,35 @@ async function semearDono() {
   `
   if (!empresa) throw new Error('nenhuma distribuidora ativa no banco para semear o dono')
 
-  // O `delete` antes é o que torna o roteiro rodável duas vezes seguidas: sem
-  // ele, a sobra da rodada anterior bate no índice único de e-mail.
-  await banco`delete from users where email = ${EMAIL_DONO_TESTE}`
+  /**
+   * Reaproveita o dono que sobrou, em vez de apagar e recriar.
+   *
+   * Era um `delete` seguido de `insert`, e isso deixava o roteiro impossível de
+   * rodar de novo depois de uma rodada interrompida: a faxina só acontece no
+   * meio e no fim do script, então uma interrupção deixa movimentos de
+   * vasilhame e de estoque apontando para este usuário — e a FK deles é
+   * `restrict`, de propósito. O `delete` falhava com "violates RESTRICT
+   * setting", antes de o Chrome abrir, e a única saída era limpar o banco na
+   * mão.
+   *
+   * O `on conflict` resolve porque nada aqui precisa de um `id` novo: a senha é
+   * reescrita, a empresa é reapontada, e o dono descartável continua sendo
+   * apagado no `finally` — onde a faxina já tirou o que apontava para ele.
+   */
   const hash = await bcrypt.hash(SENHA_DONO_TESTE, 12)
   await banco`
     insert into users (id, company_id, nome, email, senha_hash, papel)
          values (${randomUUID()}, ${empresa.id}, ${NOME_DONO_TESTE},
                  ${EMAIL_DONO_TESTE}, ${hash}, 'dono')
+    -- A expressão precisa ser a mesma do índice (\`users_email_key\` é sobre
+    -- \`lower(email)\`, na 0001); \`on conflict (email)\` não infere índice
+    -- nenhum e o insert volta a estourar no unique.
+    on conflict (lower(email)) do update
+       set company_id = excluded.company_id,
+           nome       = excluded.nome,
+           senha_hash = excluded.senha_hash,
+           papel      = excluded.papel,
+           ativo      = true
   `
 }
 
@@ -629,12 +650,26 @@ async function clicar(rotulo, ms = 15_000, seletor = 'button, a, [role="button"]
     const caixa = await js(`
       const alvo = ${JSON.stringify(rotulo)}
       const els = [...document.querySelectorAll(${JSON.stringify(seletor)})]
-      const el = els.find((e) => (e.innerText || '').trim().includes(alvo) && !e.disabled)
-      if (!el) return null
-      el.scrollIntoView({ block: 'center' })
-      const r = el.getBoundingClientRect()
-      if (r.width === 0 || r.height === 0) return null
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+        .filter((e) => (e.innerText || '').trim().includes(alvo) && !e.disabled)
+
+      /**
+       * O primeiro **visível**, e não o primeiro do DOM.
+       *
+       * O sistema tem controles que existem duas vezes na árvore, um por
+       * largura — o seletor de tema mora na topbar no desktop e dentro do menu
+       * da conta no celular, e os dois estão sempre no HTML, com um deles em
+       * \`display:none\`. Pegando o primeiro do DOM, o roteiro mirava o
+       * escondido, media 0×0 e ficava tentando até expirar: a falha dizia "não
+       * achei nada clicável" com o botão bem visível na foto.
+       */
+      for (const el of els) {
+        el.scrollIntoView({ block: 'center' })
+        const r = el.getBoundingClientRect()
+        if (r.width > 0 && r.height > 0) {
+          return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+        }
+      }
+      return null
     `).catch(() => null)
 
     if (caixa) {
@@ -910,6 +945,8 @@ try {
     '/estoque/entradas',
     '/estoque/entradas/nova',
     '/relatorios/dre',
+    '/relatorios/caixa-diario',
+    '/relatorios/caixa-mensal',
   ]
   const naoAbriram = []
   for (const rota of rotas) {
@@ -1758,6 +1795,177 @@ try {
       `truncados: ${cortados.join(' | ')}`,
     )
     await foto('celular-dre')
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
+
+    /* --------------------------------------------------- fluxo de caixa */
+    await irPara('/relatorios/caixa-diario')
+    const diario = await texto()
+    await foto('caixa-diario')
+    // Sem caixa: os cabeçalhos são versalete por CSS, e `texto()` lê
+    // `innerText`, que devolve "DIA SEMANA". Mesma armadilha do total do DRE.
+    const semColuna = ['Data', 'Dia Semana', 'Entrada', 'Saída', 'Saldo'].filter(
+      (c) => !new RegExp(c, 'i').test(diario),
+    )
+    check(
+      'o Fluxo de Caixa Diário traz as colunas que eles já leem',
+      semColuna.length === 0,
+      `faltando: ${semColuna.join(', ')}`,
+    )
+    /**
+     * A régua de datas: o mês inteiro, e não só os dias que tiveram lançamento.
+     * Dia parado é informação — "não entrou nada na segunda". Linha ausente é o
+     * defeito do relatório deles.
+     *
+     * O total de dias é calculado, não escrito: `31` passaria em agosto e
+     * falharia em fevereiro, e a falha chegaria meses depois parecendo um bug
+     * do relatório. O dia 0 do mês seguinte é o último do mês corrente.
+     */
+    const hoje = new Date()
+    const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate()
+    /**
+     * Só as tabelas visíveis.
+     *
+     * Todo gráfico da casa carrega uma `<table>` em `sr-only` — é o conteúdo
+     * real para quem usa leitor de tela, e o SVG é a decoração. Contar
+     * `table tbody tr` sem filtrar soma as duas e devolveu 24 onde havia 12,
+     * o que fez a checagem dos doze meses reprovar uma tela correta.
+     */
+    const CONTAR_LINHAS = `
+      return [...document.querySelectorAll('table')]
+        .filter((t) => !t.closest('.sr-only'))
+        .reduce((n, t) => n + t.querySelectorAll('tbody tr').length, 0)
+    `
+    const linhasDoMes = await js(CONTAR_LINHAS)
+    check(
+      'o mês inteiro aparece, inclusive os dias sem movimento',
+      linhasDoMes === diasNoMes,
+      `linhas na tabela: ${linhasDoMes}, dias no mês: ${diasNoMes}`,
+    )
+    check(
+      'o dia da semana aparece por extenso, em português',
+      /segunda-feira|terça-feira|quarta-feira|quinta-feira|sexta-feira|sábado|domingo/i.test(
+        diario,
+      ),
+      diario.slice(0, 500),
+    )
+    // O acumulado parte do saldo que existia antes do mês virar. Sem isso a
+    // coluna responderia "quanto se moveu no mês", que não é a pergunta.
+    check(
+      'o Diário mostra o saldo anterior ao mês, de onde o acumulado parte',
+      /saldo anterior/i.test(diario),
+      diario.slice(0, 500),
+    )
+
+    await irPara('/relatorios/caixa-mensal')
+    const mensal = await texto()
+    await foto('caixa-mensal')
+    /**
+     * Doze meses, e este número é o relatório inteiro.
+     *
+     * O deles tem dez — vai de janeiro a outubro porque novembro e dezembro
+     * não tinham lançamento e a tela lista o que a tabela tem (auditoria §4c).
+     * Contar as linhas é a checagem que pega exatamente essa regressão, e é a
+     * única que a pega: com um mês de dados reais, um relatório de 1 linha e
+     * um de 12 têm o mesmo aspecto de "funcionando".
+     */
+    const linhasMensais = await js(CONTAR_LINHAS)
+    check(
+      'o Fluxo de Caixa Mensal tem doze meses, não dez',
+      linhasMensais === 12,
+      `linhas na tabela: ${linhasMensais}`,
+    )
+    check(
+      'mês sem movimento aparece zerado em vez de sumir da lista',
+      (mensal.match(/—/g) ?? []).length >= 11 * 3,
+      `travessões encontrados: ${(mensal.match(/—/g) ?? []).length}`,
+    )
+    check('nenhum NaN no Fluxo de Caixa', !diario.includes('NaN') && !mensal.includes('NaN'))
+
+    // --- celular
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', CELULAR, sessao)
+    for (const [rota, nomeTela] of [
+      ['/relatorios/caixa-diario', 'o Fluxo de Caixa Diário'],
+      ['/relatorios/caixa-mensal', 'o Fluxo de Caixa Mensal'],
+    ]) {
+      await irPara(rota)
+      // A tabela rola dentro do próprio container (`overflow-x-auto`); quem
+      // não pode rolar é a página. É a diferença entre conferir o relatório
+      // com o polegar e perder o menu para o lado a cada toque.
+      check(
+        `no celular ${nomeTela} não empurra a página para o lado`,
+        await js('return document.documentElement.scrollWidth <= window.innerWidth + 1'),
+        `scrollWidth=${await js('return document.documentElement.scrollWidth')} vs ${await js('return window.innerWidth')}`,
+      )
+    }
+    // O nome inteiro da tela na barra do celular. "Fluxo de Caixa Mensal" não
+    // cabia em uma linha e virava "Fluxo d…" — e as duas telas de fluxo ficam
+    // indistinguíveis exatamente onde o usuário precisa saber onde está.
+    //
+    // Medido, e não comparado por string: `innerText` devolve o texto inteiro
+    // mesmo quando `truncate` ou `line-clamp` o cortam na tela — o corte é
+    // pintura, não conteúdo. Uma checagem de igualdade aqui passa com "Fluxo
+    // d…" na cara do usuário, e foi exatamente o que aconteceu na primeira
+    // versão desta linha.
+    const tituloBarra = await js(`
+      const h = document.querySelector('header h1')
+      if (!h) return JSON.stringify({ texto: '' })
+      return JSON.stringify({
+        texto: h.innerText.trim(),
+        cortado: h.scrollWidth > h.clientWidth + 1 || h.scrollHeight > h.clientHeight + 1,
+        largura: h.clientWidth,
+        precisa: h.scrollWidth,
+      })
+    `)
+    const t = JSON.parse(tituloBarra)
+    check(
+      'no celular a barra mostra o nome inteiro da tela, sem reticências',
+      t.texto === 'Fluxo de Caixa Mensal' && t.cortado === false,
+      `"${t.texto}" cortado=${t.cortado} cabe em ${t.largura}px, precisa de ${t.precisa}px`,
+    )
+
+    /**
+     * E o tema continua alcançável, agora de dentro do menu da conta.
+     *
+     * É a contrapartida da linha acima: o espaço do título saiu de algum lugar.
+     * Um seletor que some da barra e não reaparece em lugar nenhum troca um
+     * defeito visível por um pior — o usuário que prefere tema claro fica sem
+     * caminho, e ninguém reporta o que não sabe que existia.
+     *
+     * O clique é o que importa aqui, não a presença: o seletor vive dentro do
+     * `DropdownMenu` do Radix, que captura teclado e foco, e um botão que o
+     * menu engole parece perfeitamente correto numa foto.
+     */
+    // Rótulo vazio com seletor próprio: os botões do tema não têm texto, só
+    // ícone e `aria-label`. É o mesmo jeito que o roteiro já usa para abrir o
+    // menu da conta mais abaixo.
+    await clicar('', 15_000, '[aria-label^="Conta de"]')
+    await esperarPor(
+      async () =>
+        (await js(
+          `return !!document.querySelector('[role="radiogroup"][aria-label="Tema"]')`,
+        )) === true,
+      'o seletor de tema aparecer dentro do menu da conta',
+    )
+    await clicar('', 15_000, '[role="radiogroup"][aria-label="Tema"] [aria-label="Claro"]')
+    await esperarPor(
+      async () =>
+        (await js(`return document.documentElement.getAttribute('data-tema-pref')`)) === 'light',
+      'o tema claro ser aplicado a partir do menu da conta',
+    )
+    check('no celular o tema continua alcançável, pelo menu da conta', true)
+    // Devolve o tema para o padrão: a preferência mora em localStorage, e as
+    // fotos seguintes desta mesma rodada sairiam claras, destoando das outras.
+    await clicar('', 15_000, '[role="radiogroup"][aria-label="Tema"] [aria-label="Sistema"]')
+    await esperarPor(
+      async () =>
+        (await js(`return document.documentElement.getAttribute('data-tema-pref')`)) === 'sistema',
+      'o tema voltar para o padrão do sistema',
+    )
+    // Fecha o menu antes de seguir: aberto, ele cobre a tela e a próxima foto
+    // sairia com o menu por cima do relatório.
+    await comando(ws, 'Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, sessao)
+    await comando(ws, 'Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, sessao)
+    await foto('celular-caixa-mensal')
     await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
   } else {
     falhas.push('estoque não testado — sem conexão de banco para semear os produtos')

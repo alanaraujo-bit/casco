@@ -105,6 +105,12 @@ function Topbar({
             vezes na mesma dobra, com dois `h1` na página. Duplicar título é o
             defeito que mais deixa uma interface com cara de montada por
             automação, e é falha de acessibilidade de quebra. */}
+        {/* O nome inteiro da tela cabe aqui desde que o seletor de tema saiu da
+            barra no celular (foi para o menu da conta). Antes sobravam 76px
+            para o título — medidos — e "Fluxo de Caixa Mensal" virava
+            "Fluxo d…", com as duas telas de fluxo indistinguíveis na barra.
+            Encurtar o nome não era opção: o vocabulário é o do sistema antigo,
+            de propósito. */}
         <h1 className="truncate text-base font-semibold tracking-tight text-texto">
           {item?.rotulo ?? 'Casco'}
         </h1>
@@ -115,7 +121,10 @@ function Topbar({
       <div className="hidden flex-1 md:block" />
 
 
-      <ThemeToggle />
+      {/* Só a partir de `md`. No celular ele vive dentro do menu da conta —
+          ver a nota lá. Tema é preferência que se ajusta uma vez; ocupar 36%
+          da barra de um telefone com ela custava o título de toda tela. */}
+      <ThemeToggle className="hidden md:inline-flex" />
       {/* Opcional porque o `not-found.tsx` da raiz também monta este shell, e
           ele é boundary de erro: renderiza fora do layout de `(app)`, onde a
           sessão pode não ter sido resolvida. */}

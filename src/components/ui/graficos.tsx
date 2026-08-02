@@ -257,16 +257,39 @@ export function GraficoArea({
           o pico de julho não ficava sobre "Jul". */}
       {eixo && (
         <div className="absolute inset-x-0 top-full pt-1.5" aria-hidden>
-          {serie.map((p, i) => (
-            <span
-              key={p.rotulo}
-              className="absolute -translate-x-1/2 whitespace-nowrap text-2xs text-texto-fraco"
-              style={{ left: `${pontos[i].x}%` }}
-            >
-              {p.rotulo}
-              {p.parcial && <span className="text-acento-texto"> ·</span>}
-            </span>
-          ))}
+          {serie.map((p, i) => {
+            const primeiro = i === 0
+            const ultimo = i === serie.length - 1
+            return (
+              <span
+                key={p.rotulo}
+                className={cn(
+                  'absolute whitespace-nowrap text-2xs text-texto-fraco',
+                  // As pontas ancoram na borda em vez de centralizar no ponto:
+                  // centralizado, metade de "set/25" cai fora do cartão à
+                  // esquerda e metade de "ago/26" fora à direita.
+                  primeiro ? 'left-0' : ultimo ? 'right-0' : '-translate-x-1/2',
+                  // Doze meses num celular de 390px dão 32px por rótulo, e
+                  // "set/25" precisa de 30 — eles encavalam e viram uma tira
+                  // ilegível. Acima de oito pontos o eixo mostra um sim, um
+                  // não no estreito, e todos a partir de `sm`. Alternar é
+                  // melhor que encolher a fonte: metade dos meses legíveis
+                  // ainda situa a linha, doze meses ilegíveis não situam nada.
+                  //
+                  // A paridade é contada **do fim para o começo**, e não do
+                  // começo: assim o último ponto nunca é o que some, e ele é o
+                  // mês corrente — o único que o dono abriu a tela para ver.
+                  serie.length > 8 &&
+                    (serie.length - 1 - i) % 2 === 1 &&
+                    'hidden sm:inline',
+                )}
+                style={primeiro || ultimo ? undefined : { left: `${pontos[i].x}%` }}
+              >
+                {p.rotulo}
+                {p.parcial && <span className="text-acento-texto"> ·</span>}
+              </span>
+            )
+          })}
         </div>
       )}
     </div>
