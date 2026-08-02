@@ -81,7 +81,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
 
   const cliente = clientes.find((c) => c.id === clienteId) ?? null
   const forma = formas.find((f) => f.id === formaId) ?? null
-  const fiado = forma?.tipo === 'fiado'
+  const aPrazo = forma?.tipo === 'a_prazo'
 
   /* ------------------------------------------------------------------ preço */
 
@@ -164,7 +164,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
   const subtotal = carrinho.reduce((soma, l) => soma + precoDe(l.produtoId) * l.quantidade, 0)
   const descontoCent = Math.max(0, centavos(paraNumero(desconto) || 0))
   const total = Math.max(0, subtotal - descontoCent)
-  const taxa = fiado || !forma ? 0 : Math.round((total * Number(forma.taxaPercentual)) / 100)
+  const taxa = aPrazo || !forma ? 0 : Math.round((total * Number(forma.taxaPercentual)) / 100)
   const recebidoCent = centavos(paraNumero(valorRecebido) || 0)
   const troco = forma?.tipo === 'dinheiro' && recebidoCent > total ? recebidoCent - total : 0
 
@@ -239,7 +239,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
         </div>
         <p className="mt-3 text-base font-medium text-texto">Nenhuma forma de pagamento ativa</p>
         <p className="mx-auto mt-1 max-w-[46ch] text-sm text-texto-suave">
-          Sem forma de pagamento não há como dizer se a venda entrou no caixa ou virou fiado.
+          Sem forma de pagamento não há como dizer se a venda entrou no caixa ou virou a prazo.
         </p>
       </Card>
     )
@@ -549,7 +549,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
               </Select>
             </div>
 
-            {(fiado || forma?.tipo === 'credito') && (
+            {(aPrazo || forma?.tipo === 'credito') && (
               <div className="space-y-1.5">
                 <Label htmlFor="parcelasCampo">Parcelas</Label>
                 <Select
@@ -664,7 +664,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
                   </dd>
                 </div>
               )}
-              {fiado && (
+              {aPrazo && (
                 <div className="rounded-md bg-info-bg px-3 py-2 text-xs text-info">
                   Nada entra no caixa agora. A venda vira{' '}
                   {parcelas === '1' ? 'um título' : `${parcelas} títulos`} em Contas a Receber.
@@ -732,7 +732,7 @@ function Recibo({ recibo }: { recibo: NonNullable<EstadoVenda['recibo']> }) {
             </p>
           )}
 
-          {recibo.fiado && (
+          {recibo.aPrazo && (
             <p>
               {recibo.parcelas === 1
                 ? `Título gerado em Contas a Receber, vencendo em ${recibo.primeiroVencimento}.`

@@ -1222,37 +1222,37 @@ try {
     check('a venda aparece na listagem com o valor', listagem.includes('36,00'))
     check('a listagem mostra a operação e a forma', listagem.includes('PDV') && listagem.includes('Dinheiro'))
 
-    // --- venda no fiado: nada entra no caixa, e nasce título a receber
+    // --- venda a prazo: nada entra no caixa, e nasce título a receber
     await irPara('/vendas/pdv')
     await clicar(PREFIXO + ' Água 20L')
     await clicar(PREFIXO + ' Água 20L')
     await escolherPorTexto('clienteId', nome)
     // Esperar o contador de vasilhame antes de seguir prova que o cliente foi
     // de fato selecionado. Sem esta espera o roteiro às vezes fechava a venda
-    // com o combo ainda vazio, o servidor recusava — fiado exige cliente — e a
-    // falha aparecia como "o recibo não chegou", sem dizer que faltou cliente.
+    // com o combo ainda vazio, o servidor recusava — a prazo exige cliente — e
+    // a falha aparecia como "o recibo não chegou", sem dizer que faltou cliente.
     await esperarPor(
       async () => (await texto()).includes('Galões vazios que ele trouxe'),
-      'o cliente entrar na venda fiada',
+      'o cliente entrar na venda a prazo',
     )
-    await escolherPorTexto('formaId', 'Fiado')
+    await escolherPorTexto('formaId', 'A Prazo')
     await esperarPor(
       async () => (await texto()).includes('Nada entra no caixa agora'),
-      'o aviso de que fiado não é dinheiro em caixa',
+      'o aviso de que a prazo não é dinheiro em caixa',
     )
-    check('o fiado avisa que não entra no caixa', true)
+    check('o a prazo avisa que não entra no caixa', true)
 
     await clicar('Fechar venda')
     // Mesma armadilha: "Contas a Receber" está no menu lateral o tempo todo.
     await esperarPor(
       async () => (await texto()).includes('Ver na listagem de vendas'),
-      'o recibo do fiado',
+      'o recibo do a prazo',
     )
-    const reciboFiado = await texto()
+    const reciboAPrazo = await texto()
     check(
-      'venda fiada vira título em Contas a Receber',
-      /T[íi]tulo gerado em Contas a Receber/.test(reciboFiado),
-      reciboFiado.slice(0, 400),
+      'venda a prazo vira título em Contas a Receber',
+      /T[íi]tulo gerado em Contas a Receber/.test(reciboAPrazo),
+      reciboAPrazo.slice(0, 400),
     )
 
     await irPara('/financeiro/receber')
@@ -1264,7 +1264,7 @@ try {
       titulos.slice(0, 300),
     )
 
-    // --- baixa do título: o dinheiro do fiado entrando no caixa
+    // --- baixa do título: o dinheiro do a prazo entrando no caixa
     //
     // O seletor mira o link da linha (`/financeiro/receber/<uuid>`) e não o
     // texto "Receber": o item de menu "Contas a Receber" também contém essa
@@ -1320,7 +1320,7 @@ try {
 
     // --- caixa: o dinheiro das duas pontas chegando no mesmo lugar
     //
-    // A venda em dinheiro (R$ 36,00) entrou na hora; o título do fiado
+    // A venda em dinheiro (R$ 36,00) entrou na hora; o título do a prazo
     // (R$ 24,00) entrou na baixa. Conferir os dois juntos é o que prova que
     // Contas a Receber e Fluxo de Caixa contam a mesma história — que é
     // exatamente onde o sistema antigo diverge, por lançar as duas coisas em

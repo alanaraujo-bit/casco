@@ -313,7 +313,7 @@ function vencimentoDaParcela(primeiro: string, indice: number): string {
  * campo "parcelas" ao lado. É o que faz a pergunta "o que vence esta semana"
  * ter resposta, e é como a listagem deles já mostra.
  *
- * O resto da divisão vai na última parcela, pelo mesmo motivo do fiado no PDV.
+ * O resto da divisão vai na última parcela, pelo mesmo motivo do a prazo no PDV.
  */
 export async function lancarContaPagar(
   anterior: EstadoPagar,

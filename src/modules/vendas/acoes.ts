@@ -230,27 +230,27 @@ export async function fecharVenda(
 
       if (!forma) return { campos: { formaId: 'Forma de pagamento não encontrada' }, tentativa }
 
-      const fiado = forma.tipo === 'fiado'
+      const aPrazo = forma.tipo === 'a_prazo'
 
-      if (fiado && !cliente) {
+      if (aPrazo && !cliente) {
         return {
-          campos: { clienteId: 'Fiado exige cliente identificado — não existe cobrar depois um "consumidor no balcão"' },
+          campos: { clienteId: 'A prazo exige cliente identificado — não existe cobrar depois um "consumidor no balcão"' },
           tentativa,
         }
       }
 
       // Parcela só existe onde há prazo. Dinheiro em 3× é um dado que só serve
       // para confundir o relatório depois.
-      const parcelas = fiado || forma.tipo === 'credito' ? dados.parcelas : 1
+      const parcelas = aPrazo || forma.tipo === 'credito' ? dados.parcelas : 1
 
       /**
        * A taxa da maquininha, descontada na origem.
        *
        * É o número que o sistema antigo não desconta em lugar nenhum: o dono
-       * vê a venda cheia e só descobre a diferença ao conciliar o extrato. No
-       * fiado não há taxa — não passou máquina nenhuma.
+       * vê a venda cheia e só descobre a diferença ao conciliar o extrato. A
+       * prazo não há taxa — não passou máquina nenhuma.
        */
-      const taxa = fiado ? 0 : Math.round((total * Number(forma.taxaPercentual)) / 100)
+      const taxa = aPrazo ? 0 : Math.round((total * Number(forma.taxaPercentual)) / 100)
 
       /* ------------------------------------------------------------- a venda */
 
@@ -400,9 +400,9 @@ export async function fecharVenda(
       const hoje = dataNaLoja()
       let primeiroVencimento: string | null = null
 
-      if (fiado) {
+      if (aPrazo) {
         /**
-         * Fiado não entra no caixa. Vira título — e o título é por parcela,
+         * A prazo não entra no caixa. Vira título — e o título é por parcela,
          * porque é assim que a cobrança acontece: o mercadinho paga R$ 400 no
          * dia 30, não R$ 1.200 "em algum momento".
          *
@@ -497,7 +497,7 @@ export async function fecharVenda(
           desconto: deCentavos(desconto),
           total: deCentavos(total),
           forma: forma.nome,
-          fiado,
+          aPrazo,
           parcelas,
           primeiroVencimento: primeiroVencimento ? formatarDataISO(primeiroVencimento) : null,
           taxa: deCentavos(taxa),

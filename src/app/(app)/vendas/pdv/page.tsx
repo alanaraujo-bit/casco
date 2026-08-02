@@ -31,7 +31,7 @@ export default async function PaginaPdv() {
     <div className="space-y-5">
       <CabecalhoPagina
         titulo="PDV"
-        descricao="Venda de balcão — dinheiro, cartão ou fiado, com o vasilhame junto"
+        descricao="Venda de balcão — dinheiro, cartão ou a prazo, com o vasilhame junto"
         acoes={
           <Button asChild variant="secundario">
             <Link href="/vendas/produtos">

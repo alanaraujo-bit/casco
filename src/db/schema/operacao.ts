@@ -45,7 +45,7 @@ export const TIPOS_PAGAMENTO = [
   'debito',
   'credito',
   'boleto',
-  'fiado',
+  'a_prazo',
 ] as const
 export type TipoPagamento = (typeof TIPOS_PAGAMENTO)[number]
 

@@ -226,7 +226,7 @@ Três decisões que valem revisão com o cliente:
 ### Etapa 4 — Financeiro
 - Contas a Receber e a Pagar, com as colunas deles
 - Caixa e formas de pagamento
-- Fiado (gera conta a receber automaticamente)
+- A Prazo (gera conta a receber automaticamente)
 
 ### Etapa 5 — Estoque
 - Saldo, entradas, custo médio, estoque mínimo/máximo

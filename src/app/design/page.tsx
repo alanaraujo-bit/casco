@@ -252,7 +252,7 @@ export default function DesignPage() {
             <Badge variant="alerta">Em aberto</Badge>
             <Badge variant="perigo">Vencido</Badge>
             <Badge variant="info">Em rota</Badge>
-            <Badge variant="acento">Fiado</Badge>
+            <Badge variant="acento">A Prazo</Badge>
             <Badge variant="neutro">Rascunho</Badge>
           </CardContent>
         </Card>

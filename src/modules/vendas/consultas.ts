@@ -91,7 +91,7 @@ export interface ClienteVenda {
   tabelaPrecoId: string | null
   /** Quantos galões ele já deve, somados. Aparece ao escolher o cliente. */
   vasilhameNaRua: number
-  /** Quanto ele já tem em aberto em Contas a Receber. É a pergunta do fiado. */
+  /** Quanto ele já tem em aberto em Contas a Receber. É a pergunta do a prazo. */
   emAberto: string
   limiteCredito: string
 }
@@ -189,7 +189,7 @@ export function listarVendas(limite = 500) {
   ), case when exists (
       select 1 from ${contasReceber}
        where ${contasReceber.vendaId} = ${vendas.id}
-    ) then 'Fiado' else '—' end)`
+    ) then 'A Prazo' else '—' end)`
 
   const itens = sql<number>`coalesce((
     select count(*)::int from ${vendaItens} where ${vendaItens.vendaId} = ${vendas.id}

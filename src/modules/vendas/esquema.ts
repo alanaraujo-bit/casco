@@ -139,9 +139,9 @@ export interface ReciboVenda {
   /** Nome da forma escolhida, como aparece no cadastro. */
   forma: string
   /** `true` quando a venda virou título em Contas a Receber em vez de dinheiro. */
-  fiado: boolean
+  aPrazo: boolean
   parcelas: number
-  /** Primeiro vencimento, quando fiado. */
+  /** Primeiro vencimento, quando a prazo. */
   primeiroVencimento: string | null
   /** Taxa da maquininha descontada da entrada de caixa. Zero nas outras formas. */
   taxa: number

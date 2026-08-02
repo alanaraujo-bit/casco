@@ -113,7 +113,7 @@ try {
       ['PIX', 'pix', 0, 0],
       ['Cartão Débito', 'debito', 1.49, 1],
       ['Cartão Crédito', 'credito', 3.19, 30],
-      ['Fiado', 'fiado', 0, 30],
+      ['A Prazo', 'a_prazo', 0, 30],
     ]) {
       await tx`
         insert into formas_pagamento (id, company_id, nome, tipo, taxa_percentual, prazo_dias, conta_id)

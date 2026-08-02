@@ -186,14 +186,14 @@ create table venda_itens (
 create table pagamentos (
   id uuid primary key, company_id uuid not null,
   venda_id uuid references vendas(id),
-  forma text not null,                   -- dinheiro | pix | credito | debito | fiado
+  forma text not null,                   -- dinheiro | pix | credito | debito | a_prazo
   valor numeric(12,2) not null,
   recebido_em timestamptz not null default now()
 );
 ```
 
-Nota sobre **fiado**: é forma de pagamento *e* gera conta a receber. Distribuidora vive
-disso — cliente de condomínio paga no fim do mês. Um `pagamento` com `forma='fiado'`
+Nota sobre **a prazo**: é forma de pagamento *e* gera conta a receber. Distribuidora vive
+disso — cliente de condomínio paga no fim do mês. Um `pagamento` com `forma='a_prazo'`
 dispara a criação da linha em `contas_receber`.
 
 ---
