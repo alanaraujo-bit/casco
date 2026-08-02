@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { SeletorCategoria } from '@/components/ui/seletor-categoria'
 import { Textarea } from '@/components/ui/textarea'
 import { cn, moeda } from '@/lib/utils'
 import { formatarDataISO } from '@/lib/formatos'
@@ -20,6 +21,8 @@ type Props = {
   acao: (anterior: EstadoPagar, form: FormData) => Promise<EstadoPagar>
   fornecedores: FornecedorOpcao[]
   hoje: string
+  /** As categorias de despesa já usadas. O seletor sempre aceita uma nova. */
+  categorias: string[]
 }
 
 function BotaoLancar() {
@@ -47,7 +50,7 @@ function BotaoLancar() {
  * Num `<select>` no meio do formulário ela viraria o campo que se aceita como
  * veio — e o padrão de qualquer combo é a primeira opção.
  */
-export function FormularioPagar({ acao, fornecedores, hoje }: Props) {
+export function FormularioPagar({ acao, fornecedores, hoje, categorias }: Props) {
   const [estado, enviar] = useActionState<EstadoPagar, FormData>(acao, {})
   const formRef = useRef<HTMLFormElement>(null)
 
@@ -162,14 +165,12 @@ export function FormularioPagar({ acao, fornecedores, hoje }: Props) {
               Categoria
               <span className="ml-1 font-normal text-texto-fraco">(opcional)</span>
             </Label>
-            <Input
+            <SeletorCategoria
               id="categoria"
-              name="categoria"
+              categorias={categorias}
               defaultValue={v.categoria ?? ''}
               erro={erroDe('categoria')}
-              maxLength={60}
               placeholder="Energia"
-              autoComplete="off"
             />
           </div>
 

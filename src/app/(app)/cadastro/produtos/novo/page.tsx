@@ -1,13 +1,16 @@
 import type { Metadata } from 'next'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { criarProduto } from '@/modules/produtos/acoes'
-import { listarProdutosRetornaveis } from '@/modules/produtos/consultas'
+import { listarCategoriasProduto, listarProdutosRetornaveis } from '@/modules/produtos/consultas'
 import { FormularioProduto } from '../formulario-produto'
 
 export const metadata: Metadata = { title: 'Novo produto' }
 
 export default async function PaginaNovoProduto() {
-  const produtosVasilhame = await listarProdutosRetornaveis()
+  const [produtosVasilhame, categorias] = await Promise.all([
+    listarProdutosRetornaveis(),
+    listarCategoriasProduto(),
+  ])
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -15,7 +18,11 @@ export default async function PaginaNovoProduto() {
         titulo="Novo produto"
         descricao="O código é gerado automaticamente ao salvar"
       />
-      <FormularioProduto acao={criarProduto} produtosVasilhame={produtosVasilhame} />
+      <FormularioProduto
+        acao={criarProduto}
+        produtosVasilhame={produtosVasilhame}
+        categorias={categorias}
+      />
     </div>
   )
 }

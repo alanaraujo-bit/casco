@@ -84,3 +84,26 @@ export function listarProdutosRetornaveis() {
       .orderBy(asc(produtos.nome)),
   )
 }
+
+/**
+ * As categorias que já estão em uso, para o seletor do formulário.
+ *
+ * Sai de `distinct` sobre a coluna, e não de uma tabela de categorias: uma
+ * tabela exigiria uma tela de manutenção, um cadastro a mais para a operadora
+ * lembrar de preencher antes do primeiro produto, e uma decisão sobre o que
+ * fazer com a categoria que ficou órfã. O `distinct` responde a mesma pergunta
+ * — "o que já foi usado aqui?" — sem nenhuma dessas três coisas.
+ *
+ * Produto inativo continua contando: a categoria dele existe, e some da lista
+ * exatamente quando o último produto que a usava for renomeado.
+ */
+export function listarCategoriasProduto() {
+  return comTenant(async (tx) => {
+    const linhas = await tx
+      .selectDistinct({ categoria: produtos.categoria })
+      .from(produtos)
+      .where(sql`${produtos.categoria} is not null and btrim(${produtos.categoria}) <> ''`)
+      .orderBy(asc(produtos.categoria))
+    return linhas.map((l) => l.categoria as string)
+  })
+}

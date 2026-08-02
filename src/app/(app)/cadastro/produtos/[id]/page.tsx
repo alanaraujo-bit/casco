@@ -2,7 +2,11 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { atualizarProduto } from '@/modules/produtos/acoes'
-import { acharProduto, listarProdutosRetornaveis } from '@/modules/produtos/consultas'
+import {
+  acharProduto,
+  listarCategoriasProduto,
+  listarProdutosRetornaveis,
+} from '@/modules/produtos/consultas'
 import { FormularioProduto } from '../formulario-produto'
 import { BotaoAtivo } from './botao-ativo'
 
@@ -17,9 +21,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PaginaEditarProduto({ params }: Props) {
   const { id } = await params
 
-  const [produto, produtosVasilhame] = await Promise.all([
+  const [produto, produtosVasilhame, categorias] = await Promise.all([
     acharProduto(id),
     listarProdutosRetornaveis(),
+    listarCategoriasProduto(),
   ])
 
   if (!produto) notFound()
@@ -37,7 +42,12 @@ export default async function PaginaEditarProduto({ params }: Props) {
         }
         acoes={<BotaoAtivo id={produto.id} ativo={produto.ativo} />}
       />
-      <FormularioProduto acao={salvar} produto={produto} produtosVasilhame={produtosVasilhame} />
+      <FormularioProduto
+        acao={salvar}
+        produto={produto}
+        produtosVasilhame={produtosVasilhame}
+        categorias={categorias}
+      />
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
+import { SeletorCategoria } from '@/components/ui/seletor-categoria'
 import {
   ROTULO_UNIDADE,
   UNIDADES,
@@ -24,6 +25,8 @@ type Props = {
   ) => Promise<EstadoFormularioProduto>
   produto?: Produto
   produtosVasilhame: { id: string; nome: string }[]
+  /** As categorias já em uso. Alimentam o seletor, que sempre aceita uma nova. */
+  categorias: string[]
 }
 
 function Secao({
@@ -86,7 +89,7 @@ function BotaoSalvar({ novo }: { novo: boolean }) {
   )
 }
 
-export function FormularioProduto({ acao, produto, produtosVasilhame }: Props) {
+export function FormularioProduto({ acao, produto, produtosVasilhame, categorias }: Props) {
   const [estado, enviar] = useActionState<EstadoFormularioProduto, FormData>(acao, {})
   const novo = !produto
   const erroDe = (campo: keyof NonNullable<EstadoFormularioProduto['campos']>) =>
@@ -152,13 +155,11 @@ export function FormularioProduto({ acao, produto, produtosVasilhame }: Props) {
         </Campo>
 
         <Campo span="sm:col-span-3" htmlFor="categoria" rotulo="Categoria" opcional>
-          <Input
+          <SeletorCategoria
             id="categoria"
-            name="categoria"
+            categorias={categorias}
             defaultValue={valor('categoria', produto?.categoria ?? '')}
             erro={erroDe('categoria')}
-            autoComplete="off"
-            maxLength={60}
             placeholder="Água mineral"
           />
         </Campo>

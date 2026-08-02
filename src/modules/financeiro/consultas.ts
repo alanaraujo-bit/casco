@@ -592,3 +592,22 @@ export function listarFornecedoresAtivos() {
       .orderBy(asc(fornecedores.nome)),
   ) as Promise<FornecedorOpcao[]>
 }
+
+/**
+ * As categorias de despesa já usadas, para o seletor do lançamento.
+ *
+ * Mesma escolha de `listarCategoriasProduto`: `distinct` sobre a coluna em vez
+ * de tabela de cadastro. Aqui pesa ainda mais, porque é esta coluna que abre a
+ * linha de despesa do DRE — cinco grafias de "Manutenção" viram cinco linhas
+ * no relatório que deveria dizer com o que o dinheiro foi.
+ */
+export function listarCategoriasPagar() {
+  return comTenant(async (tx) => {
+    const linhas = await tx
+      .selectDistinct({ categoria: contasPagar.categoria })
+      .from(contasPagar)
+      .where(sql`${contasPagar.categoria} is not null and btrim(${contasPagar.categoria}) <> ''`)
+      .orderBy(asc(contasPagar.categoria))
+    return linhas.map((l) => l.categoria as string)
+  })
+}

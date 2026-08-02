@@ -1081,6 +1081,38 @@ try {
   await esperarCaminho((p) => p === '/cadastro/clientes', 'voltar da edição')
   check('edição persiste', (await texto()).includes('Setor Industrial'))
 
+  /* ----------------------------------------------------- cadastro de produto
+   *
+   * A categoria não é mais texto livre, e é isso que este bloco prova. Numa
+   * empresa nova a lista está vazia, então o único caminho possível é criar a
+   * primeira — e se ele não funcionar, a operadora não tem como categorizar
+   * nada no dia em que mais precisa que o sistema pareça confiável.
+   */
+  await irPara('/cadastro/produtos/novo')
+  await preencher({ nome: `${PREFIXO} Água 10L` })
+  await escolherPorTexto('categoria', 'Nova categoria')
+  await preencher({ categoria: 'Água mineral', precoPadrao: '5,00' })
+  await foto('produto-categoria-nova')
+  await clicar('Cadastrar produto')
+  await esperarPor(
+    async () => (await texto()).includes(`${PREFIXO} Água 10L`),
+    'o produto novo na listagem',
+  )
+  check('produto salva com a categoria criada na hora', (await texto()).includes('Água mineral'))
+
+  // E a categoria criada volta na lista, em vez de o próximo produto precisar
+  // digitá-la de novo — que é como nascem cinco grafias da mesma coisa.
+  await irPara('/cadastro/produtos/novo')
+  const opcoesProduto = await js(`
+    const el = document.querySelector('[name="categoria"]')
+    return el ? [...el.options].map((o) => o.text).join(' | ') : 'campo não existe'
+  `)
+  check(
+    'a categoria do produto volta na lista do próximo cadastro',
+    opcoesProduto.includes('Água mineral'),
+    opcoesProduto,
+  )
+
   /* --------------------------------------------------------- vasilhame */
   //
   // O módulo que motiva a troca de sistema. O que este bloco prova, e nenhum
@@ -1415,9 +1447,18 @@ try {
     await clicar('Custo', 15_000, 'label')
     await preencher({
       descricao: `${PREFIXO} Compra de garrafões`,
-      categoria: 'Vasilhame',
       valorPrevisto: '300,00',
     })
+    /*
+     * Categoria é lista, não texto livre — e a lista de uma empresa recém-criada
+     * está vazia, então o caminho exercitado aqui é justamente o de criar a
+     * primeira. É o caminho que mais importa: se "+ Nova categoria…" não trocar
+     * o select pelo campo de texto, a operadora fica sem como categorizar nada
+     * no primeiro dia de uso, que é exatamente quando ela ainda não confia no
+     * sistema.
+     */
+    await escolherPorTexto('categoria', 'Nova categoria')
+    await preencher({ categoria: 'Vasilhame' })
     await escolherPorTexto('parcelas', '3×')
     await foto('pagar-lancamento')
     await clicar('Lançar conta')
@@ -1430,6 +1471,20 @@ try {
       'lançar em 3× cria três parcelas e diz quando vence a primeira',
       lancou.includes('3 parcelas'),
       lancou.slice(0, 300),
+    )
+
+    // A categoria criada agora existe para o próximo lançamento — é o que
+    // impede que a mesma despesa vire "Vasilhame", "vasilhame" e "Vasilhames"
+    // em três meses e abra três linhas no DRE.
+    await irPara('/financeiro/pagar/nova')
+    const opcoesCategoria = await js(`
+      const el = document.querySelector('[name="categoria"]')
+      return el ? [...el.options].map((o) => o.text).join(' | ') : 'campo não existe'
+    `)
+    check(
+      'a categoria criada volta na lista do próximo lançamento',
+      opcoesCategoria.includes('Vasilhame'),
+      opcoesCategoria,
     )
 
     await irPara('/financeiro/pagar')
