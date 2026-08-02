@@ -9,18 +9,6 @@ const RECURSOS = [
 ]
 
 /**
- * Glifo pequeno da Aionix — só o traço diagonal do logotipo do site, sem
- * gradiente próprio, pra não competir com a cor do Casco aqui do lado.
- */
-function GlifoAionix({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path d="M7 20 15 4" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" />
-    </svg>
-  )
-}
-
-/**
  * Painel de marca da tela de login. Fica escuro sempre, independente do tema
  * do resto do app — é vitrine, não interface, então não precisa (nem deve)
  * seguir claro/escuro: um painel fixo garante que fique bem em qualquer
@@ -117,16 +105,20 @@ export function PainelMarca() {
         </ul>
       </div>
 
-      {/* Crédito — só no desktop; no mobile some junto com o resto da vitrine. */}
+      {/* Crédito — só no desktop; no mobile some junto com o resto da vitrine.
+          O arquivo é o oficial do manual da marca (`aionix-horizontal-cor-negativo.svg`,
+          feito pra fundo escuro) — o manual proíbe expressamente redesenhar o
+          logotipo digitando "AIONIX" numa fonte qualquer, então a imagem vem
+          de `public/marca/`, não de um SVG desenhado à mão aqui. */}
       <a
         href="https://www.aionixdev.com"
         target="_blank"
         rel="noopener noreferrer"
-        className="relative z-10 hidden items-center gap-2 text-[11.5px] transition-colors lg:inline-flex"
-        style={{ color: 'oklch(0.83 0.03 200 / 0.7)' }}
+        className="relative z-10 hidden items-center gap-1.5 text-[11.5px] text-white/60 transition-colors hover:text-white/85 lg:inline-flex"
       >
-        <GlifoAionix className="size-3" />
-        Um produto <b className="font-semibold" style={{ color: 'oklch(0.9 0.02 200 / 0.9)' }}>Aionix</b>
+        Um produto
+        {/* eslint-disable-next-line @next/next/no-img-element -- SVG estático do manual da marca, não precisa de otimização do next/image */}
+        <img src="/marca/aionix-horizontal-cor-negativo.svg" alt="Aionix" className="h-[13px] w-auto opacity-90" />
       </a>
     </div>
   )
