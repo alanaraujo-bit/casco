@@ -112,6 +112,24 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
   const formRef = useRef<HTMLFormElement>(null)
   const regra = REGRA[motivo]
 
+  /**
+   * A operadora mexeu em alguma coisa desde que apertou "Lançar"?
+   *
+   * A limpeza abaixo só chega quando a action responde, e entre o clique e a
+   * resposta a tela continua viva — com a fila do balcão andando, ela já
+   * escolheu o próximo cliente e digitou a quantidade. Limpar nesse instante
+   * apaga o que ela acabou de escrever, e sem erro nenhum na tela: o cliente
+   * simplesmente volta a "Escolha o cliente…" e o número volta para 1. Ela
+   * relança achando que não gravou, e o saldo do primeiro cliente sai dobrado.
+   *
+   * `ref` e não `state` de propósito: isto não desenha nada, e como `state`
+   * provocaria um render a cada tecla digitada.
+   */
+  const mexeuDesdeOEnvio = useRef(false)
+  const registrarToque = () => {
+    mexeuDesdeOEnvio.current = true
+  }
+
   const chaveSaldo = useMemo(() => {
     const mapa = new Map<string, number>()
     for (const s of saldos) mapa.set(`${s.clienteId}:${s.produtoId}`, s.quantidade)
@@ -144,8 +162,11 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
   const [ultimoLancado, setUltimoLancado] = useState(0)
   if (estado.sucesso && estado.tentativa !== ultimoLancado) {
     setUltimoLancado(estado.tentativa ?? 0)
-    setClienteId('')
-    setQuantidade('1')
+    // Só limpa o que ela não voltou a tocar. Ver `mexeuDesdeOEnvio` acima.
+    if (!mexeuDesdeOEnvio.current) {
+      setClienteId('')
+      setQuantidade('1')
+    }
   }
 
   /** O foco volta para onde o próximo lançamento começa. */
@@ -193,7 +214,18 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
     <div className="space-y-4">
       {estado.sucesso && <Recibo sucesso={estado.sucesso} />}
 
-      <form key={estado.tentativa ?? 0} ref={formRef} action={enviar} className="space-y-4" noValidate>
+      <form
+        key={estado.tentativa ?? 0}
+        ref={formRef}
+        action={enviar}
+        onSubmit={() => {
+          // Abre a janela: o que ela mexer daqui em diante é da próxima baixa,
+          // e a limpeza não pode levar junto.
+          mexeuDesdeOEnvio.current = false
+        }}
+        className="space-y-4"
+        noValidate
+      >
         <input type="hidden" name="motivo" value={motivo} />
         <input type="hidden" name="sentido" value={sentido} />
 
@@ -233,7 +265,10 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
                       name="motivoEscolha"
                       value={m}
                       checked={ativo}
-                      onChange={() => trocarMotivo(m)}
+                      onChange={() => {
+                        registrarToque()
+                        trocarMotivo(m)
+                      }}
                       className="sr-only"
                     />
                     {/* O escolhido não pode se distinguir só pela cor. Com o
@@ -311,7 +346,10 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
                 id="produtoId"
                 name="produtoId"
                 value={produtoId}
-                onChange={(e) => setProdutoId(e.target.value)}
+                onChange={(e) => {
+                  registrarToque()
+                  setProdutoId(e.target.value)
+                }}
                 erro={erroDe('produtoId')}
               >
                 {vasilhames.map((v) => (
@@ -338,7 +376,10 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
                   type="button"
                   variant="secundario"
                   size="icone"
-                  onClick={() => setQuantidade(String(Math.max(1, qtd - 1)))}
+                  onClick={() => {
+                    registrarToque()
+                    setQuantidade(String(Math.max(1, qtd - 1)))
+                  }}
                   aria-label="Diminuir quantidade"
                 >
                   <Minus aria-hidden />
@@ -347,7 +388,10 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
                   id="quantidade"
                   name="quantidade"
                   value={quantidade}
-                  onChange={(e) => setQuantidade(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  onChange={(e) => {
+                    registrarToque()
+                    setQuantidade(e.target.value.replace(/\D/g, '').slice(0, 4))
+                  }}
                   erro={erroDe('quantidade')}
                   inputMode="numeric"
                   autoComplete="off"
@@ -357,7 +401,10 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
                   type="button"
                   variant="secundario"
                   size="icone"
-                  onClick={() => setQuantidade(String(Math.min(9999, qtd + 1)))}
+                  onClick={() => {
+                    registrarToque()
+                    setQuantidade(String(Math.min(9999, qtd + 1)))
+                  }}
                   aria-label="Aumentar quantidade"
                 >
                   <Plus aria-hidden />
@@ -379,7 +426,10 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
                   id="clienteId"
                   name="clienteId"
                   value={clienteId}
-                  onChange={(e) => setClienteId(e.target.value)}
+                  onChange={(e) => {
+                    registrarToque()
+                    setClienteId(e.target.value)
+                  }}
                   erro={erroDe('clienteId')}
                 >
                   <option value="">
@@ -420,7 +470,10 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
                   id="sentidoEscolha"
                   name="sentidoEscolha"
                   value={sentido}
-                  onChange={(e) => setSentido(e.target.value === 'saida' ? 'saida' : 'entrada')}
+                  onChange={(e) => {
+                    registrarToque()
+                    setSentido(e.target.value === 'saida' ? 'saida' : 'entrada')
+                  }}
                 >
                   <option value="entrada">Encontrou galão a mais</option>
                   <option value="saida">Faltou galão na contagem</option>
