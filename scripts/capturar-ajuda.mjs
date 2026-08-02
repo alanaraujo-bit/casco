@@ -362,16 +362,16 @@ async function clicarSeletorComPonteiro(seletor) {
  * guarda o valor num descritor próprio e ignora `el.value = x` em campo
  * controlado.
  */
-async function digitar(nome, texto, msPorTecla = 55) {
-  const alvo = await coordsDoSeletor(`[name="${nome}"]`)
+async function digitarSeletor(seletor, texto, msPorTecla = 55) {
+  const alvo = await coordsDoSeletor(seletor)
   await moverPonteiro(alvo, 520)
   await js('window.__pulsarPonteiro()')
-  await js(`document.querySelector('[name="${nome}"]')?.focus()`)
+  await js(`document.querySelector(${JSON.stringify(seletor)})?.focus()`)
   await espera(200)
 
   for (let i = 1; i <= texto.length; i++) {
     await js(`
-      const el = document.querySelector('[name="${nome}"]')
+      const el = document.querySelector(${JSON.stringify(seletor)})
       if (el) {
         const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype
         Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(texto.slice(0, i))})
@@ -381,6 +381,11 @@ async function digitar(nome, texto, msPorTecla = 55) {
     await espera(msPorTecla)
   }
   await espera(150)
+}
+
+/** Atalho para campos identificados por `name`, o caso mais comum. */
+async function digitar(nome, texto, msPorTecla = 55) {
+  return digitarSeletor(`[name="${nome}"]`, texto, msPorTecla)
 }
 
 /**
@@ -737,8 +742,12 @@ async function sequenciaPdv() {
   }
 
   // 6. Fechar e ler o comprovante.
+  //
+  // A ação do servidor aqui demora mais que um lançamento de vasilhame — grava
+  // venda, movimento de vasilhame e, quando a prazo, o título em Contas a
+  // Receber, todos na mesma transação. Por isso o prazo é maior que o padrão.
   await clicarComPonteiro('Fechar venda', 'button')
-  await esperarPor(() => js(`return !!document.querySelector('[role="status"]')`), 'comprovante da venda aparecer')
+  await esperarPor(() => js(`return !!document.querySelector('[role="status"]')`), 'comprovante da venda aparecer', 60_000)
   await js('window.scrollTo({ top: 0, behavior: "smooth" })')
   await espera(700)
   await pausar(3000) // o comprovante com total, troco e saldo de vasilhame
@@ -746,15 +755,24 @@ async function sequenciaPdv() {
   return pararGravacao()
 }
 
-/** Vendas de Produtos: os quatro cartões de métrica e a lista. */
+/**
+ * Vendas de Produtos: os quatro cartões de métrica, e a busca filtrando a
+ * lista — é a única ação da tela, então é o que prova que ela funciona de
+ * verdade em vez de descrever um cartão parado.
+ */
 async function sequenciaVendasProdutos() {
   await irPara(ROTA['vendas-produtos'])
   await iniciarGravacao()
   await pausar(1900) // os quatro cartões: vendido hoje, no mês, ticket médio, taxas
 
-  // Desce até a tabela, que é o assunto da tela.
   await rolarAte(320, 1400)
-  await pausar(2200)
+  await pausar(1200)
+
+  const temBusca = await js(`return !!document.querySelector('input[type="search"]')`)
+  if (temBusca) {
+    await digitarSeletor('input[type="search"]', 'Demonstração', 60)
+    await pausar(2000) // a lista filtrada, só as vendas daquele cliente
+  }
 
   return pararGravacao()
 }
