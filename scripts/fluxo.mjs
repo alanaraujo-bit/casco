@@ -1091,7 +1091,12 @@ try {
   await irPara('/cadastro/produtos/novo')
   await preencher({ nome: `${PREFIXO} Água 10L` })
   await escolherPorTexto('categoria', 'Nova categoria')
-  await preencher({ categoria: 'Água mineral', precoPadrao: '5,00' })
+  // Estoque inicial: o produto já nasce com 20 unidades na prateleira, sem
+  // passar por Estoque → Entradas. O que este trecho prova, e nenhum outro
+  // prova: o número vira um movimento de verdade (tipo "ajuste"), não um
+  // campo solto no produto — se fosse só um campo, o saldo em
+  // `/estoque/saldo` nunca bateria com o extrato do produto.
+  await preencher({ categoria: 'Água mineral', precoPadrao: '5,00', estoqueInicial: '20' })
   await foto('produto-categoria-nova')
   await clicar('Cadastrar produto')
   await esperarPor(
@@ -1099,6 +1104,14 @@ try {
     'o produto novo na listagem',
   )
   check('produto salva com a categoria criada na hora', (await texto()).includes('Água mineral'))
+
+  await irPara('/estoque/saldo')
+  const saldoInicial = await texto()
+  check(
+    'o estoque inicial do cadastro aparece direto no saldo, sem lançamento manual',
+    /\[teste-fluxo\] Água 10L[\s\S]{0,120}\b20\b/.test(saldoInicial),
+    saldoInicial.slice(0, 500),
+  )
 
   // E a categoria criada volta na lista, em vez de o próximo produto precisar
   // digitá-la de novo — que é como nascem cinco grafias da mesma coisa.

@@ -5,8 +5,9 @@ import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { uuidv7 } from 'uuidv7'
-import { produtos } from '@/db/schema'
+import { estoqueMovimentos, produtos } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
+import { autorDoLancamento } from '@/lib/sessao'
 import {
   CAMPOS_PRODUTO,
   esquemaProduto,
@@ -46,8 +47,8 @@ export async function criarProduto(
   const dados = analise.data
   const id = uuidv7()
 
-  await comTenant((tx, sessao) =>
-    tx.insert(produtos).values({
+  await comTenant(async (tx, sessao) => {
+    await tx.insert(produtos).values({
       id,
       companyId: sessao.companyId,
       nome: dados.nome,
@@ -62,10 +63,36 @@ export async function criarProduto(
       estoqueMinimo: String(dados.estoqueMinimo),
       estoqueMaximo: String(dados.estoqueMaximo),
       ncm: dados.ncm,
-    }),
-  )
+    })
+
+    /**
+     * O galão que já está na prateleira quando o cadastro nasce.
+     *
+     * Vira um `ajuste` — o mesmo tipo que "Ajuste de inventário" lança em
+     * `/estoque/entradas/nova` — e não um `producao` ou `compra`: não foi
+     * fabricado aqui nem chegou de fornecedor agora, só é o que já existia e a
+     * operadora está contando pela primeira vez. Mesma transação do produto:
+     * ou os dois nascem juntos, ou nenhum nasce, senão um produto sem esta
+     * linha pareceria "controla estoque" mentindo um saldo de zero que nunca
+     * foi zero de verdade.
+     */
+    if (dados.controlaEstoque && dados.estoqueInicial > 0) {
+      await tx.insert(estoqueMovimentos).values({
+        id: uuidv7(),
+        companyId: sessao.companyId,
+        produtoId: id,
+        quantidade: String(dados.estoqueInicial),
+        tipo: 'ajuste',
+        custoUnitario: String(dados.custo),
+        origem: 'balcao',
+        usuarioId: autorDoLancamento(sessao),
+        observacao: 'Estoque inicial, lançado no cadastro do produto',
+      })
+    }
+  })
 
   revalidatePath('/cadastro/produtos')
+  revalidatePath('/estoque/saldo')
   redirect(`/cadastro/produtos?novo=${id}`)
 }
 

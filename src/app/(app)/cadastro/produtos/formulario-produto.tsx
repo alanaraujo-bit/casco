@@ -227,7 +227,11 @@ export function FormularioProduto({ acao, produto, produtosVasilhame, categorias
 
       <Secao
         titulo="Estoque"
-        descricao="Defina os limites para ser alertado quando o estoque estiver baixo ou alto demais."
+        descricao={
+          novo
+            ? 'Defina os limites para ser alertado quando o estoque estiver baixo ou alto demais, e quanto já existe na prateleira.'
+            : 'Defina os limites para ser alertado quando o estoque estiver baixo ou alto demais.'
+        }
       >
         <Campo span="sm:col-span-2" htmlFor="controlaEstoque" rotulo="Controla estoque?">
           <Select
@@ -274,6 +278,32 @@ export function FormularioProduto({ acao, produto, produtosVasilhame, categorias
                 placeholder="0"
               />
             </Campo>
+
+            {/*
+              Só no cadastro novo. Um produto editado já tem saldo — feito de
+              movimentos de verdade, cada um com autor e data — e trocar o
+              número aqui por cima seria um ajuste sem aparecer no extrato,
+              o exato problema que o "ajuste" nunca apagar existe para evitar.
+              Quem precisa corrigir o saldo de um produto existente lança em
+              Estoque → Entradas, onde a correção fica registrada.
+            */}
+            {novo && (
+              <Campo
+                span="sm:col-span-2"
+                htmlFor="estoqueInicial"
+                rotulo="Estoque inicial"
+                opcional
+              >
+                <Input
+                  id="estoqueInicial"
+                  name="estoqueInicial"
+                  defaultValue={valor('estoqueInicial', '')}
+                  erro={erroDe('estoqueInicial')}
+                  inputMode="decimal"
+                  placeholder="0"
+                />
+              </Campo>
+            )}
           </>
         )}
 

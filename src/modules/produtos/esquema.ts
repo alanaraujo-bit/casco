@@ -83,6 +83,15 @@ export const esquemaProduto = z.object({
 
   estoqueMaximo: numerico,
 
+  /**
+   * Só o cadastro novo lê este campo — ver a nota em `formulario-produto.tsx`.
+   * Continua na validação de qualquer forma porque o esquema é o mesmo dos
+   * dois formulários: na edição ele chega vazio (o campo nem é desenhado) e
+   * `numerico` já trata `''` como zero, então `atualizarProduto` o ignora sem
+   * precisar de um `refine` a mais para isso.
+   */
+  estoqueInicial: numerico,
+
   ncm: z
     .string()
     .trim()
@@ -106,6 +115,7 @@ export const CAMPOS_PRODUTO = [
   'controlaEstoque',
   'estoqueMinimo',
   'estoqueMaximo',
+  'estoqueInicial',
   'ncm',
 ] as const
 
