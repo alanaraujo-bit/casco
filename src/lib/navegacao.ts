@@ -4,6 +4,7 @@ import {
   CalendarDays,
   CalendarRange,
   Contact,
+  CreditCard,
   FileBarChart,
   History,
   Landmark,
@@ -104,6 +105,9 @@ export const NAVEGACAO: GrupoNav[] = [
       { rotulo: 'Contas a Receber', href: '/financeiro/receber' },
       { rotulo: 'Contas a Pagar', href: '/financeiro/pagar' },
       { rotulo: 'Caixa', href: '/financeiro/caixa' },
+      // Por último no grupo, e de propósito: é cadastro, mexe-se uma vez por
+      // mês. As três de cima são o dia a dia.
+      { rotulo: 'Contas e Formas', href: '/financeiro/contas' },
     ],
   },
   {
@@ -190,6 +194,7 @@ export const ICONES_ITEM: Record<string, LucideIcon> = {
   '/cadastro/produtos': Package,
   '/financeiro/receber': Wallet,
   '/financeiro/caixa': Landmark,
+  '/financeiro/contas': CreditCard,
   '/estoque/saldo': Boxes,
   '/relatorios/dre': FileBarChart,
   '/relatorios/caixa-diario': CalendarDays,

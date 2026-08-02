@@ -151,6 +151,124 @@ export interface EstadoPagar {
   sucesso?: { descricao: string; parcelas: number; total: number; primeiroVencimento: string }
 }
 
+/* ------------------------------------------- contas bancárias e formas
+ *
+ * **O cadastro que faltava, e que só existia no `criar-empresa.mjs`.**
+ *
+ * Até aqui conta bancária e forma de pagamento nasciam semeadas por script, no
+ * dia em que a distribuidora era criada, e nunca mais podiam mudar pela tela.
+ * Abrir uma conta, trocar de maquininha ou renegociar a taxa do débito exigia
+ * um desenvolvedor — e é assim que se chega ao que a auditoria encontrou no
+ * sistema deles (§4e): bancos chamados `RETROATIVO CAIXA ECONOMICA` e formas
+ * `PIX RETROATIVO`, criados para contornar a rigidez do cadastro. O usuário
+ * não estava errado; o sistema é que não deixava.
+ */
+
+export const CAMPOS_CONTA = ['nome', 'tipo', 'saldoInicial'] as const
+export type CampoConta = (typeof CAMPOS_CONTA)[number]
+
+export const esquemaConta = z.object({
+  nome: z
+    .string()
+    .trim()
+    .min(1, 'Informe o nome da conta')
+    .max(80, 'Máximo de 80 caracteres'),
+
+  /**
+   * `caixa` é a gaveta do balcão; `banco` é conta de verdade.
+   *
+   * A separação existe porque o fechamento do dia pergunta sobre a gaveta, não
+   * sobre o saldo consolidado — e sangria e suprimento só fazem sentido num
+   * caixa físico.
+   */
+  tipo: z.enum(['caixa', 'banco'], { message: 'Escolha entre caixa e banco' }),
+
+  /**
+   * O saldo que já existia antes do Casco.
+   *
+   * Aceita negativo de propósito: conta com cheque especial estourado é
+   * realidade, e recusar o número obrigaria a operadora a mentir para conseguir
+   * cadastrar. Zero é o padrão.
+   */
+  saldoInicial: z
+    .string()
+    .transform((v) => (v.trim() === '' ? 0 : paraNumero(v)))
+    .refine((v) => Number.isFinite(v), 'Valor inválido'),
+})
+
+export interface EstadoConta {
+  erro?: string
+  campos?: Partial<Record<CampoConta, string>>
+  valores?: Partial<Record<CampoConta, string>>
+  tentativa?: number
+  sucesso?: { nome: string; novo: boolean }
+}
+
+export const CAMPOS_FORMA = ['nome', 'tipo', 'taxaPercentual', 'prazoDias', 'contaId'] as const
+export type CampoForma = (typeof CAMPOS_FORMA)[number]
+
+/** Os mesmos seis de `TIPOS_PAGAMENTO` no schema, com o nome que a tela usa. */
+export const ROTULO_TIPO_PAGAMENTO: Record<string, string> = {
+  dinheiro: 'Dinheiro',
+  pix: 'PIX',
+  debito: 'Cartão de débito',
+  credito: 'Cartão de crédito',
+  boleto: 'Boleto',
+  a_prazo: 'A prazo',
+}
+
+export const esquemaForma = z.object({
+  nome: z
+    .string()
+    .trim()
+    .min(1, 'Informe o nome da forma de pagamento')
+    .max(80, 'Máximo de 80 caracteres'),
+
+  tipo: z.enum(['dinheiro', 'pix', 'debito', 'credito', 'boleto', 'a_prazo'], {
+    message: 'Escolha o tipo',
+  }),
+
+  /**
+   * A taxa da maquininha, em porcentagem.
+   *
+   * **É o número que o sistema antigo não desconta em lugar nenhum.** O dono
+   * vende R$ 100 no débito, o painel diz R$ 100, e o que cai na conta é
+   * R$ 98,51 — a diferença só aparece ao conciliar o extrato no fim do mês, se
+   * alguém conciliar. Aqui ela é descontada na venda e vira linha no DRE.
+   *
+   * O teto de 100 não é preciosismo: digitar `1490` no lugar de `14,90` faria
+   * cada venda gerar uma entrada de caixa negativa, e o erro só apareceria no
+   * fechamento.
+   */
+  taxaPercentual: z
+    .string()
+    .transform((v) => (v.trim() === '' ? 0 : paraNumero(v)))
+    .refine((v) => Number.isFinite(v), 'Taxa inválida')
+    .refine((v) => v >= 0, 'A taxa não pode ser negativa')
+    .refine((v) => v <= 100, 'A taxa não pode passar de 100%'),
+
+  /** Dias até o dinheiro cair. Crédito costuma ser 30; dinheiro, 0. */
+  prazoDias: z
+    .string()
+    .transform((v) => Number(String(v).replace(/\D/g, '')) || 0)
+    .refine((v) => v >= 0 && v <= 365, 'Entre 0 e 365 dias'),
+
+  /** Onde o dinheiro desta forma cai. Vazio é permitido: nem toda forma tem. */
+  contaId: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || z.string().uuid().safeParse(v).success, 'Conta inválida')
+    .transform((v) => v || null),
+})
+
+export interface EstadoForma {
+  erro?: string
+  campos?: Partial<Record<CampoForma, string>>
+  valores?: Partial<Record<CampoForma, string>>
+  tentativa?: number
+  sucesso?: { nome: string; novo: boolean }
+}
+
 /* ------------------------------------------------------ baixa de pagamento */
 
 export const CAMPOS_QUITAR = ['contaPagarId', 'pagoEm', 'valorPago', 'contaId', 'formaId'] as const

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { and, eq, isNotNull } from 'drizzle-orm'
+import { and, eq, isNotNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { uuidv7 } from 'uuidv7'
 import {
@@ -18,15 +18,23 @@ import { dataNaLoja } from '@/lib/formatos'
 import { centavos, deCentavos } from '@/modules/vendas/esquema'
 import {
   CAMPOS_BAIXA,
+  CAMPOS_CONTA,
+  CAMPOS_FORMA,
   CAMPOS_PAGAR,
   CAMPOS_QUITAR,
   esquemaBaixa,
+  esquemaConta,
+  esquemaForma,
   esquemaPagar,
   esquemaQuitar,
   type CampoBaixa,
+  type CampoConta,
+  type CampoForma,
   type CampoPagar,
   type CampoQuitar,
   type EstadoBaixa,
+  type EstadoConta,
+  type EstadoForma,
   type EstadoPagar,
   type EstadoQuitar,
 } from './esquema'
@@ -561,5 +569,267 @@ export async function desfazerPagamento(contaPagarId: string): Promise<Resultado
     })
   } catch {
     return { ok: false, erro: 'Não foi possível desfazer o pagamento.' }
+  }
+}
+
+/* ------------------------------- cadastro de contas e formas de pagamento
+ *
+ * Até aqui as duas tabelas só eram escritas pelo `scripts/criar-empresa.mjs`,
+ * no dia em que a distribuidora nascia. Abrir uma conta, trocar de maquininha
+ * ou renegociar a taxa do débito exigia um desenvolvedor — e a auditoria mostra
+ * aonde isso leva (§4e): no sistema deles existem bancos chamados
+ * `RETROATIVO CAIXA ECONOMICA` e formas `PIX RETROATIVO`, inventados para
+ * contornar um cadastro que não deixava corrigir nada. O usuário não estava
+ * errado; o sistema é que não deixava.
+ *
+ * **Ninguém apaga; desativa.** Conta e forma são apontadas por venda, título e
+ * movimento de caixa, todas com FK `restrict`, de propósito. Apagar uma forma
+ * usada em cem vendas reescreveria o histórico do mês — e o banco recusaria de
+ * qualquer jeito, com um erro que não explica nada na tela. Desativar tira do
+ * combo e preserva o que já aconteceu.
+ */
+
+function revalidarMeios() {
+  revalidatePath('/financeiro/contas')
+  revalidatePath('/financeiro/caixa')
+  revalidatePath('/financeiro/receber')
+  revalidatePath('/financeiro/pagar')
+  // O PDV monta o seletor de forma de pagamento a partir daqui.
+  revalidatePath('/vendas/pdv')
+}
+
+/**
+ * Cria ou edita uma conta bancária.
+ *
+ * `id` vazio significa criação. É a mesma action nas duas telas porque a
+ * diferença entre elas é uma linha — e duas actions quase idênticas é como se
+ * chega a uma validação corrigida num lado e esquecida no outro.
+ */
+export async function salvarConta(anterior: EstadoConta, form: FormData): Promise<EstadoConta> {
+  const tentativa = (anterior.tentativa ?? 0) + 1
+  const id = String(form.get('id') ?? '').trim()
+  const valores = Object.fromEntries(
+    CAMPOS_CONTA.map((campo) => [campo, String(form.get(campo) ?? '')]),
+  ) as Record<CampoConta, string>
+
+  const analise = esquemaConta.safeParse(valores)
+  if (!analise.success) {
+    const porCampo = z.flattenError(analise.error).fieldErrors as Record<
+      string,
+      string[] | undefined
+    >
+    const campos: Partial<Record<CampoConta, string>> = {}
+    for (const campo of CAMPOS_CONTA) {
+      const msg = porCampo[campo]?.[0]
+      if (msg) campos[campo] = msg
+    }
+    const geral = z.flattenError(analise.error).formErrors[0]
+    return { campos, valores, tentativa, erro: Object.keys(campos).length ? undefined : geral }
+  }
+
+  const dados = analise.data
+
+  try {
+    return await comTenant(async (tx, sessao) => {
+      const linha = {
+        nome: dados.nome,
+        tipo: dados.tipo,
+        saldoInicial: dados.saldoInicial.toFixed(2),
+        atualizadoEm: new Date(),
+      }
+
+      if (id) {
+        // O `where` do id basta: a RLS já limita a linha ao tenant da sessão,
+        // então um id de outra distribuidora não encontra nada.
+        const alterada = await tx
+          .update(contasBancarias)
+          .set(linha)
+          .where(eq(contasBancarias.id, id))
+          .returning({ id: contasBancarias.id })
+        if (alterada.length === 0) {
+          return { erro: 'Conta não encontrada.', valores, tentativa }
+        }
+      } else {
+        await tx
+          .insert(contasBancarias)
+          .values({ id: uuidv7(), companyId: sessao.companyId, ...linha })
+      }
+
+      revalidarMeios()
+      return { tentativa, sucesso: { nome: dados.nome, novo: !id } }
+    })
+  } catch {
+    return { erro: 'Não foi possível salvar a conta. Nada foi gravado.', valores, tentativa }
+  }
+}
+
+/**
+ * Cria ou edita uma forma de pagamento.
+ *
+ * A taxa é gravada aqui e **congelada em cada venda** no momento em que ela
+ * acontece (ver `vendas.taxas` e `pagamentos.taxa`). Corrigir o percentual em
+ * outubro não reescreve o que foi cobrado em agosto — se reescrevesse, o DRE de
+ * um mês já fechado mudaria sozinho por causa de uma renegociação com a
+ * operadora do cartão.
+ */
+export async function salvarForma(anterior: EstadoForma, form: FormData): Promise<EstadoForma> {
+  const tentativa = (anterior.tentativa ?? 0) + 1
+  const id = String(form.get('id') ?? '').trim()
+  const valores = Object.fromEntries(
+    CAMPOS_FORMA.map((campo) => [campo, String(form.get(campo) ?? '')]),
+  ) as Record<CampoForma, string>
+
+  const analise = esquemaForma.safeParse(valores)
+  if (!analise.success) {
+    const porCampo = z.flattenError(analise.error).fieldErrors as Record<
+      string,
+      string[] | undefined
+    >
+    const campos: Partial<Record<CampoForma, string>> = {}
+    for (const campo of CAMPOS_FORMA) {
+      const msg = porCampo[campo]?.[0]
+      if (msg) campos[campo] = msg
+    }
+    const geral = z.flattenError(analise.error).formErrors[0]
+    return { campos, valores, tentativa, erro: Object.keys(campos).length ? undefined : geral }
+  }
+
+  const dados = analise.data
+
+  try {
+    return await comTenant(async (tx, sessao) => {
+      if (dados.contaId) {
+        // Relida dentro do tenant: a RLS vira validação de autorização de graça.
+        const [conta] = await tx
+          .select({ id: contasBancarias.id, ativo: contasBancarias.ativo })
+          .from(contasBancarias)
+          .where(eq(contasBancarias.id, dados.contaId))
+          .limit(1)
+        if (!conta) return { campos: { contaId: 'Conta não encontrada' }, valores, tentativa }
+        if (!conta.ativo) {
+          return {
+            campos: {
+              contaId: 'Esta conta está desativada — reative-a antes de apontar para ela',
+            },
+            valores,
+            tentativa,
+          }
+        }
+      }
+
+      const linha = {
+        nome: dados.nome,
+        tipo: dados.tipo,
+        taxaPercentual: dados.taxaPercentual.toFixed(4),
+        prazoDias: dados.prazoDias,
+        contaId: dados.contaId,
+        atualizadoEm: new Date(),
+      }
+
+      if (id) {
+        const alterada = await tx
+          .update(formasPagamento)
+          .set(linha)
+          .where(eq(formasPagamento.id, id))
+          .returning({ id: formasPagamento.id })
+        if (alterada.length === 0) {
+          return { erro: 'Forma de pagamento não encontrada.', valores, tentativa }
+        }
+      } else {
+        await tx
+          .insert(formasPagamento)
+          .values({ id: uuidv7(), companyId: sessao.companyId, ...linha })
+      }
+
+      revalidarMeios()
+      return { tentativa, sucesso: { nome: dados.nome, novo: !id } }
+    })
+  } catch {
+    return {
+      erro: 'Não foi possível salvar a forma de pagamento. Nada foi gravado.',
+      valores,
+      tentativa,
+    }
+  }
+}
+
+/**
+ * Ativa ou desativa uma conta bancária.
+ *
+ * **Desativar a última conta ativa é recusado.** Sem nenhuma conta ativa o PDV
+ * não fecha venda em dinheiro e a baixa de título não tem para onde mandar o
+ * valor. As duas telas quebrariam com um erro genérico, três cliques adiante e
+ * sem nenhuma pista de que a causa foi esta tela aqui.
+ */
+export async function alternarConta(id: string): Promise<ResultadoDesfazer> {
+  try {
+    return await comTenant(async (tx) => {
+      const [conta] = await tx
+        .select({ ativo: contasBancarias.ativo })
+        .from(contasBancarias)
+        .where(eq(contasBancarias.id, id))
+        .limit(1)
+      if (!conta) return { ok: false, erro: 'Conta não encontrada.' }
+
+      if (conta.ativo) {
+        const [restantes] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(contasBancarias)
+          .where(eq(contasBancarias.ativo, true))
+        if ((restantes?.n ?? 0) <= 1) {
+          return {
+            ok: false,
+            erro: 'Esta é a única conta ativa. Cadastre outra antes de desativar — sem nenhuma conta ativa o PDV não fecha venda.',
+          }
+        }
+      }
+
+      await tx
+        .update(contasBancarias)
+        .set({ ativo: !conta.ativo, atualizadoEm: new Date() })
+        .where(eq(contasBancarias.id, id))
+
+      revalidarMeios()
+      return { ok: true }
+    })
+  } catch {
+    return { ok: false, erro: 'Não foi possível alterar a conta.' }
+  }
+}
+
+/** Ativa ou desativa uma forma de pagamento. Mesma regra da última ativa. */
+export async function alternarForma(id: string): Promise<ResultadoDesfazer> {
+  try {
+    return await comTenant(async (tx) => {
+      const [forma] = await tx
+        .select({ ativo: formasPagamento.ativo })
+        .from(formasPagamento)
+        .where(eq(formasPagamento.id, id))
+        .limit(1)
+      if (!forma) return { ok: false, erro: 'Forma de pagamento não encontrada.' }
+
+      if (forma.ativo) {
+        const [restantes] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(formasPagamento)
+          .where(eq(formasPagamento.ativo, true))
+        if ((restantes?.n ?? 0) <= 1) {
+          return {
+            ok: false,
+            erro: 'Esta é a única forma de pagamento ativa. Cadastre outra antes de desativar — sem nenhuma o PDV não fecha venda.',
+          }
+        }
+      }
+
+      await tx
+        .update(formasPagamento)
+        .set({ ativo: !forma.ativo, atualizadoEm: new Date() })
+        .where(eq(formasPagamento.id, id))
+
+      revalidarMeios()
+      return { ok: true }
+    })
+  } catch {
+    return { ok: false, erro: 'Não foi possível alterar a forma de pagamento.' }
   }
 }

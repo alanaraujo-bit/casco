@@ -462,6 +462,121 @@ export function acharContaPagar(id: string) {
   })
 }
 
+/* ------------------------------- cadastro de contas e formas de pagamento
+ *
+ * As listagens acima (`listarContas`, `listarFormasPagamento`) devolvem só o
+ * que está ativo, porque servem de opção em combo — oferecer uma conta
+ * desativada para receber um título seria oferecer um caminho que não deveria
+ * existir. As duas daqui trazem **tudo**, porque a tela de cadastro precisa
+ * mostrar o que foi desativado para poder reativar.
+ */
+
+export interface ContaCadastro {
+  id: string
+  nome: string
+  tipo: string
+  saldoInicial: string
+  ativo: boolean
+  /** Quantas formas de pagamento caem nesta conta. Desativar uma conta em uso
+      deixaria essas formas sem destino, e a tela avisa antes. */
+  formas: number
+  /** Movimentos já lançados. Zero significa que ela nunca foi usada. */
+  movimentos: number
+}
+
+export function listarContasCadastro() {
+  return comTenant(async (tx) =>
+    tx
+      .select({
+        id: contasBancarias.id,
+        nome: contasBancarias.nome,
+        tipo: contasBancarias.tipo,
+        saldoInicial: contasBancarias.saldoInicial,
+        ativo: contasBancarias.ativo,
+        formas: sql<number>`(
+          select count(*)::int from formas_pagamento f where f.conta_id = ${contasBancarias.id}
+        )`,
+        movimentos: sql<number>`(
+          select count(*)::int from caixa_movimentos m where m.conta_id = ${contasBancarias.id}
+        )`,
+      })
+      .from(contasBancarias)
+      .orderBy(desc(contasBancarias.ativo), asc(contasBancarias.nome)),
+  ) as Promise<ContaCadastro[]>
+}
+
+export function acharConta(id: string) {
+  return comTenant(async (tx) => {
+    const [linha] = await tx
+      .select({
+        id: contasBancarias.id,
+        nome: contasBancarias.nome,
+        tipo: contasBancarias.tipo,
+        saldoInicial: contasBancarias.saldoInicial,
+        ativo: contasBancarias.ativo,
+      })
+      .from(contasBancarias)
+      .where(eq(contasBancarias.id, id))
+      .limit(1)
+    return linha ?? null
+  })
+}
+
+export interface FormaCadastro {
+  id: string
+  nome: string
+  tipo: TipoPagamento
+  taxaPercentual: string
+  prazoDias: number
+  conta: string | null
+  contaId: string | null
+  ativo: boolean
+  /** Vendas já fechadas com esta forma. Impede a exclusão silenciosa do
+      histórico — desativar é a única saída, e é a certa. */
+  usos: number
+}
+
+export function listarFormasCadastro() {
+  return comTenant(async (tx) =>
+    tx
+      .select({
+        id: formasPagamento.id,
+        nome: formasPagamento.nome,
+        tipo: formasPagamento.tipo,
+        taxaPercentual: formasPagamento.taxaPercentual,
+        prazoDias: formasPagamento.prazoDias,
+        conta: contasBancarias.nome,
+        contaId: formasPagamento.contaId,
+        ativo: formasPagamento.ativo,
+        usos: sql<number>`(
+          select count(*)::int from pagamentos p where p.forma_id = ${formasPagamento.id}
+        )`,
+      })
+      .from(formasPagamento)
+      .leftJoin(contasBancarias, eq(contasBancarias.id, formasPagamento.contaId))
+      .orderBy(desc(formasPagamento.ativo), asc(formasPagamento.nome)),
+  ) as Promise<FormaCadastro[]>
+}
+
+export function acharForma(id: string) {
+  return comTenant(async (tx) => {
+    const [linha] = await tx
+      .select({
+        id: formasPagamento.id,
+        nome: formasPagamento.nome,
+        tipo: formasPagamento.tipo,
+        taxaPercentual: formasPagamento.taxaPercentual,
+        prazoDias: formasPagamento.prazoDias,
+        contaId: formasPagamento.contaId,
+        ativo: formasPagamento.ativo,
+      })
+      .from(formasPagamento)
+      .where(eq(formasPagamento.id, id))
+      .limit(1)
+    return linha ?? null
+  })
+}
+
 export interface FornecedorOpcao {
   id: string
   codigo: number | null

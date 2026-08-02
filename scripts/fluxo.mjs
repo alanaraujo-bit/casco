@@ -234,6 +234,16 @@ async function faxina() {
   await banco`delete from produtos where retornavel and nome like ${PREFIXO + '%'}`
   await banco`delete from produtos where nome like ${PREFIXO + '%'}`
 
+  // A conta e a forma que o teste de cadastro cria. Forma antes de conta: ela
+  // aponta para a conta, e ainda que a FK seja `set null`, apagar na ordem
+  // certa evita deixar uma forma órfã caso o roteiro pare no meio.
+  //
+  // Nenhuma delas chega a ser usada em venda — o roteiro só as cadastra e
+  // edita. Se um dia for usada, este delete falha alto, que é o certo: forma
+  // apontada por pagamento não pode sumir sem levar o histórico junto.
+  await banco`delete from formas_pagamento where nome like ${PREFIXO + '%'}`
+  await banco`delete from contas_bancarias where nome like ${PREFIXO + '%'}`
+
   // Devolve o contador de códigos ao maior que sobrou.
   //
   // Apagar as linhas não basta: o contador é sequencial e não recua sozinho,
@@ -941,6 +951,9 @@ try {
     '/financeiro/pagar',
     '/financeiro/pagar/nova',
     '/financeiro/caixa',
+    '/financeiro/contas',
+    '/financeiro/contas/nova',
+    '/financeiro/formas/nova',
     '/estoque/saldo',
     '/estoque/entradas',
     '/estoque/entradas/nova',
@@ -1448,6 +1461,111 @@ try {
       'o pagamento aparece como saída no caixa',
       caixaComSaida.includes('Compra de garrafões') && caixaComSaida.includes('100,00'),
       caixaComSaida.slice(0, 400),
+    )
+
+    /* ------------------------------------------- contas e formas de pagamento
+     *
+     * O cadastro que faltava para a Etapa 4 fechar. Até aqui as duas tabelas só
+     * eram escritas pelo `criar-empresa.mjs`: trocar de maquininha ou
+     * renegociar a taxa do débito exigia um desenvolvedor. É assim que se chega
+     * ao que a auditoria encontrou no sistema deles (§4e) — contas chamadas
+     * `RETROATIVO CAIXA ECONOMICA`, criadas para contornar o cadastro.
+     */
+    await irPara('/financeiro/contas')
+    const meios = await texto()
+    await foto('contas-e-formas')
+    check(
+      'a tela lista as contas e as formas semeadas na criação da empresa',
+      meios.includes('Caixa Loja') &&
+        meios.includes('Cartão Débito') &&
+        meios.includes('A Prazo'),
+      meios.slice(0, 500),
+    )
+    // A taxa aparece na listagem porque é o número que justifica a tela — o
+    // sistema antigo não a desconta em lugar nenhum.
+    check(
+      'a taxa da maquininha aparece na listagem',
+      /1,49%\s*de taxa/.test(meios),
+      meios.slice(0, 600),
+    )
+
+    // --- cadastrar uma conta nova
+    await irPara('/financeiro/contas/nova')
+    await clicar('Banco', 15_000, 'label')
+    await preencher({ nome: `${PREFIXO} Banco Teste`, saldoInicial: '1.500,00' })
+    await clicar('Salvar conta')
+    await esperarPor(
+      async () => (await texto()).includes('foi cadastrada'),
+      'a confirmação da conta nova',
+    )
+    check('cadastrar conta bancária pela tela funciona', true)
+
+    await irPara('/financeiro/contas')
+    const comBanco = await texto()
+    check(
+      'a conta nova aparece com o saldo inicial',
+      comBanco.includes(`${PREFIXO} Banco Teste`) && comBanco.includes('1.500,00'),
+      comBanco.slice(0, 600),
+    )
+
+    // --- cadastrar uma forma nova, com taxa
+    await irPara('/financeiro/formas/nova')
+    await preencher({ nome: `${PREFIXO} Maquininha`, taxaPercentual: '2,50', prazoDias: '15' })
+    await escolherPorTexto('tipo', 'Cartão de crédito')
+    await escolherPorTexto('contaId', `${PREFIXO} Banco Teste`)
+    // O líquido de uma venda de R$ 100 aparece **antes** de gravar. É o que
+    // pega um `250` digitado no lugar de `2,50` na hora, e não no fechamento.
+    await esperarPor(
+      async () => (await texto()).includes('97,50'),
+      'o líquido de R$ 100 aparecer antes de gravar',
+    )
+    check('a tela mostra quanto entra de uma venda de R$ 100 antes de gravar', true)
+    await clicar('Salvar forma')
+    await esperarPor(
+      async () => (await texto()).includes('foi cadastrada'),
+      'a confirmação da forma nova',
+    )
+    check('cadastrar forma de pagamento pela tela funciona', true)
+
+    // --- a taxa errada é barrada antes do banco
+    await irPara('/financeiro/formas/nova')
+    await preencher({ nome: `${PREFIXO} Taxa absurda`, taxaPercentual: '250' })
+    await clicar('Salvar forma')
+    await esperarPor(
+      async () => (await texto()).includes('não pode passar de 100%'),
+      'a recusa da taxa acima de 100%',
+    )
+    check(
+      'taxa acima de 100% é recusada — senão cada venda geraria caixa negativo',
+      true,
+    )
+
+    // --- editar: a taxa renegociada
+    await irPara('/financeiro/contas')
+    await clicar(`${PREFIXO} Maquininha`, 15_000, 'a')
+    await esperarCaminho(
+      (p) => /\/financeiro\/formas\/[0-9a-f-]{36}/.test(p),
+      'abrir a edição da forma',
+    )
+    // Conferido pelo texto derivado, e não pelo campo: `innerText` não enxerga
+    // valor de `<input>`. "entram R$ 97,50" prova as duas coisas de uma vez —
+    // que a taxa gravada voltou, e que o cálculo ao vivo está montado.
+    const naEdicao = await texto()
+    check(
+      'a edição abre com a taxa que foi gravada',
+      naEdicao.includes('97,50'),
+      naEdicao.slice(0, 400),
+    )
+    await preencher({ taxaPercentual: '1,99' })
+    await clicar('Salvar forma')
+    await esperarPor(
+      async () => (await texto()).includes('foi atualizada'),
+      'a confirmação da edição',
+    )
+    await irPara('/financeiro/contas')
+    check(
+      'a taxa renegociada aparece na listagem',
+      (await texto()).includes('1,99% de taxa'),
     )
 
     // --- celular: o balcão também é atendido com o telefone na mão
