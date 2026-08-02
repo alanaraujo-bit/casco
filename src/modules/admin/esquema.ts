@@ -75,3 +75,32 @@ export interface EstadoAcesso {
   valores?: Partial<Record<Exclude<CampoAcesso, 'senha'>, string>>
   tentativa?: number
 }
+
+// ---------------------------------------------------------- config da plataforma
+
+/**
+ * O webhook do Discord onde o feedback (`src/lib/discord.ts`) é avisado.
+ *
+ * Campo vazio é válido e tem significado: limpa a configuração, e o aviso para
+ * de sair — o relato continua gravado no banco, só o alerta some. Por isso o
+ * esquema aceita string vazia, e só valida o formato quando há algo digitado.
+ */
+export const esquemaConfig = z.object({
+  discordWebhookFeedback: z
+    .string()
+    .trim()
+    .refine(
+      (v) => v === '' || /^https:\/\/(discord|discordapp)\.com\/api\/webhooks\/\d+\/.+/.test(v),
+      'Cole a URL completa do webhook do Discord (começa com https://discord.com/api/webhooks/)',
+    )
+    .transform((v) => v || null)
+    .nullable(),
+})
+
+export interface EstadoConfig {
+  erro?: string
+  ok?: string
+  campo?: string
+  valor?: string
+  tentativa?: number
+}

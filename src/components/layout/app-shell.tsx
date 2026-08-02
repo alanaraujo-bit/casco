@@ -8,6 +8,7 @@ import { CircleHelp, LogOut, Menu, ShieldCheck, X } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { ConteudoSidebar, Sidebar } from '@/components/layout/sidebar'
 import { MenuUsuario } from '@/components/layout/menu-usuario'
+import { FeedbackModal } from '@/components/feedback/feedback-modal'
 import { voltarAoPainel } from '@/modules/admin/acoes'
 import { acharItem } from '@/lib/navegacao'
 import { cn } from '@/lib/utils'
@@ -135,6 +136,10 @@ function Topbar({
       >
         <CircleHelp className="size-5" aria-hidden />
       </Link>
+
+      {/* Só quando há sessão: o `not-found.tsx` da raiz monta este shell sem
+          usuário resolvido, e o relato precisa de quem relatou. */}
+      {usuario && <FeedbackModal />}
 
       {/* Só a partir de `md`. No celular ele vive dentro do menu da conta —
           ver a nota lá. Tema é preferência que se ajusta uma vez; ocupar 36%

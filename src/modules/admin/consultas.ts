@@ -107,3 +107,15 @@ export async function listarAcessos(companyId: string): Promise<AcessoResumo[]> 
     criadoEm: l.criado_em,
   }))
 }
+
+// ------------------------------------------------------------ config da plataforma
+
+/** O que a tela de configuração mostra hoje: só o webhook do Discord. */
+export async function buscarConfig(): Promise<{ discordWebhookFeedback: string | null }> {
+  await exigirAdmin()
+
+  const [linha] = await db.execute<{ discord_webhook_feedback: string | null }>(
+    sql`select * from plataforma_config_ler()`,
+  )
+  return { discordWebhookFeedback: linha?.discord_webhook_feedback ?? null }
+}

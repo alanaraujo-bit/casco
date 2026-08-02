@@ -23,3 +23,18 @@ export const plataformaAdmins = pgTable('plataforma_admins', {
 })
 
 export type PlataformaAdmin = typeof plataformaAdmins.$inferSelect
+
+/**
+ * Configuração da plataforma — hoje só o webhook de feedback do Discord.
+ *
+ * Mesma nota da tabela acima: o tipo é só para tipagem, **as queries não usam
+ * esta tabela**. RLS sem política, sem grant, acesso só pelas funções
+ * `security definer` da migration `0014_config_plataforma.sql`.
+ */
+export const plataformaConfig = pgTable('plataforma_config', {
+  id: boolean('id').primaryKey().default(true),
+  discordWebhookFeedback: text('discord_webhook_feedback'),
+  atualizadoEm: timestamp('atualizado_em', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export type PlataformaConfig = typeof plataformaConfig.$inferSelect

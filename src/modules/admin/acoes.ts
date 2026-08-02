@@ -12,9 +12,11 @@ import { criarSessao, criarSessaoAdmin, encerrarSessao } from '@/lib/sessao'
 import {
   CAMPOS_ACESSO,
   esquemaAcesso,
+  esquemaConfig,
   esquemaNovaSenha,
   type CampoAcesso,
   type EstadoAcesso,
+  type EstadoConfig,
 } from './esquema'
 
 /**
@@ -300,4 +302,30 @@ export async function redefinirSenhaAcesso(
 
   revalidatePath(`/admin/empresas/${companyId}`)
   return { ok: 'Senha redefinida. Repasse a nova senha.', tentativa }
+}
+
+// ------------------------------------------------------------ config da plataforma
+
+export async function salvarConfig(anterior: EstadoConfig, form: FormData): Promise<EstadoConfig> {
+  await exigirAdmin()
+
+  const tentativa = (anterior.tentativa ?? 0) + 1
+  const valor = String(form.get('discordWebhookFeedback') ?? '')
+
+  const analise = esquemaConfig.safeParse({ discordWebhookFeedback: valor })
+  if (!analise.success) {
+    return {
+      campo: z.flattenError(analise.error).fieldErrors.discordWebhookFeedback?.[0],
+      valor,
+      tentativa,
+    }
+  }
+
+  await db.execute(sql`select plataforma_config_salvar(${analise.data.discordWebhookFeedback})`)
+
+  revalidatePath('/admin/config')
+  return {
+    ok: analise.data.discordWebhookFeedback ? 'Webhook salvo.' : 'Webhook removido.',
+    tentativa,
+  }
 }

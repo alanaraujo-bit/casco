@@ -65,7 +65,7 @@ async function limpar() {
     'estoque_movimentos', 'estoque_saldos', 'vasilhame_movimentos', 'vasilhame_saldos',
     'pagamentos', 'venda_itens', 'vendas', 'contas_receber', 'contas_pagar',
     'caixa_movimentos', 'precos', 'produtos', 'clientes', 'fornecedores',
-    'tabelas_preco', 'formas_pagamento', 'contas_bancarias', 'sequencias',
+    'tabelas_preco', 'formas_pagamento', 'contas_bancarias', 'sequencias', 'feedbacks',
   ]) {
     await dono.unsafe(`delete from ${t} where company_id in ('${A}','${B}')`)
   }
@@ -379,6 +379,43 @@ try {
     'contas_receber_baixa_completa',
   )
 
+  // -------------------------------------------------------- feedbacks (0013)
+  const fb1 = randomUUID(), fb2 = randomUUID()
+  await comTenant(A, (tx) =>
+    tx`insert into feedbacks (id, company_id, tipo, prioridade, titulo, descricao)
+       values (${fb1}, ${A}, 'bug', 'alta', 'Prova', 'Descrição de prova com mais de dez caracteres')`)
+  await comTenant(B, (tx) =>
+    tx`insert into feedbacks (id, company_id, tipo, prioridade, titulo, descricao)
+       values (${fb2}, ${B}, 'bug', 'alta', 'Prova B', 'Descrição de prova com mais de dez caracteres')`)
+
+  const feedbacksVistos = await comTenant(A, (tx) => tx`select id from feedbacks`)
+  check('tenant A não enxerga feedback de B', feedbacksVistos.length === 1,
+        `viu ${feedbacksVistos.length}`)
+
+  await deveFalhar(
+    'gravar feedback com company_id alheio é rejeitado',
+    () => comTenant(A, (tx) =>
+      tx`insert into feedbacks (id, company_id, tipo, prioridade, titulo, descricao)
+         values (${randomUUID()}, ${B}, 'bug', 'alta', 'Invasor', 'Descrição de prova com mais de dez caracteres')`),
+    'row-level security',
+  )
+
+  await deveFalhar(
+    'sugestão com prioridade é rejeitada',
+    () => comTenant(A, (tx) =>
+      tx`insert into feedbacks (id, company_id, tipo, prioridade, titulo, descricao)
+         values (${randomUUID()}, ${A}, 'sugestao', 'baixa', 'Prova', 'Descrição de prova com mais de dez caracteres')`),
+    'feedbacks_prioridade_por_tipo',
+  )
+
+  await deveFalhar(
+    'bug sem prioridade é rejeitado',
+    () => comTenant(A, (tx) =>
+      tx`insert into feedbacks (id, company_id, tipo, titulo, descricao)
+         values (${randomUUID()}, ${A}, 'bug', 'Prova', 'Descrição de prova com mais de dez caracteres')`),
+    'feedbacks_prioridade_por_tipo',
+  )
+
   // ------------------------------------------- admins da plataforma (0008)
   //
   // A tabela guarda o hash da credencial que abre TODAS as distribuidoras. Se
@@ -408,6 +445,34 @@ try {
   const achado = await app`select id from admin_find(${`prova-${adminId}@exemplo.invalid`})`
   check('admin_find continua funcionando para a aplicação',
         achado[0]?.id === adminId, `veio ${achado[0]?.id}`)
+
+  // -------------------------------------------- config da plataforma (0014)
+  //
+  // A tabela é singleton e real — não tem "empresa de prova A/B" para isolar
+  // o teste. Por isso o valor original é lido antes e devolvido depois, com
+  // `finally`: rodar esta prova contra um ambiente onde alguém já configurou
+  // o webhook de verdade não pode apagar essa configuração.
+  const [original] = await dono`select discord_webhook_feedback from plataforma_config`
+  try {
+    await deveFalhar(
+      'aplicação não consegue ler plataforma_config direto',
+      () => app`select id from plataforma_config`,
+      'permission denied',
+    )
+
+    await app`select plataforma_config_salvar(${'https://discord.com/api/webhooks/1/prova'})`
+    const [cfgSalva] = await app`select * from plataforma_config_ler()`
+    check('plataforma_config_salvar grava e plataforma_config_ler lê de volta',
+          cfgSalva?.discord_webhook_feedback === 'https://discord.com/api/webhooks/1/prova',
+          `veio ${cfgSalva?.discord_webhook_feedback}`)
+
+    await app`select plataforma_config_salvar(${null})`
+    const [cfgLimpa] = await app`select * from plataforma_config_ler()`
+    check('salvar com vazio limpa a configuração', cfgLimpa?.discord_webhook_feedback === null,
+          `veio ${cfgLimpa?.discord_webhook_feedback}`)
+  } finally {
+    await dono`update plataforma_config set discord_webhook_feedback = ${original?.discord_webhook_feedback ?? null}`
+  }
 
   // `admin_listar_empresas` roda como dono e por isso enxerga as duas empresas
   // de teste — é justamente o poder que o painel precisa e que a RLS negaria.
