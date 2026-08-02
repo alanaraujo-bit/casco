@@ -1076,6 +1076,52 @@ try {
   )
   check('clicar de novo devolve a sidebar ao estado original', true)
 
+  /*
+   * --- menu em acordeão: um grupo aberto por vez
+   *
+   * O que este bloco prova: o grupo da tela atual abre sozinho, abrir outro
+   * fecha o anterior (nunca dois ao mesmo tempo), e trocar de tela pelo
+   * próprio menu reabre o grupo certo — mesmo tendo fechado tudo ou espiado
+   * outro grupo no meio do caminho.
+   *
+   * `innerText`, e não `textContent`: o rótulo do grupo é maiúsculo por CSS
+   * (`uppercase`), e só `innerText` respeita isso — é o mesmo motivo que já
+   * fez `clicar()` escolher `innerText` lá em cima.
+   */
+  await irPara('/painel')
+  const grupoAberto = (rotulo) => js(`
+    const btn = [...document.querySelectorAll('button')].find((b) => (b.innerText || '').includes(${JSON.stringify(rotulo)}))
+    return btn ? btn.getAttribute('aria-expanded') : null
+  `)
+
+  check(
+    'o grupo da tela atual (Painel) já abre sozinho, sem precisar clicar',
+    (await grupoAberto('PAINEL')) === 'true',
+  )
+  check('outro grupo (Vendas) começa fechado', (await grupoAberto('VENDAS')) === 'false')
+
+  await clicar('VENDAS', 15_000, 'button')
+  await esperarPor(async () => (await grupoAberto('VENDAS')) === 'true', 'o grupo Vendas abrir ao clicar')
+  check('clicar no cabeçalho de um grupo fechado abre ele', true)
+  check(
+    'abrir Vendas fecha o Painel — nunca dois grupos abertos ao mesmo tempo',
+    (await grupoAberto('PAINEL')) === 'false',
+  )
+
+  // A espera é a `transition: grid-template-rows .2s` do acordeão: o link
+  // "PDV" já existe no DOM assim que `aria-expanded` vira `true`, mas ainda
+  // está se movendo — a linha está no meio da animação de abrir. Clicar
+  // antes dela terminar mira uma posição que já não é mais a do link quando
+  // o clique de fato acontece.
+  await espera(300)
+
+  // Navega para dentro do grupo recém-aberto pelo próprio link do menu, e
+  // confirma que ele continua aberto — a sincronização com a rota não pode
+  // fechar à toa o grupo que a operadora acabou de abrir para usar.
+  await clicar('PDV', 15_000, 'a')
+  await esperarCaminho((p) => p === '/vendas/pdv', 'entrar no PDV pelo menu')
+  check('depois de navegar, o grupo da tela atual continua aberto', (await grupoAberto('VENDAS')) === 'true')
+
   /* ------------------------------------------------------------ senha errada */
   await irPara('/painel')
 

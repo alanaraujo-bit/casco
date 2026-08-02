@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { ICONES_ITEM, NAVEGACAO } from '@/lib/navegacao'
 import { GlifoCasco } from '@/components/marca/glifo-casco'
 import { cn } from '@/lib/utils'
@@ -31,8 +31,37 @@ const slug = (s: string) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
 
+/**
+ * O grupo que contém a tela atual — não por igualdade exata, porque uma
+ * ficha (`/cadastro/produtos/<uuid>`) não bate com o `href` da listagem
+ * (`/cadastro/produtos`) que o item aponta. `startsWith` é o bastante para
+ * decidir qual grupo abrir sozinho; a marcação de item ativo continua exata,
+ * ali sim a diferença entre listagem e ficha importa.
+ */
+function acharGrupoDoCaminho(caminho: string): string | null {
+  return NAVEGACAO.find((g) => g.itens.some((i) => caminho.startsWith(i.href)))?.rotulo ?? null
+}
+
 export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
   const caminho = usePathname()
+  const grupoAtivo = React.useMemo(() => acharGrupoDoCaminho(caminho), [caminho])
+
+  /**
+   * Um grupo aberto por vez — abrir "Financeiro" fecha "Vendas". É a
+   * sugestão que resolve o menu ficando mais alto que a tela (~1060px de
+   * conteúdo contra ~590px visíveis num notebook comum): com tudo sempre
+   * aberto, a rolagem era inevitável; com um grupo por vez, quase nunca é.
+   *
+   * Sincroniza com a navegação: trocar de tela reabre o grupo certo mesmo
+   * que a operadora tivesse fechado tudo ou aberto outro só para espiar.
+   * Inicializar direto do `grupoAtivo` (e não em um efeito) é o que evita a
+   * primeira pintura mostrar tudo fechado por um instante e só depois abrir
+   * o grupo certo.
+   */
+  const [grupoAberto, setGrupoAberto] = React.useState(grupoAtivo)
+  React.useEffect(() => {
+    setGrupoAberto(grupoAtivo)
+  }, [grupoAtivo])
 
   return (
     <nav aria-label="Navegação principal" className="flex h-full flex-col">
@@ -51,31 +80,71 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
       <div className="flex-1 overflow-y-auto px-2 pb-4">
         {NAVEGACAO.map((grupo) => {
           const idGrupo = `grupo-${slug(grupo.rotulo)}`
+          const idLista = `${idGrupo}-lista`
+          const aberto = grupoAberto === grupo.rotulo
           return (
             <div key={grupo.rotulo} className="mb-3 last:mb-0">
               {/* Grudento dentro do contêiner de rolagem: o menu tem ~1060px
                   e a área visível fica em torno de 590px num Chrome
-                  maximizado em 1366×768, então rolar é inevitável. O problema
-                  real não é a rolagem, é perder a referência de onde se está —
-                  e isso o rótulo fixo resolve sem tirar nada da tela. */}
-              <div className="sticky top-0 z-10 flex items-center gap-2 bg-superficie px-2 py-1.5 retraida:justify-center retraida:px-0">
+                  maximizado em 1366×768 — por isso o acordeão abaixo, e não só
+                  a sticky: com um grupo aberto por vez, quase nunca rola. */}
+              <button
+                type="button"
+                onClick={() => setGrupoAberto(aberto ? null : grupo.rotulo)}
+                aria-expanded={aberto}
+                aria-controls={idLista}
+                className="sticky top-0 z-10 flex w-full items-center gap-2 bg-superficie px-2 py-1.5 text-left retraida:justify-center retraida:px-0"
+              >
                 <grupo.Icone className="size-3.5 shrink-0 text-texto-fraco" aria-hidden />
                 {/* `span`, não `h2`. Rótulo de grupo de menu não é seção de
                     documento: colocá-lo no outline faria os 8 grupos virem
                     antes do `h1` em TODAS as telas, queimando a navegação por
                     cabeçalho — que é a principal ferramenta de skim de quem usa
-                    leitor de tela. O `aria-labelledby` abaixo mantém o grupo
-                    anunciado ("lista Financeiro, 4 itens") sem esse custo, e o
-                    `id` continua no DOM retraído — só o texto encolhe. */}
+                    leitor de tela. O `id` seguindo no DOM retraído, só o texto
+                    encolhendo, é o que mantém `aria-controls`/rótulo coerentes
+                    nos dois estados da sidebar. */}
                 <span
                   id={idGrupo}
-                  className="overflow-hidden whitespace-nowrap text-2xs font-medium uppercase tracking-wide text-texto-fraco transition-[opacity,width] duration-150 retraida:w-0 retraida:opacity-0"
+                  className="flex-1 overflow-hidden whitespace-nowrap text-2xs font-medium uppercase tracking-wide text-texto-fraco transition-[opacity,width] duration-150 retraida:w-0 retraida:opacity-0"
                 >
                   {grupo.rotulo}
                 </span>
-              </div>
+                {/* Escondida junto do rótulo: retraída, todo grupo já fica
+                    sempre aberto (ver o `retraida:` na lista abaixo), então
+                    uma seta de expandir/recolher não teria o que indicar. */}
+                <ChevronDown
+                  className={cn(
+                    'size-3.5 shrink-0 text-texto-fraco transition-transform duration-200',
+                    'retraida:hidden',
+                    aberto && 'rotate-180',
+                  )}
+                  aria-hidden
+                />
+              </button>
 
-              <ul aria-labelledby={idGrupo} className="space-y-0.5">
+              {/*
+                O truque do grid animando `grid-template-rows` entre `0fr` e
+                `1fr`: anima uma altura que nem React nem CSS sabem de
+                antemão (a lista tem alturas diferentes por grupo), sem medir
+                nada em JS e sem o "pulo" de um `max-height` arbitrário grande
+                demais. `retraida:!grid-rows-[1fr]` força sempre aberto no
+                rail de ícones — ali o acordeão atrapalharia o que o rail
+                existe para dar: acesso a qualquer item num clique só.
+              */}
+              <div
+                className={cn(
+                  'grid transition-[grid-template-rows] duration-200 ease-in-out',
+                  aberto ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+                  // Tailwind v4: o modificador de `!important` vem DEPOIS da
+                  // utilidade (`classe!`), não antes como na v3.
+                  'retraida:grid-rows-[1fr]!',
+                )}
+              >
+                <ul
+                  id={idLista}
+                  aria-labelledby={idGrupo}
+                  className="space-y-0.5 overflow-hidden"
+                >
                 {grupo.itens.map((item) => {
                   const ativo = caminho === item.href
                   // Cada item com o próprio ícone, e não só o do grupo: numa
@@ -129,7 +198,8 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
                     </li>
                   )
                 })}
-              </ul>
+                </ul>
+              </div>
             </div>
           )
         })}
