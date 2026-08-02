@@ -11,7 +11,7 @@ import { moeda } from '@/lib/utils'
 import type { VendaLista } from '@/modules/vendas/consultas'
 
 /**
- * A listagem de vendas, na ordem de colunas do sistema deles (auditoria §3):
+ * A listagem de vendas, na ordem de colunas consagrada:
  * Operação · Código · Data · Cliente · Vendedor · Comissão · Tipo Venda ·
  * Parcelas · Valor · Recebido · Taxas · A Receber.
  *
@@ -120,8 +120,8 @@ const colunas: Coluna<VendaLista>[] = [
     valor: (v) => Number(v.taxas),
     numerica: true,
     celula: (v) =>
-      // A coluna que não existe no sistema deles. É a diferença entre o que a
-      // venda diz e o que o extrato do banco vai mostrar no fim do mês.
+      // A diferença entre o que a venda diz e o que o extrato do banco vai
+      // mostrar no fim do mês.
       Number(v.taxas) > 0 ? (
         <span className="tabular-nums text-alerta">{moeda(Number(v.taxas))}</span>
       ) : (

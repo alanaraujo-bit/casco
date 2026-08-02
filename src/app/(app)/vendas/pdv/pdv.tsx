@@ -629,8 +629,8 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
                 </div>
               )}
               {taxa > 0 && (
-                // A linha que o sistema antigo não tem. O dono precisa ver que
-                // a maquininha come uma parte antes de achar que recebeu tudo.
+                // O dono precisa ver que a maquininha come uma parte antes de
+                // achar que recebeu tudo.
                 <div className="flex justify-between text-alerta">
                   <dt>Taxa {forma?.nome}</dt>
                   <dd className="tabular-nums">− {moeda(deCentavos(taxa))}</dd>

@@ -50,7 +50,7 @@ export const metadata: Metadata = { title: 'Painel Gerencial' }
  *
  * O contraste com o que substituímos é literal: lá custos e despesas aparecem
  * como `0,00`, então Faturamento = Lucro Bruto = Lucro Líquido = R$ 86.134,08
- * — uma fábrica de água com custo zero (auditoria §4b).
+ * — uma fábrica de água com custo zero.
  *
  * O que ainda não está aqui é **ranking de clientes**: exigiria decidir se
  * "melhor cliente" é quem compra mais ou quem paga em dia, e as duas respostas
@@ -119,8 +119,8 @@ export default async function PainelGerencial() {
               é pior que cartão ausente — e volta agora com a venda gravando em
               seis tabelas numa transação.
 
-              **Líquido de desconto, e não bruto.** O sistema deles soma o valor
-              cheio, então o painel mostra um faturamento que ninguém recebeu.
+              **Líquido de desconto, e não bruto.** Somar o valor cheio mostra
+              um faturamento que ninguém recebeu.
               Aqui é o que entrou no acordo com o cliente; o desconto tem linha
               própria no DRE, para responder "quanto demos de desconto no mês". */}
           {/* Três colunas e não quatro: são seis cartões, que fecham 3+3 sem

@@ -12,9 +12,9 @@ import { cn } from '@/lib/utils'
 /**
  * Base dos estados de tela cheia (vazio, erro, sem permissão, offline).
  *
- * Todos nascem do mesmo componente de propósito: o diagnóstico que fizemos do
- * sistema antigo foi "cada tela foi decidida isoladamente". Estado improvisado
- * tela a tela é justamente como se chega lá.
+ * Todos nascem do mesmo componente de propósito. Estado improvisado tela a
+ * tela é exatamente como uma interface vira colcha de retalhos: cinco jeitos
+ * de dizer "não achei nada", nenhum deles com saída.
  */
 function Estado({
   Icone,
@@ -100,9 +100,9 @@ export function EstadoErro({
 }
 
 /**
- * O sistema antigo devolve "Acesso negado. Procure o administrador da conta"
- * e para por aí — foi o que barrou nossa auditoria no PDV. Aqui a tela diz
- * o que fazer e oferece saída, em vez de deixar o usuário num beco.
+ * "Acesso negado. Procure o administrador da conta" e ponto final é um beco:
+ * quem leu não sabe qual permissão falta nem para onde ir. Aqui a tela nomeia
+ * o recurso, diz o que fazer e oferece saída.
  */
 export function SemPermissao({
   recurso,

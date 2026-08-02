@@ -6,10 +6,10 @@ import { cn, moeda } from '@/lib/utils'
 /**
  * Gráficos em SVG puro, sem biblioteca.
  *
- * O sistema antigo usa uma biblioteca com toolbar de zoom, pan e exportação em
- * cima de um gráfico de seis pontos — complexidade que ninguém usa e que custa
- * uns 200 kB no celular do dono. Aqui o gráfico faz uma coisa: mostrar a forma
- * do número. Quem quer o detalhe clica na tabela embaixo.
+ * Uma biblioteca de gráficos traz toolbar de zoom, pan e exportação em cima de
+ * um gráfico de seis pontos — complexidade que ninguém usa e que custa uns
+ * 200 kB no celular do dono. Aqui o gráfico faz uma coisa: mostrar a forma do
+ * número. Quem quer o detalhe clica na tabela embaixo.
  *
  * Todos usam `viewBox` com `preserveAspectRatio="none"` e
  * `vector-effect="non-scaling-stroke"`: o desenho estica com o container sem

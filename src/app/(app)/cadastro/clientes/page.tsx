@@ -11,9 +11,9 @@ export const metadata: Metadata = { title: 'Clientes' }
 /**
  * Cabeçalho de métricas + tabela. **Primeira tela lendo do banco de verdade.**
  *
- * As três primeiras métricas são as mesmas do sistema antigo (Total · Com
- * CPF/CNPJ · Com contato), porque é o que a operadora já usa para saber se o
- * cadastro está sujo. A quarta é nossa: quantos galões estão na rua.
+ * As três primeiras métricas (Total · Com CPF/CNPJ · Com contato) respondem a
+ * pergunta que a operadora faz todo dia: o cadastro está sujo? A quarta —
+ * quantos galões estão na rua — é a que liga o cliente ao comodato.
  */
 export default async function PaginaClientes() {
   // Em paralelo: são duas consultas independentes, e encadeá-las somaria as

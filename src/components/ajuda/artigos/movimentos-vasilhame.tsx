@@ -10,26 +10,25 @@ export function ArtigoMovimentosVasilhame() {
     <>
       <SecaoArtigo titulo="Para que serve">
         <p>
-          É o razão completo de vasilhame: todo galão que entrou, saiu ou se perdeu, um por um,
-          com motivo e responsável. Onde o dono confere o mês, e onde a operadora corrige um
-          lançamento errado.
+          É o histórico completo do vasilhame: todo galão que entrou, saiu ou se perdeu, um por
+          um, com o motivo e quem lançou. É onde você confere o mês e onde corrige um lançamento
+          errado.
         </p>
       </SecaoArtigo>
 
       <SecaoArtigo titulo="Onde encontrar">
         <p>
-          Menu <strong>Vasilhame → Movimentos</strong>. Também dá para chegar aqui pelo botão{' '}
+          Menu <strong>Vasilhame → Movimentos</strong>. Você também chega aqui pelo botão{' '}
           <strong>Ver movimentos</strong>, no topo da tela de{' '}
           <Link href="/ajuda/vasilhame/baixa-vasilhame">Baixa de Vasilhame</Link>.
         </p>
       </SecaoArtigo>
 
-      <SecaoArtigo titulo="O painel de perda do mês">
+      <SecaoArtigo titulo="A perda do mês, no topo da tela">
         <p>
-          No topo da tela, um cartão por mês mostra o custo total de vasilhame perdido — quebrado,
-          trincado ou não devolvido — e o detalhamento por motivo. É o número que substitui a
-          venda de centavos do sistema antigo: aqui a perda aparece como o que ela é, um custo,
-          nunca uma receita.
+          Um cartão por mês mostra quanto custou o vasilhame perdido — quebrado, trincado ou não
+          devolvido — com o detalhamento por motivo ao lado. Esse valor é custo: nenhum desses
+          lançamentos entra no faturamento nem no caixa.
         </p>
       </SecaoArtigo>
 
@@ -37,15 +36,15 @@ export function ArtigoMovimentosVasilhame() {
         <Video
           src="/ajuda/movimentos-vasilhame.gif"
           poster="/ajuda/movimentos-vasilhame.png"
-          legenda="Estornando um lançamento em dois toques, com confirmação"
+          legenda="Estorno completo: localizar o lançamento, tocar em Estornar e confirmar — a linha de estorno aparece no histórico"
         />
 
-        <Importante titulo="Movimento não se edita — só se estorna">
-          Todo lançamento é permanente, do jeito que foi digitado. Errar o motivo ou a
-          quantidade não se corrige apagando: corrige-se estornando o lançamento errado e
-          lançando o certo em <Link href="/ajuda/vasilhame/baixa-vasilhame">Baixa de Vasilhame</Link>.
-          É o que garante que o histórico nunca minta sobre o que realmente foi registrado — e o
-          estorno em si não pode ser desfeito.
+        <Importante titulo="Lançamento não se edita — se estorna">
+          Todo lançamento fica registrado do jeito que foi feito. Para corrigir um motivo ou uma
+          quantidade errada, você estorna o lançamento e faz um novo, certo, em{' '}
+          <Link href="/ajuda/vasilhame/baixa-vasilhame">Baixa de Vasilhame</Link>. É o que
+          garante que o histórico sempre mostre o que realmente aconteceu. O estorno em si não
+          tem volta.
         </Importante>
 
         <Passos>
@@ -54,15 +53,15 @@ export function ArtigoMovimentosVasilhame() {
           </Passo>
           <Passo numero={2} titulo="Toque em Estornar">
             <p>
-              O botão aparece na linha do lançamento. Lançamento já estornado mostra apenas o
+              O botão fica na linha do lançamento. Um lançamento já estornado mostra apenas o
               texto “estornado” — não dá para estornar duas vezes.
             </p>
           </Passo>
           <Passo numero={3} titulo="Confirme">
             <p>
-              Um segundo toque em <strong>Confirmar</strong> completa o estorno. Dois passos de
-              propósito: estornar não tem volta, e um toque só seria fácil demais de acionar sem
-              querer numa tela que se usa o dia inteiro.
+              Um segundo toque em <strong>Confirmar</strong> completa o estorno. São dois passos
+              de propósito: numa tela usada o dia inteiro, um toque só seria fácil demais de
+              acionar sem querer.
             </p>
           </Passo>
         </Passos>
@@ -70,19 +69,19 @@ export function ArtigoMovimentosVasilhame() {
 
       <SecaoArtigo titulo="Perguntas frequentes">
         <ListaFaq>
-          <Faq pergunta="O estorno de uma perda entra no custo do mês de novo?">
-            Não. O painel de perda ignora tanto o lançamento estornado quanto o próprio estorno —
-            senão um “quebrado 50” digitado por engano ficaria inflando o custo do mês para
-            sempre, mesmo depois de corrigido.
+          <Faq pergunta="O estorno de uma perda tira o valor do custo do mês?">
+            Sim. O resumo de perda ignora tanto o lançamento estornado quanto o estorno, então o
+            custo do mês volta ao que era antes do engano.
           </Faq>
           <Faq pergunta="Dá para estornar um estorno?">
-            Não — o estorno em si é definitivo. Se o estorno também foi um engano, o lançamento
-            original volta lançando de novo os mesmos dados em{' '}
-            <Link href="/ajuda/vasilhame/baixa-vasilhame">Baixa de Vasilhame</Link>.
+            Não — o estorno é definitivo. Se ele também foi um engano, refaça o lançamento
+            original em{' '}
+            <Link href="/ajuda/vasilhame/baixa-vasilhame">Baixa de Vasilhame</Link>, com os
+            mesmos dados.
           </Faq>
           <Faq pergunta="Quem pode estornar?">
-            Qualquer pessoa com acesso à tela de Movimentos. Não existe uma segunda aprovação
-            hoje — a trava é o passo de confirmação.
+            Qualquer pessoa com acesso à tela de Movimentos. Não existe uma segunda aprovação — a
+            trava é o passo de confirmação.
           </Faq>
         </ListaFaq>
       </SecaoArtigo>

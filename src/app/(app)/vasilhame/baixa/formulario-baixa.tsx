@@ -88,7 +88,7 @@ function BotaoLancar() {
 }
 
 /**
- * A tela que existe no lugar da venda de R$ 0,13.
+ * A tela onde o galão que quebrou, trincou ou sumiu vira custo — nunca venda.
  *
  * Duas decisões guiam tudo aqui:
  *
@@ -97,8 +97,8 @@ function BotaoLancar() {
  * campo que aceita negativo seria uma forma silenciosa de inverter um saldo.
  *
  * **O motivo vem primeiro, e como botão.** Não é um `<select>` no meio do
- * formulário porque a escolha do motivo *é* a tela: é o campo que não existe no
- * sistema antigo e cuja falta produziu o problema. Escolhido o motivo, o resto
+ * formulário porque a escolha do motivo *é* a tela: é ele que decide se o
+ * lançamento vira custo e para que lado o saldo anda. Escolhido o motivo, o resto
  * do formulário se ajusta — cliente aparece ou some, o aviso de custo aparece.
  */
 export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
@@ -234,10 +234,8 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
 
         <Secao
           titulo="O que aconteceu com o galão?"
-          // A descrição diz o que o campo faz, e não com o que ele se compara:
-          // o Casco é vendido para distribuidoras que nunca usaram outro
-          // sistema, e para elas uma frase sobre "o sistema antigo" não
-          // significa nada. O que ajuda é saber o que o motivo determina.
+          // A descrição diz o que o campo faz. O que ajuda a operadora é saber
+          // o que o motivo determina, não de onde a ideia veio.
           descricao="O motivo define o resto: se o saldo do cliente sobe ou desce, e se o galão vira custo."
         >
           <fieldset>

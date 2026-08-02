@@ -45,13 +45,11 @@ export type GrupoNav = {
  * e o critério para mover é o do roadmap: o fluxo real roda de ponta a ponta,
  * no desktop e no celular, com dado de verdade.
  *
- * **Os rótulos são os do sistema antigo, de propósito.** "Contas a Receber",
+ * **Os rótulos são os consagrados do setor, de propósito.** "Contas a Receber",
  * "PDV", "DRE", "Fluxo de Caixa Diário" — nenhum sinônimo, nenhuma melhoria de
- * nomenclatura. O usuário da JM já sabe operar um sistema; nosso trabalho não é
- * ensinar outro, é entregar o mesmo mapa mental bem executado. Ganhar discussão
- * de nomenclatura não vale perder a adoção.
- *
- * A exceção é o grupo Vasilhame, que não existe lá — e é o motivo da troca.
+ * nomenclatura. Quem opera uma distribuidora já tem esse mapa mental na cabeça;
+ * nosso trabalho é executá-lo bem, não reensiná-lo. Ganhar discussão de
+ * nomenclatura não vale perder a adoção.
  */
 export const NAVEGACAO: GrupoNav[] = [
   {
@@ -60,8 +58,8 @@ export const NAVEGACAO: GrupoNav[] = [
     itens: [{ rotulo: 'Painel Gerencial', href: '/painel' }],
   },
   {
-    // Primeiro grupo do sistema deles, e o primeiro aqui: é onde a operadora
-    // passa o dia. Orçamento e Comissão continuam em `PROXIMAS` — o PDV e a
+    // Primeiro grupo, porque é onde a operadora passa o dia.
+    // Orçamento e Comissão continuam em `PROXIMAS` — o PDV e a
     // listagem gravam de verdade, os outros dois ainda não existem.
     rotulo: 'Vendas',
     Icone: ShoppingCart,
@@ -71,15 +69,15 @@ export const NAVEGACAO: GrupoNav[] = [
     ],
   },
   {
-    // Não existe no sistema antigo. É a razão pela qual a JM está trocando:
-    // sem lugar para lançar galão quebrado, a operadora registra venda de
-    // centavos e contamina o faturamento.
+    // O grupo que define o produto: sem lugar para lançar galão quebrado, a
+    // operadora acaba registrando venda de centavos e contaminando o
+    // faturamento.
     //
-    // Vem antes de Cadastro, e não na ordem do sistema deles, porque é a tela
-    // que a operadora abre várias vezes por dia — enquanto cadastro se mexe uma
-    // vez por semana. A regra da familiaridade fala sobre não renomear e não
-    // reorganizar o que eles já conhecem; este grupo eles não conhecem de
-    // lugar nenhum, então não há mapa mental a preservar aqui.
+    // Vem antes de Cadastro porque é tela que ela abre várias vezes por dia,
+    // enquanto cadastro se mexe uma vez por semana. A regra da familiaridade
+    // fala sobre não renomear e não reorganizar o que já é convenção do setor;
+    // controle de comodato não tem convenção, então não há mapa mental a
+    // preservar aqui.
     rotulo: 'Vasilhame',
     Icone: Truck,
     itens: [
@@ -124,9 +122,8 @@ export const NAVEGACAO: GrupoNav[] = [
     ],
   },
   {
-    // Último grupo, como no sistema deles. É a tela que o dono abre uma vez por
-    // semana — e o DRE é justamente o relatório que lá exibe `NaN` na linha do
-    // lucro líquido (auditoria §4a).
+    // Último grupo: é o que o dono abre uma vez por semana, e não a operadora
+    // o dia inteiro.
     rotulo: 'Relatórios',
     Icone: FileBarChart,
     itens: [
@@ -141,18 +138,17 @@ export const NAVEGACAO: GrupoNav[] = [
  * O que ainda não foi construído. **Não é renderizado em lugar nenhum.**
  *
  * Existe para que o mapa completo não se perca entre uma etapa e outra, e para
- * que promover uma tela seja recortar uma linha — sem reabrir a auditoria para
- * lembrar o rótulo exato que eles usam, que é justamente o detalhe que se perde.
+ * que promover uma tela seja recortar uma linha — com o rótulo exato já
+ * decidido, que é justamente o detalhe que se perde.
  *
- * A ordem dos grupos aqui é a do sistema antigo: Vendas · Vasilhame · Cadastro ·
- * Financeiro · Estoque · Relatórios · Configurações.
+ * A ordem dos grupos: Vendas · Vasilhame · Cadastro · Financeiro · Estoque ·
+ * Relatórios · Configurações.
  *
- * **Pendências a confirmar com o cliente** (ver `docs/00-auditoria-sistema-legado.md` §3):
- * - O legado tem 6 telas de NF-e. Ficam fora até confirmarmos se a JM emite nota.
- * - O legado tem "Serviços" em Vendas e Cadastro. A JM vende água, não serviço —
- *   confirmar se usam.
- * - O legado tem Agenda, Etiquetas e Analytics. Vieram vazios na auditoria;
- *   confirmar se são usados antes de construir.
+ * **Pendências a confirmar com o cliente** (ver `docs/` §3):
+ * - NF-e são 6 telas. Ficam fora até confirmarmos se a JM emite nota.
+ * - "Serviços" em Vendas e Cadastro: a JM vende água, não serviço — confirmar
+ *   se usam.
+ * - Agenda, Etiquetas e Analytics: confirmar se são usados antes de construir.
  */
 export const PROXIMAS: GrupoNav[] = [
   {

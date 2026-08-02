@@ -14,12 +14,10 @@ export const metadata: Metadata = { title: 'Fluxo de Caixa Mensal' }
 /**
  * Fluxo de Caixa Mensal — **doze meses, sempre.**
  *
- * O relatório equivalente no sistema deles tem dez: vai de janeiro a outubro, e
- * novembro e dezembro simplesmente não aparecem (auditoria §4c). Não é um filtro
- * de período mal ajustado — é a tela listando os meses que existem na tabela.
- * Nos dois meses sem lançamento não há linha, e o dono abre o relatório do ano
- * para encontrar o ano faltando dois meses, sem nada que diga se o negócio
- * parou ou se o sistema esqueceu.
+ * Um relatório anual que lista só os meses existentes na tabela mostra dez
+ * linhas quando dois meses não tiveram lançamento — e o dono abre o ano para
+ * encontrar o ano faltando pedaço, sem nada que diga se o negócio parou ou se
+ * o relatório esqueceu. Mês vazio é resposta, e precisa aparecer zerado.
  *
  * Aqui os doze meses existem porque o calendário os tem. Mês sem movimento
  * aparece zerado e esmaecido, que é uma resposta — a linha ausente não é.

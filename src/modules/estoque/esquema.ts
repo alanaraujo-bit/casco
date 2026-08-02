@@ -20,8 +20,7 @@ import { paraNumero } from '@/modules/vendas/esquema'
  *
  * Confundir os dois é como o inventário deixa de ser auditável: o ajuste vira
  * o lixeiro onde todo erro de digitação é enterrado, e seis meses depois
- * ninguém sabe se faltou mercadoria ou faltou atenção. É exatamente o defeito
- * do sistema que estamos substituindo, na versão estoque.
+ * ninguém sabe se faltou mercadoria ou faltou atenção.
  */
 
 export type Direcao = 'entrada' | 'saida' | 'ambas'

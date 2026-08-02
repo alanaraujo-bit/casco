@@ -254,8 +254,8 @@ export function FormularioBaixa({ acao, titulo, contas, formas, hoje }: Props) {
         </div>
 
         {taxa > 0 && (
-          // A linha que o sistema antigo não tem: o dono acha que recebeu o
-          // valor cheio até conciliar o extrato no fim do mês.
+          // Sem esta linha o dono acha que recebeu o valor cheio até
+          // conciliar o extrato no fim do mês.
           <dl className="space-y-1 border-t border-borda pt-3 text-sm">
             <div className="flex justify-between text-alerta">
               <dt>Taxa {forma?.nome}</dt>

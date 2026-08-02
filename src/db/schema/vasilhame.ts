@@ -21,8 +21,8 @@ import { companies, users } from './tenancy'
  */
 
 /**
- * Os oito motivos. `motivo` e o campo que nao existe no sistema antigo, e a
- * falta dele e a causa raiz das vendas de R$ 0,13 (auditoria §5).
+ * Os oito motivos. `motivo` e o campo que decide tudo: sem ele, uma baixa nao
+ * tem como se declarar custo, e acaba registrada como venda de centavos.
  */
 export const MOTIVOS_VASILHAME = [
   'entregue',

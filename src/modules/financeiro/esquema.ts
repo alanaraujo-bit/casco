@@ -7,9 +7,9 @@ import { paraNumero } from '@/modules/vendas/esquema'
  *
  * A decisão que organiza o arquivo: **a situação nunca é digitada.** Não existe
  * campo "Recebido?" nem "Status" — existe data de pagamento e valor pago, e a
- * situação sai deles. No sistema deles a situação é uma coluna gravada, e é por
- * isso que dá para ver linha marcada "Vencido" com vencimento no mês que vem:
- * alguém guardou como dado o que era consequência.
+ * situação sai deles. Gravar a situação como coluna é o que produz linha
+ * marcada "Vencido" com vencimento no mês que vem: alguém guardou como dado o
+ * que era consequência.
  *
  * A segunda: **baixa pela metade não existe.** Ou o título tem data **e** valor,
  * ou não tem baixa nenhuma — é o `contas_receber_baixa_completa` da migration
@@ -79,8 +79,8 @@ export interface EstadoBaixa {
  * O lançamento de uma despesa ou custo.
  *
  * **`natureza` é escolhida, nunca deduzida.** Custo entra no CMV, despesa entra
- * em despesa operacional, e é essa separação que faz o DRE fechar — no legado
- * as duas linhas aparecem como `NaN`. Tentar adivinhar pelo texto da descrição
+ * em despesa operacional, e é essa separação que faz o DRE fechar.
+ * Tentar adivinhar pelo texto da descrição
  * ("compra de garrafão" é custo, "conta de luz" é despesa) funcionaria em nove
  * de dez casos, e o décimo apareceria como um resultado errado que ninguém
  * consegue explicar. São dois botões; a operadora escolhe.
@@ -159,10 +159,10 @@ export interface EstadoPagar {
  * Até aqui conta bancária e forma de pagamento nasciam semeadas por script, no
  * dia em que a distribuidora era criada, e nunca mais podiam mudar pela tela.
  * Abrir uma conta, trocar de maquininha ou renegociar a taxa do débito exigia
- * um desenvolvedor — e é assim que se chega ao que a auditoria encontrou no
- * sistema deles (§4e): bancos chamados `RETROATIVO CAIXA ECONOMICA` e formas
- * `PIX RETROATIVO`, criados para contornar a rigidez do cadastro. O usuário
- * não estava errado; o sistema é que não deixava.
+ * um desenvolvedor — e é assim que se chega a bancos chamados
+ * `RETROATIVO CAIXA ECONOMICA` e formas `PIX RETROATIVO`, criados para
+ * contornar a rigidez do cadastro. Quem faz isso não está errado; está sem
+ * alternativa.
  */
 
 export const CAMPOS_CONTA = ['nome', 'tipo', 'saldoInicial'] as const
@@ -232,7 +232,7 @@ export const esquemaForma = z.object({
   /**
    * A taxa da maquininha, em porcentagem.
    *
-   * **É o número que o sistema antigo não desconta em lugar nenhum.** O dono
+   * **É o número que some se ninguém descontar.** O dono
    * vende R$ 100 no débito, o painel diz R$ 100, e o que cai na conta é
    * R$ 98,51 — a diferença só aparece ao conciliar o extrato no fim do mês, se
    * alguém conciliar. Aqui ela é descontada na venda e vira linha no DRE.

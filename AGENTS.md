@@ -59,6 +59,24 @@ em `src/components/ajuda/`, com exemplo completo no grupo Vasilhame. Vídeo real
 via `node scripts/capturar-ajuda.mjs`, quando o caminho não for óbvio só de ler — a Central
 existe para o cliente resolver dúvida sozinho, sem ligar para ninguém.
 
+**Nada no repositório compara o Casco com outro sistema.** Nem em tela, nem em
+artigo de ajuda, nem em mensagem de erro — e **nem em comentário de código.**
+Nada de "no sistema antigo", "no sistema deles", "diferente do que você usava",
+citação de fornecedor pelo nome, nem a venda de R$ 0,13.
+
+Na interface, porque o Casco é vendido para várias distribuidoras e a maioria
+nunca usou o sistema que a JM está deixando: para elas a comparação não
+significa nada e ainda soa como desculpa — como se o produto se vendesse por ser
+melhor que um concorrente, e não por ser bom. No código, porque o repositório é
+lido por gente de fora (auditoria, novo dev, o próprio cliente) e o mesmo tom
+pega igualmente mal ali.
+
+O jeito certo de escrever a mesma razão é impessoal: **descreva o defeito, não
+quem o cometeu.** "Guardar a situação como coluna produz linha 'Vencido' com
+vencimento no mês que vem" diz tudo que "no sistema deles dá para ver…" dizia, e
+continua verdade em qualquer sistema. O raciocínio comparativo concreto — com
+nome, versão e print — vive em `docs/`, que não é entregue ao cliente.
+
 Três comandos tornam isso verificável, e cada um pega o que os outros não pegam:
 
 | | |

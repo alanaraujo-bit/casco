@@ -68,8 +68,8 @@ export function listarClientes() {
  * Métricas do cabeçalho, na mesma consulta da contagem.
  *
  * Quatro `select count` separados dariam quatro viagens ao banco para responder
- * uma pergunta só. É o padrão que faz o dashboard do sistema antigo abrir com
- * ~50 chamadas.
+ * uma pergunta só — é assim que um painel acaba abrindo com dezenas de
+ * chamadas e demorando o que demora.
  */
 export function metricasClientes() {
   return comTenant(async (tx) => {

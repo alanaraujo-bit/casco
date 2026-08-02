@@ -4,6 +4,8 @@ import { NAVEGACAO } from '@/lib/navegacao'
 import { ArtigoBaixaVasilhame } from '@/components/ajuda/artigos/baixa-vasilhame'
 import { ArtigoSaldoVasilhame } from '@/components/ajuda/artigos/saldo-vasilhame'
 import { ArtigoMovimentosVasilhame } from '@/components/ajuda/artigos/movimentos-vasilhame'
+import { ArtigoPdv } from '@/components/ajuda/artigos/pdv'
+import { ArtigoVendasProdutos } from '@/components/ajuda/artigos/vendas-produtos'
 
 /**
  * O índice da Central de Ajuda — espelha o papel de `NAVEGACAO` em
@@ -68,11 +70,27 @@ export const GRUPOS_AJUDA: GrupoAjuda[] = [
 ]
 
 /**
- * Piloto: só o grupo Vasilhame. É o diferencial do produto e a tela que mais
- * separa o Casco do sistema antigo — por isso entra primeiro, sozinho, para
- * validar o formato antes de escrever os outros seis grupos no mesmo padrão.
+ * O piloto (Vasilhame) validou o formato; agora os grupos entram um de cada
+ * vez, na ordem em que a operadora mais usa o sistema. Vendas é o segundo,
+ * por ser a tela que ela abre mais vezes por dia.
  */
 export const ARTIGOS_AJUDA: ArtigoAjuda[] = [
+  {
+    slug: 'pdv',
+    grupoSlug: 'vendas',
+    titulo: 'PDV',
+    resumo: 'Fechar uma venda de balcão — dinheiro, cartão ou a prazo, com o vasilhame junto',
+    palavrasChave: ['pdv', 'balcão', 'venda', 'caixa', 'troco', 'desconto', 'carrinho', 'forma de pagamento'],
+    Componente: ArtigoPdv,
+  },
+  {
+    slug: 'vendas-produtos',
+    grupoSlug: 'vendas',
+    titulo: 'Vendas de Produtos',
+    resumo: 'Tudo que foi vendido — o que entrou no caixa, o que ficou a receber e a taxa da maquininha',
+    palavrasChave: ['vendas', 'listagem', 'vendido', 'ticket médio', 'taxas', 'a receber'],
+    Componente: ArtigoVendasProdutos,
+  },
   {
     slug: 'baixa-vasilhame',
     grupoSlug: 'vasilhame',

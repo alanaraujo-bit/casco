@@ -30,9 +30,9 @@ function data(br: string | null) {
 const num = (v: string | null) => (v == null ? null : Number(v))
 
 /**
- * A ordem das colunas é a do Fature Gestão, item por item.
+ * A ordem das colunas é a consagrada num contas a receber, item por item.
  *
- * Não é preguiça: a operadora confere 111 lançamentos por mês varrendo com o
+ * Não é preguiça: a operadora confere mais de cem lançamentos por mês varrendo com o
  * olho sempre nas mesmas posições. Reorganizar "melhor" custaria semanas de
  * lentidão dela para ganhar uma discussão de layout que ninguém pediu.
  *
@@ -92,7 +92,7 @@ const colunas: Coluna<TituloLista>[] = [
   },
   {
     // Derivada no banco a partir de `pago_em` e `vencimento`, nunca digitada:
-    // no sistema deles dá para ver linha "Vencido" com vencimento no mês que vem.
+    // situação gravada é como se produz linha "Vencido" com vencimento no mês que vem.
     chave: 'situacao',
     cabecalho: 'Situação',
     texto: (c) => c.situacao,

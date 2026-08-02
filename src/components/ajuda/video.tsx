@@ -56,35 +56,56 @@ export function Video({
   const mostrarAnimado = tocando || !reduzMovimento
 
   return (
-    <figure className={cn('overflow-hidden rounded-lg border border-borda bg-superficie-afundada', className)}>
-      <div className="relative">
-        {/* eslint-disable-next-line @next/next/no-img-element -- GIF precisa continuar animado; next/image achataria num frame só */}
-        <img
-          src={mostrarAnimado ? src : poster}
-          alt={legenda}
-          className="w-full"
-          loading="lazy"
-        />
-        {!mostrarAnimado && (
-          <button
-            type="button"
-            onClick={() => setTocando(true)}
-            className={cn(
-              'absolute inset-0 flex items-center justify-center gap-2 bg-sobreposicao text-white',
-              'text-sm font-medium transition-opacity hover:opacity-90',
-              'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foco',
-            )}
+    /**
+     * O vídeo escapa da coluna de leitura nas telas grandes.
+     *
+     * O texto vive em 64ch (~600px), que é a largura em que se lê sem cansar.
+     * A gravação é de uma janela de 1360px: espremida naqueles 600px, os
+     * rótulos dos botões viram borrão e o vídeo deixa de ensinar. Aqui ele
+     * avança para as margens conforme a tela permite, e nunca nas pequenas —
+     * onde não há margem para tomar.
+     */
+    <figure className={cn('lg:-mx-16 xl:-mx-28', className)}>
+      <div className="overflow-hidden rounded-lg border border-borda bg-superficie-afundada">
+        <div className="relative">
+          {/* eslint-disable-next-line @next/next/no-img-element -- GIF precisa continuar animado; next/image achataria num frame só */}
+          <img
+            src={mostrarAnimado ? src : poster}
+            alt={legenda}
+            className="w-full"
+            loading="lazy"
+          />
+          {!mostrarAnimado && (
+            <button
+              type="button"
+              onClick={() => setTocando(true)}
+              className={cn(
+                'absolute inset-0 flex items-center justify-center gap-2 bg-sobreposicao text-white',
+                'text-sm font-medium transition-opacity hover:opacity-90',
+                'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foco',
+              )}
+            >
+              <span className="grid size-11 place-items-center rounded-full bg-white/90 text-texto shadow-lg">
+                <Play className="ml-0.5 size-5" aria-hidden />
+              </span>
+              <span className="sr-only">Reproduzir demonstração</span>
+            </button>
+          )}
+        </div>
+        <figcaption className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-borda px-3 py-2 text-xs text-texto-suave">
+          <span className="min-w-0">{legenda}</span>
+          {/* Saída para quem precisa ler um rótulo pequeno: abre a gravação no
+              tamanho em que foi feita, sem depender do zoom do navegador. */}
+          <a
+            href={src}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 whitespace-nowrap text-acento-texto underline-offset-2 hover:underline"
           >
-            <span className="grid size-11 place-items-center rounded-full bg-white/90 text-texto shadow-lg">
-              <Play className="ml-0.5 size-5" aria-hidden />
-            </span>
-            <span className="sr-only">Reproduzir demonstração</span>
-          </button>
-        )}
+            Ver em tamanho real
+          </a>
+        </figcaption>
       </div>
-      <figcaption className="border-t border-borda px-3 py-2 text-xs text-texto-suave">
-        {legenda}
-      </figcaption>
     </figure>
   )
 }

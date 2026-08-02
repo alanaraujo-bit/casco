@@ -116,7 +116,7 @@ export default function DesignPage() {
 
       <Secao
         titulo="Acento — petróleo"
-        descricao="Um acento só. O sistema antigo usa cinco cores saturadas competindo, e é por isso que nada tem hierarquia."
+        descricao="Um acento só. Várias cores saturadas competindo destroem a hierarquia — o olho não sabe para onde ir."
       >
         <Rampa escala={ESCALA_ACENTO} prefixo="petroleo" />
       </Secao>
@@ -260,7 +260,7 @@ export default function DesignPage() {
 
       <Secao
         titulo="Estados"
-        descricao="Carregando, vazio, erro, sem permissão e offline. Existem aqui para que nenhuma tela improvise o seu próprio — foi assim que o sistema antigo virou uma colcha de retalhos."
+        descricao="Carregando, vazio, erro, sem permissão e offline. Existem aqui para que nenhuma tela improvise o seu próprio — estado improvisado é como uma interface vira colcha de retalhos."
       >
         <div className="grid gap-3 md:grid-cols-2">
           <Card className="overflow-hidden">
@@ -317,8 +317,8 @@ export default function DesignPage() {
           <CardHeader className="border-b border-borda">
             <CardTitle>Contas a Receber</CardTitle>
             <CardDescription>
-              Vocabulário do sistema antigo, de propósito — o usuário não pode se
-              perder ao trocar.
+              Vocabulário do dia a dia da distribuidora, de propósito — a tela fala
+              como a operadora fala.
             </CardDescription>
           </CardHeader>
           <div className="overflow-x-auto">
@@ -373,7 +373,7 @@ export default function DesignPage() {
         </Card>
         <p className="text-2xs text-texto-fraco">
           Em telas estreitas a tabela rola na horizontal. A partir da Etapa 0.6 ela
-          ganha o modo Cards, que o sistema antigo já oferece e o usuário conhece.
+          ganha o modo Cards, mais legível no celular.
         </p>
       </Secao>
 

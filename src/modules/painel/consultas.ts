@@ -10,7 +10,7 @@ import { comTenant } from '@/lib/dal'
  * **Uma consulta por assunto, não uma por cartão.** O dashboard do sistema
  * antigo faz ~50 chamadas para montar a mesma tela — e ainda assim mostra
  * custo zero, o que faz Faturamento, Lucro Bruto e Lucro Líquido aparecerem
- * com o mesmo valor: uma fábrica de água que não gasta nada (auditoria §4b).
+ * com o mesmo valor: uma fábrica de água que não gasta nada.
  *
  * A regra que este arquivo seguiu desde o começo continua valendo: **só entra
  * o que o banco sabe responder.** Quando ele foi escrito, a Etapa 3 não
@@ -39,7 +39,7 @@ export interface ResumoPainel {
     mesAnterior: string
     /** Ticket médio do mês. Zero venda devolve zero, nunca `NaN`. */
     ticketMes: string
-    /** Taxa de maquininha no mês — custo que o sistema antigo não desconta. */
+    /** Taxa de maquininha no mês — custo real, invisível se ninguém somar. */
     taxasMes: string
   }
   /** Resultado do mês corrente, pela mesma conta do DRE. */

@@ -17,7 +17,7 @@
  *     node scripts/capturar-ajuda.mjs --email dono@exemplo.com --senha "..."
  *     node scripts/capturar-ajuda.mjs --artigo baixa-vasilhame --ver
  *
- * Sem `--artigo`, grava os três artigos do piloto (Vasilhame) em sequência.
+ * Sem `--artigo`, grava todos os artigos com sequência conhecida, em sequência.
  */
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -42,14 +42,34 @@ const BASE = arg('url') ?? 'http://localhost:3210'
 const EMAIL = arg('email') ?? process.env.CAPTURA_AJUDA_EMAIL
 const SENHA = arg('senha') ?? process.env.CAPTURA_AJUDA_SENHA
 const VER = args.includes('--ver')
+/**
+ * `--quadros` despeja quadros amostrados como PNG numa pasta temporária.
+ *
+ * Existe porque o projeto exige conferir com os próprios olhos, e um GIF
+ * pronto não se abre no meio do terminal. Sem isto a única forma de saber se o
+ * vídeo mostra o fluxo inteiro é confiar na contagem de quadros — que foi
+ * exatamente o erro que produziu a primeira versão, curta e sem ação.
+ */
+const DESPEJAR = args.includes('--quadros')
 const SAIDA = path.resolve('public/ajuda')
 
 /**
- * A janela gravada. Larga o bastante para o desktop de verdade (passa o
- * breakpoint `md` com folga) e baixa o bastante para o vídeo caber na coluna
- * de leitura do artigo sem precisar de zoom.
+ * A janela gravada, por artigo.
+ *
+ * Não é uma largura só, e a razão é a legibilidade do vídeo dentro do artigo:
+ * a gravação é exibida sempre na mesma largura da página, então **quanto mais
+ * larga a captura, menor o texto na tela de quem lê**. Cada artigo usa a menor
+ * janela em que a tela dele aparece inteira.
+ *
+ * As telas de tabela precisam de 1360: abaixo disso a coluna de correção sai
+ * da área visível, o navegador rola a tabela para o lado ao alcançar o botão,
+ * e o vídeo corta Data e Motivo bem no quadro em que ensina a achar a linha
+ * certa. O formulário de baixa cabe com folga em 1120.
  */
-const JANELA = { width: 1000, height: 660 }
+const JANELA_PADRAO = { width: 1360, height: 720 }
+const JANELA_POR_ARTIGO = {
+  'baixa-vasilhame': { width: 1120, height: 720 },
+}
 
 /** ~12 quadros por segundo: fluido para o olho e metade do peso de 24. */
 const INTERVALO_MIN_MS = 80
@@ -133,7 +153,15 @@ async function js(expressao) {
   return r.result.value
 }
 
-async function esperarPor(condicao, oque, ms = 15_000) {
+/**
+ * Espera generosa de propósito: 45s, não 15s.
+ *
+ * Este script roda contra o `next dev`, que compila rota por rota no primeiro
+ * acesso — e recompila a cada arquivo salvo. Com alguém programando em
+ * paralelo, uma recompilação no meio da gravação estourava o prazo e a captura
+ * morria já no meio, culpando a tela por uma demora do compilador.
+ */
+async function esperarPor(condicao, oque, ms = 45_000) {
   const limite = Date.now() + ms
   while (Date.now() < limite) {
     try {
@@ -172,7 +200,17 @@ async function esperarCaminho(condicao, oque) {
  * O tempo de cada quadro sai do relógio real, então uma pausa de leitura vira
  * um quadro longo em vez de trinta iguais.
  */
-const gravacao = { ativa: false, quadros: [], ultimoMs: 0 }
+const gravacao = { ativa: false, quadros: [], ultimoMs: 0, janela: JANELA_PADRAO }
+
+/** Aplica a janela do artigo antes de navegar — o layout depende da largura. */
+async function usarJanela(slug) {
+  gravacao.janela = JANELA_POR_ARTIGO[slug] ?? JANELA_PADRAO
+  await comando('Emulation.setDeviceMetricsOverride', {
+    ...gravacao.janela,
+    deviceScaleFactor: 1,
+    mobile: false,
+  })
+}
 
 function ligarOuvinteDeQuadros() {
   ouvintes.set('Page.screencastFrame', (params) => {
@@ -188,6 +226,9 @@ function ligarOuvinteDeQuadros() {
     // pesam igual aos outros.
     if (gravacao.quadros.length > 0 && desdeUltimo < INTERVALO_MIN_MS) return
 
+    // A duração de um quadro é o tempo até o próximo chegar — relógio real, e
+    // não um número escolhido aqui. É isto que faz uma pausa de leitura virar
+    // um quadro longo automaticamente, sem ninguém precisar somar nada.
     if (gravacao.quadros.length > 0) {
       gravacao.quadros[gravacao.quadros.length - 1].duracaoMs = desdeUltimo
     }
@@ -202,33 +243,37 @@ async function iniciarGravacao() {
   gravacao.ativa = true
   await comando('Page.startScreencast', {
     format: 'png',
-    maxWidth: JANELA.width,
-    maxHeight: JANELA.height,
+    maxWidth: gravacao.janela.width,
+    maxHeight: gravacao.janela.height,
     everyNthFrame: 1,
   })
   await espera(250) // deixa o primeiro quadro chegar antes da ação começar
 }
 
-async function pararGravacao() {
+/**
+ * Encerra a gravação segurando o último quadro.
+ *
+ * O último quadro não tem um "próximo" para medir a duração dele, e é
+ * justamente o desfecho — o comprovante, a linha estornada. Sem esse segundo e
+ * meio ele pisca e o laço reinicia antes de dar para ler.
+ */
+async function pararGravacao(seguraFinalMs = 2200) {
   gravacao.ativa = false
   await comando('Page.stopScreencast').catch(() => {})
+  const ultimo = gravacao.quadros[gravacao.quadros.length - 1]
+  if (ultimo) ultimo.duracaoMs = seguraFinalMs
   return gravacao.quadros
 }
 
 /**
  * Pausa que **conta como tempo de vídeo**.
  *
- * Um `espera()` cru some do resultado: sem mudança na tela não chega quadro
- * novo, e o quadro anterior fica com a duração do intervalo mínimo. Aqui a
- * pausa é somada à duração do último quadro, que é o que dá ao espectador o
- * tempo de ler o que apareceu antes de a próxima coisa acontecer.
+ * É só um `espera()`: quem transforma isso em quadro longo é o ouvinte acima,
+ * que mede a duração de cada quadro pelo tempo até o seguinte. Somar a pausa à
+ * mão aqui era pior do que não fazer nada — o quadro que chegasse logo depois
+ * sobrescrevia a soma, e todo o tempo de leitura sumia do vídeo.
  */
-async function pausar(ms) {
-  await espera(ms)
-  const ultimo = gravacao.quadros[gravacao.quadros.length - 1]
-  if (ultimo) ultimo.duracaoMs += ms
-  gravacao.ultimoMs = Date.now()
-}
+const pausar = espera
 
 /* ------------------------------------------------------------- interação */
 
@@ -338,6 +383,26 @@ async function digitar(nome, texto, msPorTecla = 55) {
   await espera(150)
 }
 
+/**
+ * Rola a página em passos, e não de uma vez.
+ *
+ * `scrollTo({behavior:'smooth'})` resolveria para o olho humano, mas a
+ * gravação só recebe quadro quando a tela muda: um salto único vira dois
+ * quadros e o espectador perde o que passou no meio. Em passos, a rolagem
+ * aparece como rolagem — que numa tela de listagem é metade do que se está
+ * ensinando a ler.
+ */
+async function rolarAte(destinoY, duracaoMs = 1400) {
+  const origem = (await js('return window.scrollY')) ?? 0
+  const passos = Math.max(10, Math.round(duracaoMs / 45))
+  for (let i = 1; i <= passos; i++) {
+    const t = i / passos
+    const e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2
+    await js(`window.scrollTo(0, ${Math.round(origem + (destinoY - origem) * e)})`)
+    await espera(45)
+  }
+}
+
 /** Escolhe num `<select>`, com o ponteiro indo até ele antes. */
 async function escolher(nome, valorOuIndice) {
   const alvo = await coordsDoSeletor(`[name="${nome}"]`)
@@ -369,6 +434,11 @@ async function injetarPonteiro() {
     if (document.getElementById('casco-ajuda-ponteiro')) return
     const estilo = document.createElement('style')
     estilo.textContent = \`
+      /* O selo do servidor de desenvolvimento ("N", "Rendering...") fica por
+         cima do canto inferior direito e entraria no video. E andaime de
+         desenvolvimento: a distribuidora nunca ve isso, e a Central de Ajuda
+         nao pode ensinar uma tela diferente da que ela usa. */
+      nextjs-portal { display: none !important; }
       #casco-ajuda-ponteiro {
         position: fixed; z-index: 2147483647; width: 24px; height: 24px;
         margin-left: -3px; margin-top: -2px; pointer-events: none;
@@ -422,6 +492,8 @@ const ROTA = {
   'baixa-vasilhame': '/vasilhame/baixa',
   'saldo-vasilhame': '/vasilhame/saldos',
   'movimentos-vasilhame': '/vasilhame/movimentos',
+  pdv: '/vendas/pdv',
+  'vendas-produtos': '/vendas/produtos',
 }
 
 const OBSERVACAO_DEMO = '[ajuda] gravação da Central de Ajuda'
@@ -483,18 +555,36 @@ async function sequenciaBaixaVasilhame() {
   await pausar(600)
   await clicarComPonteiro('Lançar baixa', 'button')
   await esperarPor(() => js(`return !!document.querySelector('[role="status"]')`), 'recibo aparecer')
-  await pausar(2600) // o comprovante com o novo saldo, tempo de ler inteiro
+
+  /**
+   * Sobe até o comprovante — **sem isto o vídeo termina em "Lançando…"**.
+   *
+   * O recibo é o primeiro filho da página, e a essa altura a tela está rolada
+   * lá embaixo, no botão. Ele aparece fora do quadro: a gravação mostrava o
+   * fluxo inteiro e escondia justamente o desfecho, que é a única parte que
+   * responde "e como eu sei que deu certo?".
+   */
+  await js('window.scrollTo({ top: 0, behavior: "smooth" })')
+  await espera(700)
+  await pausar(3000) // o comprovante com o novo saldo, tempo de ler inteiro
 
   const quadros = await pararGravacao()
   await estornarUltimoLancamento()
   return quadros
 }
 
-/** Saldo por Cliente: o cabeçalho, o atalho dos maiores saldos, e o extrato. */
+/** Saldo por Cliente: o cabeçalho, a lista, o atalho e o extrato do cliente. */
 async function sequenciaSaldoVasilhame() {
   await irPara(ROTA['saldo-vasilhame'])
   await iniciarGravacao()
-  await pausar(1600) // os quatro cartões de métrica
+  await pausar(1800) // os quatro cartões de métrica, tempo de ler
+
+  // Desce pela lista de clientes: é o corpo da tela, e passar direto para o
+  // extrato deixaria de fora justamente o que a pessoa veio ver.
+  await rolarAte(340, 1500)
+  await pausar(1900)
+  await rolarAte(0, 1100)
+  await pausar(600)
 
   const temAtalho = await js(`return !!document.querySelector('a[href^="/vasilhame/saldos/"]')`)
   if (temAtalho) {
@@ -505,9 +595,9 @@ async function sequenciaSaldoVasilhame() {
     )
     await espera(700)
     await injetarPonteiro()
-    await pausar(2600) // saldo por tipo de vasilhame + extrato
-    await js('window.scrollTo({ top: 320, behavior: "smooth" })')
-    await pausar(2000) // rola até o histórico, que é o resto da resposta
+    await pausar(2400) // o saldo separado por tipo de vasilhame
+    await rolarAte(360, 1400) // e o histórico, que explica de onde o saldo veio
+    await pausar(2600)
   }
 
   return pararGravacao()
@@ -541,7 +631,11 @@ async function sequenciaMovimentosVasilhame() {
 
   await irPara(ROTA['movimentos-vasilhame'])
   await iniciarGravacao()
-  await pausar(1800) // a lista completa, com o resumo de perda no topo
+  await pausar(1800) // o resumo de perda do mês, no topo
+
+  // Desce até a lista, que é o assunto da tela.
+  await rolarAte(300, 1300)
+  await pausar(1800)
 
   const PRIMEIRA = `document.querySelector('tbody tr')`
   const alvo = await js(`
@@ -587,10 +681,90 @@ async function sequenciaMovimentosVasilhame() {
   return pararGravacao()
 }
 
+/**
+ * PDV, do início ao fim: escolher um produto retornável, aumentar a
+ * quantidade, escolher o cliente, registrar o vasilhame devolvido, informar o
+ * valor recebido e fechar. Os botões de vasilhame e quantidade são achados
+ * pelo prefixo do `aria-label` — não pelo nome do produto, que muda de banco
+ * para banco — e o produto em si pelo texto "retornável" que só aparece nos
+ * cartões de água/gás com casco.
+ *
+ * Diferente da baixa de vasilhame, uma venda não tem estorno (roadmap: o
+ * cancelamento de venda ainda não tem tela). A venda de demonstração fica
+ * gravada na conta de desenvolvimento usada para capturar — o mesmo motivo
+ * pelo qual este script exige uma conta própria para isso, nunca a de
+ * produção.
+ */
+async function sequenciaPdv() {
+  await irPara(ROTA['pdv'])
+  await iniciarGravacao()
+  await pausar(1000) // a tela inteira, catálogo e carrinho vazio
+
+  // 1. Um produto retornável, para o contador de vasilhame aparecer depois.
+  const achouRetornavel = await clicarComPonteiro('retornável', 'button')
+  if (!achouRetornavel) {
+    // Sem produto retornável cadastrado, segue com o primeiro da lista —
+    // a demonstração ainda mostra o carrinho e o pagamento, só sem o
+    // contador de vasilhame.
+    await clicarSeletorComPonteiro('.mt-4.grid.gap-2 button')
+  }
+  await pausar(900)
+
+  // 2. Quantidade: 1 → 2.
+  await clicarSeletorComPonteiro('button[aria-label^="Aumentar "]')
+  await pausar(700)
+
+  // 3. O cliente — é o que faz o contador de vasilhame devolvido aparecer.
+  await escolher('clienteId', 1)
+  await pausar(1400) // a linha "já está com N vasilhames hoje" aparece aqui
+
+  // 4. Vasilhame devolvido, se o contador existir para este produto.
+  const temContador = await js(
+    `return !!document.querySelector('button[aria-label^="Mais vasilhame devolvido de "]')`,
+  )
+  if (temContador) {
+    await clicarSeletorComPonteiro('button[aria-label^="Mais vasilhame devolvido de "]')
+    await espera(200)
+    await clicarSeletorComPonteiro('button[aria-label^="Mais vasilhame devolvido de "]')
+    await pausar(900)
+  }
+
+  // 5. Valor recebido, para o troco aparecer (forma padrão é dinheiro).
+  const temRecebido = await js(`return !!document.querySelector('[name="valorRecebido"]')`)
+  if (temRecebido) {
+    await digitar('valorRecebido', '100')
+    await pausar(900)
+  }
+
+  // 6. Fechar e ler o comprovante.
+  await clicarComPonteiro('Fechar venda', 'button')
+  await esperarPor(() => js(`return !!document.querySelector('[role="status"]')`), 'comprovante da venda aparecer')
+  await js('window.scrollTo({ top: 0, behavior: "smooth" })')
+  await espera(700)
+  await pausar(3000) // o comprovante com total, troco e saldo de vasilhame
+
+  return pararGravacao()
+}
+
+/** Vendas de Produtos: os quatro cartões de métrica e a lista. */
+async function sequenciaVendasProdutos() {
+  await irPara(ROTA['vendas-produtos'])
+  await iniciarGravacao()
+  await pausar(1900) // os quatro cartões: vendido hoje, no mês, ticket médio, taxas
+
+  // Desce até a tabela, que é o assunto da tela.
+  await rolarAte(320, 1400)
+  await pausar(2200)
+
+  return pararGravacao()
+}
+
 const SEQUENCIAS = {
   'baixa-vasilhame': sequenciaBaixaVasilhame,
   'saldo-vasilhame': sequenciaSaldoVasilhame,
   'movimentos-vasilhame': sequenciaMovimentosVasilhame,
+  pdv: sequenciaPdv,
+  'vendas-produtos': sequenciaVendasProdutos,
 }
 
 /* -------------------------------------------------------------- encoding
@@ -640,6 +814,20 @@ async function gerarGif(slug, quadros) {
   // O primeiro quadro também vira PNG: é o `poster` do artigo, mostrado parado
   // para quem pediu menos movimento no sistema operacional.
   await writeFile(path.join(SAIDA, `${slug}.png`), quadros[0].png)
+
+  if (DESPEJAR) {
+    const pasta = path.join(tmpdir(), 'casco-ajuda-quadros', slug)
+    await mkdir(pasta, { recursive: true })
+    // Amostra que **sempre inclui o último quadro**. Com um passo fixo, o fim
+    // do vídeo caía fora da conferência — e foi assim que um vídeo terminado
+    // em "Lançando…" passou por bom, sem o desfecho que ele deveria ensinar.
+    const total = 14
+    for (let n = 0; n < total; n++) {
+      const i = Math.round((n / (total - 1)) * (quadros.length - 1))
+      await writeFile(path.join(pasta, `${String(n).padStart(2, '0')}.png`), quadros[i].png)
+    }
+    console.log(`  quadros de conferência em ${pasta}`)
+  }
 
   const paleta = quantize(amostrarParaPaleta(quadros), CORES)
   while (paleta.length < 256) paleta.push([0, 0, 0])
@@ -742,11 +930,7 @@ async function main() {
 
     await comando('Page.enable')
     await comando('Runtime.enable')
-    await comando('Emulation.setDeviceMetricsOverride', {
-      ...JANELA,
-      deviceScaleFactor: 1,
-      mobile: false,
-    })
+    await usarJanela(null)
     ligarOuvinteDeQuadros()
 
     await irPara('/painel')
@@ -770,6 +954,7 @@ async function main() {
 
     for (const slug of artigos) {
       console.log(`Gravando ${slug}…`)
+      await usarJanela(slug)
       const quadros = await SEQUENCIAS[slug]()
       await gerarGif(slug, quadros)
     }

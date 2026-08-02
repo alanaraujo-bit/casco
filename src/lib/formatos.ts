@@ -4,8 +4,8 @@
  * **Regra: no banco vai só dígito; a máscara é coisa de tela.** O mesmo CPF
  * digitado como `123.456.789-09` e como `12345678909` são a mesma pessoa, e o
  * índice único de `clientes(company_id, documento)` só percebe isso se as duas
- * formas virarem a mesma string. O sistema antigo guarda o texto como veio — e
- * é assim que se cria o mesmo cliente duas vezes e se manda duas cobranças.
+ * formas virarem a mesma string. Guardar o texto como veio é o caminho curto
+ * para criar o mesmo cliente duas vezes e mandar duas cobranças.
  */
 
 /** Tira tudo que não é dígito. É o que vai para o banco. */

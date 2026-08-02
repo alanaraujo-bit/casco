@@ -46,8 +46,8 @@ function BotaoSalvar() {
 /**
  * Cadastro de uma forma de pagamento.
  *
- * **A taxa é o campo que justifica esta tela.** É o número que o sistema antigo
- * não desconta em lugar nenhum: o dono vende R$ 100 no débito, o painel diz
+ * **A taxa é o campo que justifica esta tela.** Sem ela, o dono vende R$ 100
+ * no débito, o painel diz
  * R$ 100, e o que cai na conta é R$ 98,51 — a diferença só aparece ao conciliar
  * o extrato no fim do mês, se alguém conciliar. Aqui ela é descontada na venda
  * e vira linha própria no DRE.

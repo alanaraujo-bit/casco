@@ -12,9 +12,8 @@ import type { Coluna } from './tipos'
  *    separador de lista é `;`; com `,` o Excel joga a linha inteira na coluna A.
  * 3. **`\r\n`.** Excel antigo em Windows ignora quebra de linha só com `\n`.
  *
- * Sobre o nome: o sistema antigo chama de "Exportar Excel". Mantemos o rótulo
- * porque é o vocabulário deles, mesmo entregando CSV — que é o que o botão
- * deles também entrega.
+ * Sobre o nome: o botão diz "Exportar Excel" e entrega CSV. É o vocabulário de
+ * quem usa — ninguém no balcão pede "um CSV", pede a planilha.
  */
 export function exportarCsv<T>({
   linhas,

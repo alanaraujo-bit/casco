@@ -21,8 +21,8 @@ import { comTenant } from '@/lib/dal'
  * todas as tabelas, clientes e formas de pagamento. Parece muito — é pouco. Uma
  * distribuidora tem dezenas de produtos e três tabelas de preço, e o custo de
  * trazer isso junto é uma fração do custo de ir ao servidor a cada troca de
- * cliente. O sistema antigo faz o contrário: recarrega a cada clique, e é por
- * isso que fechar uma venda lá leva o tempo que leva.
+ * cliente. Recarregar a cada clique é o que faz um PDV parecer lento mesmo
+ * com o banco respondendo rápido.
  */
 
 /* ------------------------------------------------------------------ o PDV */
@@ -142,14 +142,14 @@ export function acharTabelaPadrao() {
 /* ------------------------------------------------------------- a listagem */
 
 /**
- * Colunas na ordem da listagem deles (auditoria §3): Operação · Código · Data ·
+ * Colunas na ordem consagrada: Operação · Código · Data ·
  * Cliente · Vendedor · Comissão · Tipo Venda · Parcelas · Valor · Recebido ·
  * Taxas · A Receber.
  *
  * "Recebido" e "A Receber" são **derivados**, não campos: recebido é o que
  * entrou em `pagamentos`, a receber é o que sobrou em aberto em
- * `contas_receber`. No sistema deles as duas colunas são gravadas na venda e
- * param de bater no dia em que alguém baixa um título por fora.
+ * `contas_receber`. Gravadas na venda, as duas colunas param de bater no dia
+ * em que alguém baixa um título por fora.
  */
 export interface VendaLista {
   id: string

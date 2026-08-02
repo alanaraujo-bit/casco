@@ -59,10 +59,10 @@ export default async function PaginaMovimentos() {
             <div>
               <h2 className="text-sm font-semibold text-texto">Perda de vasilhame</h2>
               {/*
-                A frase que resume por que o projeto existe. No sistema antigo
-                estes mesmos galões viraram vendas de R$ 0,13, então este número
-                não existia — e o que existia no lugar dele inflava o
-                faturamento. Fica escrito na tela, não só na documentação.
+                A frase fica na tela, não só na documentação: galão perdido é
+                prejuízo, e lançá-lo como venda inflaria o faturamento com um
+                custo. O aviso existe para que ninguém leia este bloco como
+                receita.
               */}
               <p className="mt-0.5 text-xs text-texto-suave">
                 Custo do mês, não receita. Nenhum destes lançamentos entra no faturamento nem

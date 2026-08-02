@@ -25,9 +25,8 @@
    escuro separadamente sem que um dos dois fique desequilibrado.
    ========================================================================== */
 :root {
-  /* Acento — petróleo. Não é o laranja do sistema antigo (a troca precisa
-     parecer outra ferramenta), e não é azul-água nem vermelho-fogo (o produto
-     serve água e gás). */
+  /* Acento — petróleo. Nem azul-água nem vermelho-fogo: o produto serve água
+     e gás, e um acento literal demais amarraria a marca a metade do negócio. */
   --petroleo-50: oklch(0.976 0.014 200);
   --petroleo-100: oklch(0.945 0.031 200);
   --petroleo-200: oklch(0.885 0.058 200);

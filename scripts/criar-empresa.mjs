@@ -105,9 +105,8 @@ try {
            values (${caixaId}, ${companyId}, 'Caixa Loja', 'caixa')
     `
 
-    // A taxa do cartão entra já preenchida. É o número que o sistema antigo não
-    // desconta em lugar nenhum: o dono acha que recebeu o valor cheio até
-    // conciliar o extrato no fim do mês.
+    // A taxa do cartão entra já preenchida. Sem ela, o dono acha que recebeu o
+    // valor cheio até conciliar o extrato no fim do mês.
     for (const [nome, tipo, taxa, prazo] of [
       ['Dinheiro', 'dinheiro', 0, 0],
       ['PIX', 'pix', 0, 0],

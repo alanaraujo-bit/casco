@@ -10,9 +10,8 @@ export function ArtigoSaldoVasilhame() {
     <>
       <SecaoArtigo titulo="Para que serve">
         <p>
-          É o retrato de quem está com vasilhame nosso agora. Antes de sair para cobrar um
-          cliente ou fechar o mês, esta é a tela que responde “quantos galões estão na rua, e com
-          quem”.
+          É o retrato de quem está com vasilhame seu agora. Antes de cobrar um cliente ou de
+          fechar o mês, esta é a tela que responde quantos galões estão na rua e com quem.
         </p>
       </SecaoArtigo>
 
@@ -26,31 +25,31 @@ export function ArtigoSaldoVasilhame() {
         <Video
           src="/ajuda/saldo-vasilhame.gif"
           poster="/ajuda/saldo-vasilhame.png"
-          legenda="Do cabeçalho de métricas até o extrato de um cliente específico"
+          legenda="Do cabeçalho de métricas ao extrato de um cliente, com o saldo separado por tipo de vasilhame"
         />
 
         <Passos>
-          <Passo numero={1} titulo="Confira o cabeçalho">
+          <Passo numero={1} titulo="Comece pelo cabeçalho">
             <p>
               Quatro números: galões na rua, clientes devendo, devolvidos no mês e perdidos no
-              mês. É a leitura de dez segundos — antes de abrir qualquer linha, dá para saber se o
-              mês está normal ou se algo fugiu do padrão.
+              mês. É a leitura de dez segundos — antes de abrir qualquer linha, você já sabe se o
+              mês está dentro do normal.
             </p>
           </Passo>
 
           <Passo numero={2} titulo="Use o atalho de maiores saldos">
             <p>
-              A lista de <strong>Maiores saldos</strong> mostra quem mais deve vasilhame — um
-              toque leva direto ao extrato daquele cliente. É por onde a cobrança de vasilhame
-              começa: pelos maiores números primeiro.
+              A lista de <strong>Maiores saldos</strong> mostra quem mais tem vasilhame seu, e um
+              toque leva direto ao extrato daquela pessoa. É por aí que a cobrança começa: pelos
+              maiores números primeiro.
             </p>
           </Passo>
 
           <Passo numero={3} titulo="Abra o extrato de um cliente">
             <p>
-              Clique no nome, na tabela abaixo. O extrato separa o saldo por tipo de
-              vasilhame — devolver um galão de 10L não abate a dívida de um de 20L, e a tela
-              mostra os dois lados sem misturar.
+              Clique no nome, na tabela abaixo. O extrato separa o saldo por tipo de vasilhame —
+              devolver um galão de 10L não abate a dívida de um de 20L, e a tela mostra os dois
+              lados sem misturar.
             </p>
           </Passo>
         </Passos>
@@ -59,23 +58,23 @@ export function ArtigoSaldoVasilhame() {
       <SecaoArtigo titulo="Erros comuns">
         <Dica titulo="Saldo negativo na lista?">
           Aparece em vermelho e significa que o cliente devolveu mais do que a tela registra que
-          ele levou — quase sempre um lançamento de <Link href="/ajuda/vasilhame/baixa-vasilhame">entrega</Link>{' '}
-          que ficou faltando no passado. O extrato do cliente mostra a sequência completa para
-          achar onde a conta desandou.
+          ele levou — quase sempre uma{' '}
+          <Link href="/ajuda/vasilhame/baixa-vasilhame">entrega</Link> que não chegou a ser
+          lançada. O extrato do cliente mostra a sequência completa e ajuda a achar onde a conta
+          desandou.
         </Dica>
       </SecaoArtigo>
 
       <SecaoArtigo titulo="Perguntas frequentes">
         <ListaFaq>
-          <Faq pergunta="Por que o total por cliente separa por tipo de vasilhame?">
+          <Faq pergunta="Por que o total do cliente é separado por tipo de vasilhame?">
             Porque um galão de 10L e um de 20L são dívidas diferentes. Somar tudo num número só
-            esconderia exatamente a informação que evita discussão no balcão: “eu só devo os
-            pequenos”.
+            esconderia justamente o que evita discussão no balcão: quantos de cada tipo ele tem.
           </Faq>
           <Faq pergunta="Este saldo é atualizado na hora?">
-            Sim — não é um relatório fechado por período. Toda baixa lançada em{' '}
+            Sim. Não é um relatório fechado por período: toda baixa lançada em{' '}
             <Link href="/ajuda/vasilhame/baixa-vasilhame">Vasilhame → Baixa de Vasilhame</Link>{' '}
-            já aparece aqui no instante seguinte.
+            aparece aqui no instante seguinte.
           </Faq>
         </ListaFaq>
       </SecaoArtigo>

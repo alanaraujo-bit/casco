@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: 'Fluxo de Caixa Diário' }
 /**
  * Fluxo de Caixa Diário.
  *
- * Colunas na ordem que eles já leem (auditoria §3): Data · Dia Semana ·
+ * Colunas na ordem consagrada: Data · Dia Semana ·
  * Entrada · Saída · Saldo. A coluna "Banco" deles não veio: aqui o dinheiro de
  * várias contas cabe no mesmo dia, e repetir a linha por conta transformaria um
  * relatório de 31 linhas em um de 90. O saldo por conta já é a tela de Caixa.

@@ -27,7 +27,7 @@ export interface Coluna<T> {
   /** Identificador estável. É o que persiste em localStorage. Nunca traduzir. */
   chave: string
 
-  /** Cabeçalho visível. Vocabulário do sistema antigo, sem inventar sinônimo. */
+  /** Cabeçalho visível. Vocabulário do dia a dia, sem inventar sinônimo. */
   cabecalho: string
 
   /**

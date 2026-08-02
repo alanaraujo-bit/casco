@@ -110,8 +110,8 @@ function Topbar({
             barra no celular (foi para o menu da conta). Antes sobravam 76px
             para o título — medidos — e "Fluxo de Caixa Mensal" virava
             "Fluxo d…", com as duas telas de fluxo indistinguíveis na barra.
-            Encurtar o nome não era opção: o vocabulário é o do sistema antigo,
-            de propósito. */}
+            Encurtar o nome não era opção: o rótulo é o vocabulário do dia a
+            dia da distribuidora, de propósito. */}
         <h1 className="truncate text-base font-semibold tracking-tight text-texto">
           {item?.rotulo ?? 'Casco'}
         </h1>

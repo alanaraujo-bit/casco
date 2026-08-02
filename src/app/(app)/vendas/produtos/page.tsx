@@ -35,8 +35,8 @@ export default async function PaginaVendas() {
       tom: 'cat-2' as const,
     },
     {
-      // O número que o sistema antigo não mostra em lugar nenhum. Ele não é
-      // "informativo": é dinheiro que o dono acha que recebeu e não recebeu.
+      // Não é um número "informativo": é dinheiro que o dono acha que
+      // recebeu e não recebeu.
       rotulo: 'Taxas no mês',
       valor: moeda(Number(m.taxasMes)),
       detalhe: 'o que a maquininha levou',

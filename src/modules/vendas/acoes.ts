@@ -42,9 +42,9 @@ import {
  * coisas acontecem, ou nenhuma acontece — e é por isso que tudo mora dentro do
  * mesmo `comTenant`, que já abre a transação.
  *
- * O sistema que estamos substituindo grava essas coisas em telas separadas, e é
- * assim que ele chega ao fim do mês com estoque que não bate com venda. Aqui
- * não existe caminho em que a venda entre e o estoque não saia.
+ * Gravar essas coisas em telas separadas é como se chega ao fim do mês com
+ * estoque que não bate com venda. Aqui não existe caminho em que a venda entre
+ * e o estoque não saia.
  *
  * Duas coisas que este arquivo deliberadamente **não** faz:
  *
@@ -227,8 +227,8 @@ export async function fecharVenda(
       /**
        * A taxa da maquininha, descontada na origem.
        *
-       * É o número que o sistema antigo não desconta em lugar nenhum: o dono
-       * vê a venda cheia e só descobre a diferença ao conciliar o extrato. A
+       * Sem descontar aqui, o dono vê a venda cheia e só descobre a diferença
+       * ao conciliar o extrato no fim do mês. A
        * prazo não há taxa — não passou máquina nenhuma.
        */
       const taxa = aPrazo ? 0 : Math.round((total * Number(forma.taxaPercentual)) / 100)

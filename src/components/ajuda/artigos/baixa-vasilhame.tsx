@@ -7,27 +7,29 @@ import { Dica, Importante } from '@/components/ajuda/callouts'
 import { Faq, ListaFaq } from '@/components/ajuda/faq'
 
 /**
- * O artigo mais importante da Central. `Baixa de Vasilhame` é a tela que não
- * existe no Fature — é por causa dela que a JM está trocando de sistema.
- * O corpo segue a mesma ordem da tela de verdade: motivo primeiro, e a
- * pergunta "isto é uma venda?" respondida antes de qualquer passo.
+ * O artigo mais importante da Central.
+ *
+ * Ensina o Casco por si só: nada aqui compara com outro sistema, porque quem
+ * lê pode nunca ter usado um. O texto fala direto com a pessoa ("você"), na
+ * mesma ordem em que a tela pergunta as coisas.
  */
 export function ArtigoBaixaVasilhame() {
   return (
     <>
-      <Importante titulo="Baixa de vasilhame nunca é venda">
+      <Importante titulo="Baixa de vasilhame não é venda">
         <p>
-          Nada aqui gera receita nem entra no caixa. Escolher <strong>Quebrado</strong>,{' '}
-          <strong>Trincado</strong> ou <strong>Perdido pelo cliente</strong> lança o galão como
-          custo do mês — é a mesma informação que, no sistema antigo, virava uma venda de R$ 0,13
-          e inflava o faturamento sem ninguém perceber.
+          Nada nesta tela gera receita nem entra no caixa. Quando você escolhe{' '}
+          <strong>Quebrado</strong>, <strong>Trincado</strong> ou{' '}
+          <strong>Perdido pelo cliente</strong>, o galão sai do patrimônio e entra como custo do
+          mês. O faturamento do dia não muda — e é isso que mantém o número do faturamento
+          confiável.
         </p>
       </Importante>
 
       <SecaoArtigo titulo="Onde encontrar">
         <p>
-          Menu <strong>Vasilhame → Baixa de Vasilhame</strong>. É a segunda tela que a operadora
-          mais abre no dia — só perde para o PDV.
+          Menu <strong>Vasilhame → Baixa de Vasilhame</strong>. É uma das telas que você mais
+          abre no dia a dia do balcão.
         </p>
       </SecaoArtigo>
 
@@ -35,129 +37,108 @@ export function ArtigoBaixaVasilhame() {
         <Video
           src="/ajuda/baixa-vasilhame.gif"
           poster="/ajuda/baixa-vasilhame.png"
-          legenda="Baixa de um galão devolvido, do motivo ao recibo com o novo saldo do cliente"
+          legenda="Lançamento completo: escolher o motivo, informar quantidade e cliente, e conferir o comprovante com o novo saldo"
         />
 
         <Passos>
           <Passo numero={1} titulo="Escolha o que aconteceu com o galão">
             <p>
-              É o primeiro campo da tela, em botões — não um menu escondido. Os oito motivos
-              existem porque cada um significa uma coisa diferente para o saldo do cliente e para
-              o resultado do mês:
+              É o primeiro campo da tela, em botões grandes. Cada motivo significa uma coisa
+              diferente para o saldo do cliente e para o resultado do mês:
             </p>
-            <ul className="grid gap-1.5 sm:grid-cols-2">
-              <li>
-                <Badge variant="sucesso" className="mr-1.5">
-                  devolvido
-                </Badge>
-                cliente trouxe de volta, inteiro
-              </li>
-              <li>
-                <Badge variant="info" className="mr-1.5">
-                  entregue
-                </Badge>
-                cliente levou e passa a dever
-              </li>
-              <li>
-                <Badge variant="perigo" className="mr-1.5">
-                  quebrado
-                </Badge>
-                inutilizado — vira custo
-              </li>
-              <li>
-                <Badge variant="alerta" className="mr-1.5">
-                  trincado
-                </Badge>
-                fora de uso, inteiro — vira custo
-              </li>
-              <li>
-                <Badge variant="perigo" className="mr-1.5">
-                  perdido
-                </Badge>
-                cliente não vai devolver — vira custo
-              </li>
-              <li>
-                <Badge variant="neutro" className="mr-1.5">
-                  enviado à fábrica
-                </Badge>
-                transferência interna, sem cliente
-              </li>
-              <li>
-                <Badge variant="neutro" className="mr-1.5">
-                  retornou da fábrica
-                </Badge>
-                voltou do envase
-              </li>
-              <li>
-                <Badge variant="neutro" className="mr-1.5">
-                  ajuste de inventário
-                </Badge>
-                acerto de contagem, depois de conferir
-              </li>
+            {/* Uma coluna, com o selo numa célula de largura fixa: em duas
+                colunas os textos têm comprimentos diferentes, as linhas
+                desalinham e a lista fica esfarrapada justamente onde ela
+                precisa ser consultada de relance. */}
+            <ul className="divide-y divide-borda rounded-md border border-borda">
+              {[
+                ['sucesso', 'devolvido', 'o cliente trouxe de volta, inteiro'],
+                ['info', 'entregue', 'o cliente levou e passa a dever'],
+                ['perigo', 'quebrado', 'inutilizado — vira custo'],
+                ['alerta', 'trincado', 'fora de uso, inteiro — vira custo'],
+                ['perigo', 'perdido', 'o cliente não vai devolver — vira custo'],
+                ['neutro', 'enviado à fábrica', 'transferência interna, sem cliente'],
+                ['neutro', 'retornou da fábrica', 'voltou do envase'],
+                ['neutro', 'ajuste de inventário', 'acerto de contagem, depois de conferir'],
+              ].map(([tom, motivo, explicacao]) => (
+                <li key={motivo} className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 px-3 py-2">
+                  <Badge
+                    variant={tom as 'sucesso' | 'info' | 'perigo' | 'alerta' | 'neutro'}
+                    // Largura fixa só onde há largura de sobra: no celular ela
+                    // comeria a linha inteira e espremeria a explicação numa
+                    // coluna de três palavras.
+                    className="shrink-0 sm:w-[11rem] sm:justify-center"
+                  >
+                    {motivo}
+                  </Badge>
+                  <span className="min-w-0 flex-1">{explicacao}</span>
+                </li>
+              ))}
             </ul>
             <p>
               O selo <Badge variant="perigo">custo</Badge> aparece ao lado dos três motivos que
-              viram perda — é o aviso antes do aviso.
+              geram perda, para você ver antes de escolher.
             </p>
           </Passo>
 
-          <Passo numero={2} titulo="Escolha o vasilhame e digite a quantidade">
+          <Passo numero={2} titulo="Escolha o vasilhame e informe a quantidade">
             <p>
               A quantidade é sempre um número positivo — você nunca digita sinal de mais ou de
-              menos. O sistema sabe se o galão está saindo ou voltando pelo motivo escolhido no
-              passo 1. Os botões <strong>−</strong> e <strong>+</strong> ao lado do campo cobrem o
-              caso mais comum, que é lançar 1 ou 2 por vez.
+              menos. O sistema já sabe, pelo motivo do passo 1, se o galão está saindo ou
+              voltando. Os botões <strong>−</strong> e <strong>+</strong> ao lado do campo
+              resolvem o caso mais comum, que é lançar 1 ou 2 por vez.
             </p>
           </Passo>
 
-          <Passo numero={3} titulo="Escolha o cliente (quando o motivo pedir)">
+          <Passo numero={3} titulo="Escolha o cliente, quando o motivo pedir">
             <p>
-              Motivos que envolvem cliente — entregue, devolvido, perdido — pedem o nome; motivos
-              internos de fábrica não mostram esse campo. Assim que você escolhe o cliente, a tela
-              conta o que ele já está devendo daquele vasilhame, <em>antes</em> de você gravar —
-              é a conferência que evita descobrir um saldo negativo semanas depois.
+              Motivos que envolvem cliente — entregue, devolvido, perdido — pedem o nome.
+              Motivos internos de fábrica nem mostram esse campo. Assim que você escolhe o
+              cliente, a tela informa quantos galões daquele tipo ele já tem, <em>antes</em> de
+              você gravar. Confira esse número com o que ele está trazendo: é a hora de resolver
+              qualquer diferença, com ele ainda no balcão.
             </p>
           </Passo>
 
-          <Passo numero={4} titulo="Lance e confira o recibo">
+          <Passo numero={4} titulo="Lance e confira o comprovante">
             <p>
-              O recibo fica na tela depois de lançar, com o novo saldo do cliente — repita esse
-              número para ele antes de ele sair do balcão. Se o motivo foi um dos três que geram
-              custo, o recibo confirma: <em>nenhuma receita foi gerada</em>.
+              Depois de lançar, o comprovante fica na tela com o novo saldo do cliente. Repita
+              esse número para ele antes que saia. Se o motivo gerou custo, o comprovante
+              confirma: <em>nenhuma receita foi gerada</em>.
             </p>
           </Passo>
         </Passos>
       </SecaoArtigo>
 
       <SecaoArtigo titulo="Erros comuns">
-        <Dica titulo="Cliente devolveu mais do que estava levando?">
-          A tela mostra um aviso de saldo negativo, mas deixa lançar — geralmente é porque um
-          lançamento anterior ficou faltando. Depois de gravar, confira o{' '}
-          <Link href="/ajuda/vasilhame/saldo-vasilhame">extrato do cliente</Link> para achar a
-          diferença.
+        <Dica titulo="O cliente está devolvendo mais do que levou?">
+          A tela mostra um aviso de saldo negativo, mas deixa você lançar — normalmente é porque
+          uma entrega anterior não chegou a ser registrada. Depois de gravar, abra o{' '}
+          <Link href="/ajuda/vasilhame/saldo-vasilhame">extrato do cliente</Link> para encontrar
+          a diferença.
         </Dica>
         <Dica titulo="Vasilhame sem custo cadastrado?">
-          Uma perda registrada sem custo aparece de graça no relatório do mês — a tela avisa e
-          leva direto ao cadastro do produto para corrigir.
+          Uma perda lançada sem custo aparece valendo zero no resultado do mês. A tela avisa e
+          leva direto ao cadastro do produto para você preencher.
         </Dica>
       </SecaoArtigo>
 
       <SecaoArtigo titulo="Perguntas frequentes">
         <ListaFaq>
           <Faq pergunta="Lancei o motivo errado. Como corrijo?">
-            Não dá para editar um lançamento — ele é imutável de propósito, para o histórico
-            nunca mentir sobre o que foi digitado na hora. Vá em{' '}
-            <Link href="/ajuda/vasilhame/movimentos-vasilhame">Movimentos</Link> e estorne o
-            lançamento; depois lance de novo com o motivo certo.
+            Lançamentos não são editados — ficam registrados exatamente como foram feitos, para
+            o histórico sempre refletir o que aconteceu. Vá em{' '}
+            <Link href="/ajuda/vasilhame/movimentos-vasilhame">Movimentos</Link>, estorne o
+            lançamento e faça um novo com o motivo certo.
           </Faq>
           <Faq pergunta="Preciso escolher um cliente em toda baixa?">
-            Não. Galão quebrado no depósito, por exemplo, não tem cliente — o campo some da tela
-            quando o motivo não precisa dele.
+            Não. Um galão quebrado no depósito, por exemplo, não tem cliente — o campo some da
+            tela quando o motivo não precisa dele.
           </Faq>
           <Faq pergunta="Isso aparece em algum relatório de vendas?">
-            Nunca. Baixa de vasilhame é evento de estoque, não de venda — ela só aparece no
-            relatório de <Link href="/ajuda/vasilhame/movimentos-vasilhame">Movimentos</Link> e,
-            quando é perda, como linha de custo no DRE.
+            Não. Baixa de vasilhame é movimento de estoque, não venda. Ela aparece em{' '}
+            <Link href="/ajuda/vasilhame/movimentos-vasilhame">Movimentos</Link> e, quando é
+            perda, como linha de custo no DRE.
           </Faq>
         </ListaFaq>
       </SecaoArtigo>

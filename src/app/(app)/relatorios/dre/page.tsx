@@ -21,10 +21,10 @@ export const metadata: Metadata = { title: 'DRE' }
 /**
  * Demonstrativo de Resultado do Exercício.
  *
- * **O relatório que está quebrado no sistema que estamos substituindo.** Lá as
- * linhas de custo e despesa exibem literalmente `NaN`, e o lucro líquido junto
- * (auditoria §4a) — o número mais importante para o dono da distribuidora é o
- * único que a tela não sabe dizer. `NaN` não nasce de conta errada: nasce de
+ * **O relatório que não pode errar.** O lucro líquido é o número mais
+ * importante para o dono da distribuidora, e é justamente o mais fácil de
+ * quebrar: basta uma linha de custo ou despesa exibir `NaN` e o total inteiro
+ * vira `NaN` junto. `NaN` não nasce de conta errada: nasce de
  * dividir por um total que ninguém garantiu que existe, e de somar colunas que
  * podem vir nulas. As duas coisas são tratadas explicitamente aqui.
  *
@@ -34,9 +34,9 @@ export const metadata: Metadata = { title: 'DRE' }
  * de Caixa, e a diferença entre os dois é a resposta para "vendi bem e estou
  * sem dinheiro na conta".
  *
- * A linha de perda de vasilhame é a razão de existir do produto. No sistema
- * deles um galão quebrado vira venda de R$ 0,13 e **sobe** o faturamento
- * (auditoria §5); aqui ele desce o resultado, com o nome do que aconteceu.
+ * A linha de perda de vasilhame é a razão de existir do produto: galão
+ * quebrado é custo, e **desce** o resultado com o nome do que aconteceu.
+ * Tratá-lo como receita seria inflar o faturamento com um prejuízo.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -151,7 +151,7 @@ export default async function PaginaDre({
    * Sem receita no mês não existe "x% da receita" — existe uma divisão por
    * zero. A escolha aqui é devolver `null` e a tela mostrar um travessão, em
    * vez de inventar 0,0% (que afirma algo falso) ou deixar o `NaN` vazar
-   * (que é o que o sistema antigo faz).
+   * para a tela.
    */
   const pct = (valor: number) =>
     receitaLiquida === 0 ? null : (valor / receitaLiquida) * 100
@@ -377,8 +377,8 @@ export default async function PaginaDre({
                   ))}
                 </ul>
                 <p className="mt-3 text-2xs leading-relaxed text-texto-fraco">
-                  No sistema antigo cada um destes galões virava uma venda de centavos e
-                  <em> subia</em> o faturamento.
+                  Cada galão aqui saiu do patrimônio e entrou como custo. Nenhum deles
+                  <em> soma</em> ao faturamento.
                 </p>
               </Card>
             )}

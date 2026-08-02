@@ -179,8 +179,8 @@ try {
   // Movimento é imutável, então corrigir é lançar o contrário. O que precisa
   // ser provado aqui não é que a linha entra — é que o custo SAI do relatório.
   // Sem isso, um `quebrado 3` digitado por engano ficaria custando R$ 114 no
-  // DRE para sempre, e teríamos trocado a receita inflada do sistema antigo
-  // por um custo inflado no nosso.
+  // DRE para sempre — um custo inflado erra o resultado tanto quanto uma
+  // receita inflada.
   await deveFalhar(
     'estorno com quantidade que não espelha o original é rejeitado',
     () => comTenant(A, (tx) =>

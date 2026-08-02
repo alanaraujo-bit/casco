@@ -46,8 +46,8 @@ import {
  *
  * **Baixar um título é sempre duas linhas.** O título muda de estado *e* o
  * dinheiro entra no caixa, na mesma transação. Separar as duas coisas é o que
- * faz o Fluxo de Caixa do sistema antigo divergir do Contas a Receber: lá a
- * operadora marca o título como recebido numa tela e lança o caixa em outra, e
+ * faz o Fluxo de Caixa divergir do Contas a Receber: se a
+ * operadora marca o título como recebido numa tela e lança o caixa em outra,
  * basta ela ser interrompida no meio para as duas telas passarem o mês
  * discordando.
  *
@@ -314,7 +314,7 @@ function vencimentoDaParcela(primeiro: string, indice: number): string {
  * **Uma parcela é uma linha.** Um boleto de R$ 1.200 em 3× vira três contas de
  * R$ 400, cada uma com seu vencimento — e não uma conta de R$ 1.200 com um
  * campo "parcelas" ao lado. É o que faz a pergunta "o que vence esta semana"
- * ter resposta, e é como a listagem deles já mostra.
+ * ter resposta, e é como a listagem já mostra.
  *
  * O resto da divisão vai na última parcela, pelo mesmo motivo do a prazo no PDV.
  */
@@ -571,11 +571,10 @@ export async function desfazerPagamento(contaPagarId: string): Promise<Resultado
  *
  * Até aqui as duas tabelas só eram escritas pelo `scripts/criar-empresa.mjs`,
  * no dia em que a distribuidora nascia. Abrir uma conta, trocar de maquininha
- * ou renegociar a taxa do débito exigia um desenvolvedor — e a auditoria mostra
- * aonde isso leva (§4e): no sistema deles existem bancos chamados
- * `RETROATIVO CAIXA ECONOMICA` e formas `PIX RETROATIVO`, inventados para
- * contornar um cadastro que não deixava corrigir nada. O usuário não estava
- * errado; o sistema é que não deixava.
+ * ou renegociar a taxa do débito exigia um desenvolvedor — e cadastro travado
+ * leva sempre ao mesmo lugar: bancos chamados `RETROATIVO CAIXA ECONOMICA` e
+ * formas `PIX RETROATIVO`, inventados para contornar o que a tela não deixava
+ * corrigir. Quem faz isso não está errado; está sem alternativa.
  *
  * **Ninguém apaga; desativa.** Conta e forma são apontadas por venda, título e
  * movimento de caixa, todas com FK `restrict`, de propósito. Apagar uma forma

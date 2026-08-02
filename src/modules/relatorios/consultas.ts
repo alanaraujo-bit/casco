@@ -27,8 +27,8 @@ import type { Mes } from './periodo'
  *   O Fluxo de Caixa é por *caixa* — o dinheiro que entrou e saiu de fato.
  *
  * Os dois não batem, e não é erro: essa diferença é a resposta para "vendi bem
- * e estou sem dinheiro". O sistema antigo não responde nem uma coisa nem outra,
- * porque o DRE exibe `NaN` (auditoria §4a) e o dashboard mostra custo zero.
+ * e estou sem dinheiro" — e só aparece quando os dois relatórios existem lado
+ * a lado, cada um com o seu critério declarado.
  */
 
 /* ============================================================ DRE */
@@ -42,9 +42,9 @@ export interface Dre {
   qtdVendas: number
   /** Custo das mercadorias vendidas, ao custo médio congelado na saída. */
   cmv: number
-  /** Taxa da maquininha. Custo real que o sistema antigo não desconta em lugar nenhum. */
+  /** Taxa da maquininha. Custo real, e por isso linha própria do DRE. */
   taxas: number
-  /** Custo não-caixa. É o motivo da troca de sistema, e aparece como linha própria. */
+  /** Custo não-caixa. Linha própria: o dono precisa ver quanto o casco custou. */
   perdaVasilhame: number
   perdaVasilhameUnidades: number
   perdaProduto: number
@@ -58,8 +58,7 @@ export interface Dre {
  * O DRE do mês, em **uma** consulta.
  *
  * Cada linha do relatório é uma subconsulta escalar sobre a mesma data-âncora.
- * O Postgres resolve as oito num round-trip; o sistema antigo faz uma chamada
- * por bloco e ainda assim erra a conta.
+ * O Postgres resolve as oito num round-trip, em vez de uma chamada por bloco.
  *
  * `${mes}` é `YYYY-MM` validado em `mesValido` antes de chegar aqui, e viaja
  * como parâmetro — nunca interpolado no texto do SQL.
@@ -86,8 +85,7 @@ export function dreDoMes(mes: Mes): Promise<Dre> {
       -- com exatamente o mesmo filtro para trazer receita, desconto, contagem e
       -- taxa. O plano não deduplica isso, e a tela levava 15 segundos.
       -- Agregar uma vez e ler quatro colunas é a mesma resposta em um quarto do
-      -- trabalho — e é o que a Etapa 6 promete: relatório em uma consulta, não
-      -- em cinquenta chamadas como no sistema antigo.
+      -- trabalho — e é o que a Etapa 6 promete: relatório em uma consulta.
       vd as (
         -- A venda entra pela data em que foi fechada, no fuso da loja.
         -- Orçamento e venda cancelada não são receita, e saem pelo status.
@@ -160,8 +158,8 @@ export function dreDoMes(mes: Mes): Promise<Dre> {
  * As despesas do mês abertas por categoria.
  *
  * Existe porque um total sozinho não é auditável. O dono olha "R$ 8.400 de
- * despesa" e a única pergunta possível é "com o quê?" — e no sistema antigo não
- * há resposta, o número simplesmente é. Aqui a linha do DRE abre embaixo dela.
+ * despesa" e a única pergunta possível é "com o quê?". Um total sem abertura
+ * não responde: o número simplesmente é. Aqui a linha do DRE abre embaixo dela.
  */
 export interface DespesaCategoria {
   categoria: string
@@ -201,9 +199,8 @@ export function despesasPorCategoria(mes: Mes): Promise<DespesaCategoria[]> {
 /**
  * As perdas de vasilhame do mês, por motivo.
  *
- * A linha que o sistema antigo não tem, e que é o argumento inteiro do produto:
- * lá cada galão quebrado vira uma venda de centavos e infla o faturamento
- * (auditoria §5). Aqui ele desce o resultado, com o nome do que aconteceu.
+ * A linha que é o argumento inteiro do produto: galão quebrado é prejuízo, não
+ * venda de centavos. Aqui ele desce o resultado, com o nome do que aconteceu.
  */
 export interface PerdaMotivo {
   motivo: string
@@ -354,7 +351,7 @@ export interface DiaCaixa {
   data: string
   /** `01/08/2026`, já formatado no banco para não passar por `new Date`. */
   dataBr: string
-  /** "segunda-feira". Coluna que eles já leem. */
+  /** "segunda-feira". Coluna consagrada do caixa diário. */
   diaSemana: string
   /** Sábado ou domingo — a leitura de "por que este dia entrou menos". */
   fimDeSemana: boolean
@@ -370,7 +367,7 @@ export interface DiaCaixa {
 /**
  * Fluxo de Caixa Diário — Data · Dia Semana · Entrada · Saída · Saldo · Banco.
  *
- * Colunas na ordem da listagem deles (auditoria §3), com uma acrescentada: o
+ * Colunas na ordem consagrada, com uma acrescentada: o
  * **saldo acumulado** ao lado do saldo do dia. Sem ele a coluna "Saldo"
  * responde "sobrou quanto na terça?" e nunca "sobrou quanto até aqui?" — e a
  * segunda é a pergunta que faz alguém abrir um fluxo de caixa.
@@ -466,7 +463,7 @@ export interface MesCaixa {
  * Fluxo de Caixa Mensal — **doze meses, sempre.**
  *
  * O deles tem dez, e não por escolha: a tela lista os meses que aparecem na
- * tabela, e novembro e dezembro não tinham lançamento (auditoria §4c). O dono
+ * tabela, e novembro e dezembro não tinham lançamento. O dono
  * abre o relatório do ano e vê o ano faltando dois meses, sem nada na tela que
  * explique se o negócio parou ou se o sistema esqueceu.
  *

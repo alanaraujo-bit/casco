@@ -23,12 +23,12 @@ function data(br: string | null) {
 }
 
 /**
- * Colunas na ordem da listagem deles (auditoria §3): Parcela · Descrição ·
+ * Colunas na ordem consagrada de um contas a pagar: Parcela · Descrição ·
  * Despesa/Custos · Categoria · Vencimento · Valor Previsto · Data Pagamento ·
  * Valor Pagamento · Status · Forma Pagamento · Observação.
  *
- * "Despesa/Custos" é a coluna que faz o DRE fechar e que no legado aparece como
- * `NaN`. Aqui ela é escolhida no lançamento, nunca deduzida do texto.
+ * "Despesa/Custos" é a coluna que faz o DRE fechar: custo entra no CMV,
+ * despesa entra em operacional. Escolhida no lançamento, nunca deduzida do texto.
  */
 const colunas: Coluna<ContaPagarLista>[] = [
   {

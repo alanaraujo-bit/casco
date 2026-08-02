@@ -40,7 +40,7 @@ export interface RegraMotivo {
   ajuda: string
   direcao: Direcao
   cliente: ExigenciaCliente
-  /** Vira custo no DRE. Os três motivos que o sistema antigo lançava como venda. */
+  /** Vira custo no DRE. Os três motivos em que o galão não volta. */
   perda: boolean
   /** Como o selo aparece na listagem e no extrato. */
   tom: 'sucesso' | 'info' | 'perigo' | 'alerta' | 'neutro'

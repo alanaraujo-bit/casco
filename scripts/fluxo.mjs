@@ -1121,7 +1121,7 @@ try {
     )
     check('entrega lançada e o saldo do cliente aparece no recibo', true)
 
-    // --- quebra: o momento que substitui a venda de R$ 0,13
+    // --- quebra: o galão que não volta vira custo, nunca receita
     await clicar('Quebrado', 15_000, 'label')
     const naQuebra = await esperarPor(
       async () => (await texto()).includes('Isto não é uma venda'),
@@ -1382,8 +1382,8 @@ try {
     // A venda em dinheiro (R$ 36,00) entrou na hora; o título do a prazo
     // (R$ 24,00) entrou na baixa. Conferir os dois juntos é o que prova que
     // Contas a Receber e Fluxo de Caixa contam a mesma história — que é
-    // exatamente onde o sistema antigo diverge, por lançar as duas coisas em
-    // telas separadas.
+    // exatamente onde telas separadas divergem, cada uma gravando por sua
+    // conta.
     await irPara('/financeiro/caixa')
     const caixa = await texto()
     await foto('financeiro-caixa')
@@ -1468,8 +1468,8 @@ try {
      * O cadastro que faltava para a Etapa 4 fechar. Até aqui as duas tabelas só
      * eram escritas pelo `criar-empresa.mjs`: trocar de maquininha ou
      * renegociar a taxa do débito exigia um desenvolvedor. É assim que se chega
-     * ao que a auditoria encontrou no sistema deles (§4e) — contas chamadas
-     * `RETROATIVO CAIXA ECONOMICA`, criadas para contornar o cadastro.
+     * a contas chamadas `RETROATIVO CAIXA ECONOMICA`, criadas para contornar
+     * um cadastro que não deixa corrigir nada.
      */
     await irPara('/financeiro/contas')
     // Espera a tela montar antes de ler. Sem isto o `texto()` pega o esqueleto
@@ -1488,8 +1488,7 @@ try {
         meios.includes('A Prazo'),
       meios.slice(0, 500),
     )
-    // A taxa aparece na listagem porque é o número que justifica a tela — o
-    // sistema antigo não a desconta em lugar nenhum.
+    // A taxa aparece na listagem porque é o número que justifica a tela.
     check(
       'a taxa da maquininha aparece na listagem',
       /1,49%\s*de taxa/.test(meios),
@@ -1799,9 +1798,9 @@ try {
      * É o conjunto mínimo em que o DRE tem alguma coisa a demonstrar — antes
      * disso ele estaria certo e vazio, que não prova nada.
      *
-     * A checagem literal de `NaN` não é paranoia: é o defeito exato do
-     * relatório que estamos substituindo (auditoria §4a), e é um defeito que
-     * `tsc` não vê, porque `0/0` é um `number` perfeitamente válido.
+     * A checagem literal de `NaN` não é paranoia: é o defeito clássico de um
+     * DRE, e um defeito que `tsc` não vê, porque `0/0` é um `number`
+     * perfeitamente válido.
      */
     /**
      * Uma quebra nova, porque a do bloco de vasilhame foi estornada.
@@ -1932,7 +1931,7 @@ try {
       (c) => !new RegExp(c, 'i').test(diario),
     )
     check(
-      'o Fluxo de Caixa Diário traz as colunas que eles já leem',
+      'o Fluxo de Caixa Diário traz as colunas esperadas',
       semColuna.length === 0,
       `faltando: ${semColuna.join(', ')}`,
     )
@@ -1988,7 +1987,7 @@ try {
      * Doze meses, e este número é o relatório inteiro.
      *
      * O deles tem dez — vai de janeiro a outubro porque novembro e dezembro
-     * não tinham lançamento e a tela lista o que a tabela tem (auditoria §4c).
+     * não tinham lançamento e a tela lista o que a tabela tem.
      * Contar as linhas é a checagem que pega exatamente essa regressão, e é a
      * única que a pega: com um mês de dados reais, um relatório de 1 linha e
      * um de 12 têm o mesmo aspecto de "funcionando".
@@ -2124,7 +2123,7 @@ try {
     /**
      * O resultado **difere** do faturamento, e é esse o ponto da tela.
      *
-     * No sistema deles os dois são iguais porque o custo nunca entra. Aqui a
+     * Faturamento igual a resultado significa que o custo não entrou. Aqui a
      * venda de R$ 60 do PDV convive com R$ 300 de conta a pagar e R$ 76 de
      * galão quebrado, e o mês fecha negativo. Se algum dia esta checagem
      * falhar por "os dois são iguais", o custo parou de ser somado.

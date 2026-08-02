@@ -16,8 +16,8 @@ import { companies, users } from './tenancy'
 /**
  * Espelho tipado de `migrations/0006_vendas_financeiro_estoque.sql`.
  *
- * As colunas seguem as listagens reais do Fature Gestao (auditoria §3). A ordem
- * em que aparecem na tela e a deles; a ordem aqui e a do SQL.
+ * A ordem em que as colunas aparecem na tela e a ordem aqui sao independentes:
+ * aqui vale a do SQL.
  */
 
 /* ------------------------------------------------------ meios de recebimento */
@@ -58,7 +58,7 @@ export const formasPagamento = pgTable(
       .references(() => companies.id),
     nome: text('nome').notNull(),
     tipo: text('tipo', { enum: TIPOS_PAGAMENTO }).notNull(),
-    /** Cartao de debito come 1,49%. O sistema antigo nao desconta em lugar nenhum. */
+    /** Cartao de debito come 1,49% da venda. Sem este campo, o custo fica invisivel. */
     taxaPercentual: numeric('taxa_percentual', { precision: 6, scale: 4 }).notNull().default('0'),
     prazoDias: integer('prazo_dias').notNull().default(0),
     contaId: uuid('conta_id').references(() => contasBancarias.id, { onDelete: 'set null' }),
@@ -82,7 +82,7 @@ export const vendas = pgTable(
       .notNull()
       .references(() => companies.id),
     codigo: bigint('codigo', { mode: 'number' }),
-    /** "Operacao" na listagem deles. */
+    /** "Operacao" na listagem de vendas. */
     origem: text('origem', { enum: ORIGENS_VENDA }).notNull().default('balcao'),
     /** `null` = venda avulsa de balcao. Exigir cadastro aqui e atrito que mata a adocao. */
     clienteId: uuid('cliente_id').references(() => clientes.id),
@@ -312,7 +312,7 @@ export const estoqueSaldos = pgTable(
       .primaryKey()
       .references(() => produtos.id, { onDelete: 'cascade' }),
     quantidade: numeric('quantidade', { precision: 12, scale: 3 }).notNull().default('0'),
-    /** Custo medio movel ponderado — a coluna "Custo Medio Unit." da listagem deles. */
+    /** Custo medio movel ponderado — a coluna "Custo Medio Unit." da listagem de estoque. */
     custoMedio: numeric('custo_medio', { precision: 12, scale: 4 }).notNull().default('0'),
     atualizadoEm: timestamp('atualizado_em', { withTimezone: true }).notNull().defaultNow(),
   },

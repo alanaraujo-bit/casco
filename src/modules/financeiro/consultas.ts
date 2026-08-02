@@ -18,9 +18,9 @@ import { comTenant } from '@/lib/dal'
  * Leituras de Contas a Receber.
  *
  * A situação (`Recebido` · `Em aberto` · `Vencido`) é **derivada** de `pago_em`
- * e `vencimento`, nunca de um campo digitado. No sistema antigo dá para ver
- * linha marcada "Vencido" com vencimento no mês que vem — é o tipo de erro que
- * só existe porque alguém guardou como dado o que era consequência.
+ * e `vencimento`, nunca de um campo digitado. Guardar a situação como dado
+ * produz linha marcada "Vencido" com vencimento no mês que vem — erro que só
+ * existe porque alguém gravou o que era consequência.
  */
 
 export type SituacaoTitulo = 'Recebido' | 'Em aberto' | 'Vencido'
@@ -52,7 +52,7 @@ const SITUACAO = sql<SituacaoTitulo>`
 `
 
 /**
- * Colunas na ordem da listagem deles (auditoria §3): Origem · Código ·
+ * Colunas na ordem consagrada: Origem · Código ·
  * Cliente/Descrição · Emissão · Valor Total · Parcela · Valor Parcela ·
  * Vencimento · Recebido? · Banco · Forma Pgto · Taxas · Data Pgto · Valor Pago.
  */
@@ -64,7 +64,7 @@ export function listarContasReceber() {
         origem: contasReceber.origem,
         codigo: contasReceber.codigo,
         // Título avulso não tem cliente; a descrição ocupa o lugar. É a mesma
-        // coluna "Cliente / Descrição" que eles já leem.
+        // coluna "Cliente / Descrição" da listagem.
         cliente: sql<string>`coalesce(${clientes.nome}, ${contasReceber.descricao}, '—')`,
         emissao: sql<string>`to_char(${contasReceber.emissao}, 'DD/MM/YYYY')`,
         valorTotal: contasReceber.valorTotal,
@@ -316,13 +316,13 @@ export function metricasCaixa() {
 
 /* --------------------------------------------------------- contas a pagar
  *
- * Colunas na ordem da listagem deles (auditoria §3): Parcela · Descrição ·
+ * Colunas na ordem consagrada: Parcela · Descrição ·
  * Despesa/Custos · Categoria · Tipo · Vencimento · Valor Previsto · Data
  * Pagamento · Valor Pagamento · Status · Forma Pagamento · Saída Dinheiro ·
  * Observação.
  *
- * "Despesa/Custos" é a coluna que o DRE precisa e que no legado aparece como
- * `NaN`: custo entra no CMV, despesa entra em despesa operacional. Aqui ela é
+ * "Despesa/Custos" é a coluna que o DRE precisa: custo entra no CMV, despesa
+ * entra em despesa operacional. Aqui ela é
  * `natureza`, escolhida no lançamento e nunca deduzida do texto da descrição.
  */
 

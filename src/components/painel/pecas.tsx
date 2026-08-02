@@ -7,9 +7,8 @@ import { cn } from '@/lib/utils'
 /**
  * Peças do painel.
  *
- * O painel do sistema antigo é uma parede de números iguais, todos do mesmo
- * tamanho e da mesma cor, com o mesmo peso visual — o que faz o dono ler tudo
- * e enxergar nada. Aqui existe hierarquia declarada: cor identifica o assunto,
+ * Uma parede de números do mesmo tamanho e da mesma cor faz o dono ler tudo e
+ * enxergar nada. Aqui existe hierarquia declarada: cor identifica o assunto,
  * tamanho identifica a importância, e variação identifica se é notícia boa.
  */
 
@@ -234,8 +233,8 @@ export function Bloco({
 /**
  * Atalho grande e colorido.
  *
- * O sistema antigo obriga a passar pelo menu para tudo. Os atalhos cobrem o que
- * a operadora faz o dia inteiro; o resto continua no menu.
+ * Os atalhos cobrem o que a operadora faz o dia inteiro, para que ela não
+ * precise passar pelo menu a cada lançamento; o resto continua no menu.
  *
  * Só entram aqui telas que existem. Atalho com selo "em breve" foi removido:
  * ele ocupa o lugar mais nobre da tela para prometer, e quem trabalha no balcão

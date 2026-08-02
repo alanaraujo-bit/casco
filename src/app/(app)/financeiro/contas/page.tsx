@@ -21,10 +21,10 @@ export const metadata: Metadata = { title: 'Contas e Formas' }
  * em que a distribuidora nascia. Abrir uma conta, trocar de maquininha ou
  * renegociar a taxa do débito exigia um desenvolvedor.
  *
- * A auditoria mostra aonde isso leva (§4e): no sistema deles existem contas
- * chamadas `RETROATIVO CAIXA ECONOMICA` e formas `PIX RETROATIVO`, inventadas
- * para contornar um cadastro que não deixava corrigir nada. O usuário não
- * estava errado — o sistema é que não deixava.
+ * Cadastro travado leva sempre ao mesmo lugar: contas chamadas
+ * `RETROATIVO CAIXA ECONOMICA` e formas `PIX RETROATIVO`, inventadas para
+ * contornar o que a tela não deixava corrigir. Quem faz isso não está errado
+ * — está resolvendo o problema com a única ferramenta que sobrou.
  *
  * **As duas coisas moram na mesma tela** porque uma aponta para a outra: a
  * forma de pagamento diz em qual conta o dinheiro cai. Separadas em dois itens

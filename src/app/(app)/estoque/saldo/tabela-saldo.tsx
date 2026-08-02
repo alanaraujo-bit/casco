@@ -11,8 +11,8 @@ import { ROTULO_UNIDADE, type Unidade } from '@/modules/produtos/esquema'
 import type { SaldoLista } from '@/modules/estoque/consultas'
 
 /**
- * As colunas são as da tela `Control/Warehouse` do sistema antigo, na mesma
- * ordem: Código · Descrição · Complemento · Categoria · Qtdade Disponível ·
+ * As colunas seguem a ordem consagrada de uma listagem de estoque:
+ * Código · Descrição · Complemento · Categoria · Qtdade Disponível ·
  * Custo Médio Unit. · Valor Venda · Estoque Máximo · Estoque Mínimo · NCM.
  *
  * A operadora lê essa tabela da esquerda para a direita há anos. Reordenar para
