@@ -2572,17 +2572,37 @@ try {
       await escolherPorTexto('produtoId', 'Galão 20L')
       await preencher({ quantidade: '1' })
       await clicar('Lançar baixa')
-      const gravou = await esperarPor(
-        async () => {
-          const t = await texto()
-          return t.includes('Registrado como custo') || t.includes('não conseguimos')
-        },
-        'a resposta do lançamento feito pelo admin',
-      )
+
+      /**
+       * Espera o recibo **ou** qualquer aviso de erro — e reprova dizendo qual.
+       *
+       * A primeira versão desta checagem esperava só o recibo, e quando o
+       * lançamento falhava ela estourava com "esperando a resposta (15000ms)" e
+       * mais nada. Um teste que reprova sem dizer o motivo comete exatamente o
+       * pecado que este commit corrige no produto: obriga quem lê a adivinhar.
+       *
+       * O `role="alert"` é o contrato do `<AvisoErro>`, então ler por ele pega
+       * qualquer falha, inclusive as que a tela ainda não sabe nomear.
+       */
+      // `esperarPor` devolve booleano, então o que a tela respondeu é guardado
+      // aqui fora — senão a reprovação diria "true", que não ajuda ninguém.
+      let respondeu = ''
+      await esperarPor(async () => {
+        if ((await texto()).includes('Registrado como custo')) {
+          respondeu = 'ok'
+          return true
+        }
+        respondeu = await js(`
+          const el = document.querySelector('[role="alert"]')
+          return el ? el.innerText.trim().replace(/\\s+/g, ' ').slice(0, 300) : ''
+        `)
+        return Boolean(respondeu)
+      }, 'a resposta do lançamento feito pelo admin')
+
       check(
         'admin da Aionix consegue lançar dentro da distribuidora',
-        Boolean(gravou) && (await texto()).includes('Registrado como custo'),
-        (await texto()).slice(0, 400),
+        respondeu === 'ok',
+        `a tela respondeu: ${respondeu}`,
       )
       await foto('admin-lancou-na-empresa')
     }
