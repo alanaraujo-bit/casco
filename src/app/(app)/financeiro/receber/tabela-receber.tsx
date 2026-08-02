@@ -1,11 +1,17 @@
 'use client'
 
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Wallet } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
+import {
+  FiltrosRapidos,
+  filtrarPorAtalho,
+  type AtalhoFiltro,
+} from '@/components/financeiro/filtros-rapidos'
 import type { TituloLista } from '@/modules/financeiro/consultas'
 import { moeda } from '@/lib/utils'
 
@@ -169,21 +175,36 @@ const colunas: Coluna<TituloLista>[] = [
 ]
 
 export function TabelaReceber({ linhas }: { linhas: TituloLista[] }) {
+  const [atalho, setAtalho] = useState<AtalhoFiltro | null>(null)
+  const linhasFiltradas = useMemo(
+    () => filtrarPorAtalho(linhas, atalho, 'Recebido'),
+    [linhas, atalho],
+  )
+
   return (
-    <TabelaDados
-      id="contas-receber"
-      legenda="Contas a receber"
-      colunas={colunas}
-      linhas={linhas}
-      chaveLinha={(c) => c.id}
-      buscaPlaceholder="Buscar por cliente, código, situação…"
-      nomeExportacao="contas-a-receber"
-      densidadePadrao="compacta"
-      vazio={{
-        titulo: 'Nenhum título lançado',
-        descricao:
-          'Os títulos aparecem aqui quando uma venda for registrada a prazo, ou quando você lançar uma cobrança avulsa.',
-      }}
-    />
+    <div className="space-y-3">
+      <FiltrosRapidos atalho={atalho} aoEscolher={setAtalho} rotuloPago="Recebido" />
+      <TabelaDados
+        id="contas-receber"
+        legenda="Contas a receber"
+        colunas={colunas}
+        linhas={linhasFiltradas}
+        chaveLinha={(c) => c.id}
+        buscaPlaceholder="Buscar por cliente, código, situação…"
+        nomeExportacao="contas-a-receber"
+        densidadePadrao="compacta"
+        vazio={{
+          titulo: atalho ? 'Nenhum título neste filtro' : 'Nenhum título lançado',
+          descricao: atalho
+            ? 'Tente outro atalho, ou limpe o filtro para ver tudo de novo.'
+            : 'Os títulos aparecem aqui quando uma venda for registrada a prazo, ou quando você lançar uma cobrança avulsa.',
+          acao: atalho && (
+            <Button variant="secundario" onClick={() => setAtalho(null)}>
+              Limpar Filtros
+            </Button>
+          ),
+        }}
+      />
+    </div>
   )
 }

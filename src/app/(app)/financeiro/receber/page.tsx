@@ -1,40 +1,38 @@
 import type { Metadata } from 'next'
-import { AlertTriangle, CircleCheck, Clock, Wallet } from 'lucide-react'
+import { AlertTriangle, CircleCheck, Wallet } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
+import { NavegadorPeriodo } from '@/components/financeiro/navegador-periodo'
 import { Chip } from '@/components/painel/pecas'
 import { Card } from '@/components/ui/card'
 import { listarContasReceber, metricasReceber } from '@/modules/financeiro/consultas'
+import type { Mes } from '@/modules/relatorios/periodo'
 import { moeda } from '@/lib/utils'
 import { TabelaReceber } from './tabela-receber'
 
 export const metadata: Metadata = { title: 'Contas a Receber' }
 
-export default async function PaginaReceber() {
-  const [linhas, m] = await Promise.all([listarContasReceber(), metricasReceber()])
+/** `?mes=` ausente ou fora do formato é "todo o período" — nunca um erro. */
+function mesDaQuery(valor: string | undefined): Mes | undefined {
+  return valor && /^\d{4}-(0[1-9]|1[0-2])$/.test(valor) ? valor : undefined
+}
 
-  // Os quatro somam por PARCELA, não por valor total do título — é o que entra
-  // no caixa. Somar o total de um título parcelado infla o "a receber" em até
+export default async function PaginaReceber({
+  searchParams,
+}: {
+  searchParams: Promise<{ mes?: string }>
+}) {
+  const mes = mesDaQuery((await searchParams).mes)
+  const [linhas, m] = await Promise.all([listarContasReceber(mes), metricasReceber(mes)])
+
+  // Os três somam por PARCELA, não por valor total do título — é o que entra
+  // no caixa. Somar o total de um título parcelado infla "a receber" em até
   // três vezes, e o dono soma de cabeça: ele acha esse erro em trinta segundos.
   const cartoes = [
     {
-      rotulo: 'Total lançado',
-      valor: moeda(Number(m.totalLancado)),
-      detalhe: `${m.qtdTotal} ${m.qtdTotal === 1 ? 'título' : 'títulos'}`,
+      rotulo: 'A Vencer',
+      valor: moeda(Number(m.aVencer)),
+      detalhe: `${m.qtdAVencer} ${m.qtdAVencer === 1 ? 'título' : 'títulos'}`,
       Icone: Wallet,
-      tom: 'cat-1' as const,
-    },
-    {
-      rotulo: 'Recebido',
-      valor: moeda(Number(m.recebido)),
-      detalhe: `${m.qtdRecebido} ${m.qtdRecebido === 1 ? 'título' : 'títulos'}`,
-      Icone: CircleCheck,
-      tom: 'sucesso' as const,
-    },
-    {
-      rotulo: 'Em aberto',
-      valor: moeda(Number(m.emAberto)),
-      detalhe: `${m.venceEm7} ${m.venceEm7 === 1 ? 'vence' : 'vencem'} em 7 dias`,
-      Icone: Clock,
       tom: 'alerta' as const,
     },
     {
@@ -47,6 +45,13 @@ export default async function PaginaReceber() {
       // não serve mais para o dia em que houver.
       tom: m.qtdVencido > 0 ? ('perigo' as const) : ('cat-2' as const),
     },
+    {
+      rotulo: 'Recebido',
+      valor: moeda(Number(m.recebido)),
+      detalhe: `${m.qtdRecebido} ${m.qtdRecebido === 1 ? 'título' : 'títulos'}`,
+      Icone: CircleCheck,
+      tom: 'sucesso' as const,
+    },
   ]
 
   return (
@@ -56,7 +61,7 @@ export default async function PaginaReceber() {
         descricao="Títulos por cliente, com situação e forma de pagamento"
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-3">
         {cartoes.map((c) => (
           <Card key={c.rotulo} className="flex items-center gap-3 p-3">
             <Chip Icone={c.Icone} tom={c.tom} tamanho="sm" />
@@ -68,6 +73,8 @@ export default async function PaginaReceber() {
           </Card>
         ))}
       </div>
+
+      <NavegadorPeriodo mes={mes} base="/financeiro/receber" />
 
       <TabelaReceber linhas={linhas} />
     </div>

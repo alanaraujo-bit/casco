@@ -1608,6 +1608,65 @@ try {
       pagar.slice(0, 400),
     )
     check('a conta lançada como custo aparece separada de despesa', pagar.includes('Custo'))
+    check(
+      'os três cartões do topo são A Vencer, Vencido e Pago',
+      pagar.includes('A Vencer') && pagar.includes('Vencido') && pagar.includes('Pago'),
+      pagar.slice(0, 400),
+    )
+    check(
+      'sem filtro de mês na URL, o navegador de período mostra "Todo o período"',
+      pagar.includes('Todo o período') && pagar.includes('Geral'),
+      pagar.slice(0, 400),
+    )
+
+    /*
+     * --- filtros rápidos: A Vencer / Vencido / Pago / Vence Hoje / Vence em 7 dias
+     *
+     * As três parcelas lançadas acima ainda não foram pagas nem venceram —
+     * são "A Vencer". O que este trecho prova é que o atalho realmente
+     * recorta a tabela, e não só destaca um botão: clicar em "Vencido" tem
+     * que fazer as parcelas sumirem da tela, porque nenhuma delas está
+     * vencida.
+     */
+    await clicar('A Vencer', 15_000, 'button')
+    await esperarPor(
+      async () => (await texto()).includes('Compra de garrafões'),
+      'o atalho "A Vencer" manter as parcelas na tela',
+    )
+    check('o atalho "A Vencer" mantém as parcelas em aberto na tela', true)
+
+    await clicar('Vencido', 15_000, 'button')
+    await esperarPor(
+      async () => !(await texto()).includes('Compra de garrafões'),
+      'o atalho "Vencido" tirar as parcelas (nenhuma delas venceu ainda)',
+    )
+    check('trocar de atalho recorta a tabela de verdade, não só destaca o botão', true)
+
+    await clicar('Limpar Filtros', 15_000, 'button')
+    await esperarPor(
+      async () => (await texto()).includes('Compra de garrafões'),
+      'limpar o filtro devolver as parcelas à tela',
+    )
+    check('Limpar Filtros devolve a tabela inteira', true)
+
+    /*
+     * --- navegar por período
+     *
+     * O mês vive na URL (`?mes=YYYY-MM`), pelo mesmo motivo do navegador de
+     * mês dos relatórios: dá para mandar o link e a página inteira continua
+     * sendo Server Component. "Todo o período" é a ausência do parâmetro, e
+     * não um mês especial — por isso "Ver tudo" some da tela quando não há
+     * filtro, e aparece assim que um mês é escolhido.
+     */
+    await clicar('', 15_000, 'a[aria-label^="Próximo mês"]')
+    await esperarPor(async () => /\?mes=\d{4}-\d{2}/.test(await caminho()), 'a URL ganhar ?mes=')
+    check('avançar o período move o mês para a URL', true)
+    await esperarPor(async () => (await texto()).includes('Ver tudo'), 'o link "Ver tudo" aparecer')
+    check('com um mês escolhido, aparece o link para voltar a todo o período', true)
+
+    await clicar('Ver tudo')
+    await esperarPor(async () => !/\?mes=/.test(await caminho()), 'a URL perder o ?mes=')
+    check('"Ver tudo" volta para todo o período, sem filtro de mês', true)
 
     // --- pagar a primeira parcela: sai do caixa
     await clicar('Pagar', 15_000, 'a[href^="/financeiro/pagar/"]')
@@ -2382,14 +2441,17 @@ try {
   await foto('contas-a-receber')
   check(
     'Contas a Receber abre lendo do banco',
-    receber.includes('Contas a Receber') && receber.includes('Total lançado'),
+    receber.includes('Contas a Receber') && receber.includes('A Vencer'),
   )
   // Esta tela era conferida vazia — não havia como um título nascer. Agora há:
-  // a venda fiada do PDV, algumas linhas acima, gerou um. Conferir o vazio aqui
-  // passaria a exigir que o PDV **não** tivesse funcionado.
+  // a venda fiada do PDV, algumas linhas acima, gerou um, foi recebido,
+  // desfeito e recebido de novo — termina "Recebido". Checar por "Em aberto"
+  // aqui só passava por coincidência, porque o cartão do topo antigo também
+  // se chamava assim; renomeá-lo para "A Vencer" (ver acima) expôs que a
+  // checagem nunca olhou de fato para a situação da linha.
   check(
     'o título do PDV chega com a situação derivada de vencimento e pagamento',
-    receber.includes('Em aberto'),
+    receber.includes('Recebido'),
     receber.slice(0, 300),
   )
 

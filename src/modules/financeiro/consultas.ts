@@ -13,6 +13,17 @@ import {
   type TipoPagamento,
 } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
+import type { Mes } from '@/modules/relatorios/periodo'
+
+/**
+ * `undefined` é "todo o período" — nenhum filtro. Um `Mes` (`YYYY-MM`) escopa
+ * pelo mês do **vencimento**, o mesmo campo que já decide a situação: é a
+ * pergunta natural de um contas a pagar/receber, "o que vence em agosto?",
+ * e não "o que foi lançado em agosto?" nem "o que foi pago em agosto?".
+ */
+function filtroMes(coluna: typeof contasPagar.vencimento | typeof contasReceber.vencimento, mes?: Mes) {
+  return mes ? sql`date_trunc('month', ${coluna}) = to_date(${mes} || '-01', 'YYYY-MM-DD')` : sql`true`
+}
 
 /**
  * Leituras de Contas a Receber.
@@ -56,7 +67,7 @@ const SITUACAO = sql<SituacaoTitulo>`
  * Cliente/Descrição · Emissão · Valor Total · Parcela · Valor Parcela ·
  * Vencimento · Recebido? · Banco · Forma Pgto · Taxas · Data Pgto · Valor Pago.
  */
-export function listarContasReceber() {
+export function listarContasReceber(mes?: Mes) {
   return comTenant((tx) =>
     tx
       .select({
@@ -82,36 +93,39 @@ export function listarContasReceber() {
       .leftJoin(clientes, sql`${clientes.id} = ${contasReceber.clienteId}`)
       .leftJoin(contasBancarias, sql`${contasBancarias.id} = ${contasReceber.contaId}`)
       .leftJoin(formasPagamento, sql`${formasPagamento.id} = ${contasReceber.formaId}`)
+      .where(filtroMes(contasReceber.vencimento, mes))
       .orderBy(asc(contasReceber.vencimento)),
   ) as Promise<TituloLista[]>
 }
 
 /**
- * Os quatro cartões do cabeçalho, em **uma** consulta.
+ * Os três cartões do cabeçalho, em **uma** consulta: **A Vencer** · **Vencido**
+ * · **Recebido**. Mutuamente exclusivos, na mesma conta que decide a coluna
+ * Situação — um título nunca aparece em dois cartões ao mesmo tempo, e a soma
+ * dos três bate com o total do período.
  *
  * Somam por PARCELA e não pelo valor total do título: um título de R$ 1.200 em
  * 3× tem R$ 400 vencendo agora, e é isso que o dono precisa ver. Somar o total
  * inflaria "a receber" em três vezes — e ele soma de cabeça, então acha o erro.
  */
-export function metricasReceber() {
+export function metricasReceber(mes?: Mes) {
   return comTenant(async (tx) => {
-    const aberto = sql`${contasReceber.pagoEm} is null`
+    const doMes = filtroMes(contasReceber.vencimento, mes)
+    const recebido = sql`${contasReceber.pagoEm} is not null`
     const vencido = sql`${contasReceber.pagoEm} is null and ${contasReceber.vencimento} < current_date`
+    const aVencer = sql`${contasReceber.pagoEm} is null and ${contasReceber.vencimento} >= current_date`
 
     const [linha] = await tx
       .select({
-        totalLancado: sql<string>`coalesce(sum(${contasReceber.valorParcela}), 0)`,
-        qtdTotal: sql<number>`count(*)::int`,
-        recebido: sql<string>`coalesce(sum(${contasReceber.valorPago}) filter (where ${contasReceber.pagoEm} is not null), 0)`,
-        qtdRecebido: sql<number>`count(*) filter (where ${contasReceber.pagoEm} is not null)::int`,
-        emAberto: sql<string>`coalesce(sum(${contasReceber.valorParcela}) filter (where ${aberto}), 0)`,
-        qtdAberto: sql<number>`count(*) filter (where ${aberto})::int`,
+        aVencer: sql<string>`coalesce(sum(${contasReceber.valorParcela}) filter (where ${aVencer}), 0)`,
+        qtdAVencer: sql<number>`count(*) filter (where ${aVencer})::int`,
         vencido: sql<string>`coalesce(sum(${contasReceber.valorParcela}) filter (where ${vencido}), 0)`,
         qtdVencido: sql<number>`count(*) filter (where ${vencido})::int`,
-        // Para-brisa, não retrovisor: o que ainda dá para evitar.
-        venceEm7: sql<number>`count(*) filter (where ${aberto} and ${contasReceber.vencimento} between current_date and current_date + 7)::int`,
+        recebido: sql<string>`coalesce(sum(${contasReceber.valorPago}) filter (where ${recebido}), 0)`,
+        qtdRecebido: sql<number>`count(*) filter (where ${recebido})::int`,
       })
       .from(contasReceber)
+      .where(doMes)
 
     return linha
   })
@@ -354,7 +368,7 @@ const SITUACAO_PAGAR = sql<SituacaoConta>`
   end
 `
 
-export function listarContasPagar() {
+export function listarContasPagar(mes?: Mes) {
   return comTenant((tx) =>
     tx
       .select({
@@ -378,37 +392,35 @@ export function listarContasPagar() {
       .leftJoin(fornecedores, eq(fornecedores.id, contasPagar.fornecedorId))
       .leftJoin(formasPagamento, eq(formasPagamento.id, contasPagar.formaId))
       .leftJoin(contasBancarias, eq(contasBancarias.id, contasPagar.contaId))
+      .where(filtroMes(contasPagar.vencimento, mes))
       .orderBy(asc(contasPagar.vencimento)),
   ) as Promise<ContaPagarLista[]>
 }
 
 /**
- * Os cartões do cabeçalho, em uma consulta.
- *
- * "Vence em 7 dias" é para-brisa, não retrovisor: é o que ainda dá para evitar.
- * O vencido já custou.
+ * Os três cartões do cabeçalho, em uma consulta: **A Vencer** · **Vencido** ·
+ * **Pago**. Mutuamente exclusivos, na mesma conta que decide a coluna Status
+ * — a soma dos três bate com o total do período, sem contar nada duas vezes.
  */
-export function metricasPagar() {
+export function metricasPagar(mes?: Mes) {
   return comTenant(async (tx) => {
+    const doMes = filtroMes(contasPagar.vencimento, mes)
     const hoje = sql`(now() at time zone 'America/Belem')::date`
-    const aberto = sql`${contasPagar.pagoEm} is null`
-    const vencido = sql`${aberto} and ${contasPagar.vencimento} < ${hoje}`
+    const pago = sql`${contasPagar.pagoEm} is not null`
+    const vencido = sql`${contasPagar.pagoEm} is null and ${contasPagar.vencimento} < ${hoje}`
+    const aVencer = sql`${contasPagar.pagoEm} is null and ${contasPagar.vencimento} >= ${hoje}`
 
     const [linha] = await tx
       .select({
-        emAberto: sql<string>`coalesce(sum(${contasPagar.valorPrevisto}) filter (where ${aberto}), 0)`,
-        qtdAberto: sql<number>`count(*) filter (where ${aberto})::int`,
+        aVencer: sql<string>`coalesce(sum(${contasPagar.valorPrevisto}) filter (where ${aVencer}), 0)`,
+        qtdAVencer: sql<number>`count(*) filter (where ${aVencer})::int`,
         vencido: sql<string>`coalesce(sum(${contasPagar.valorPrevisto}) filter (where ${vencido}), 0)`,
         qtdVencido: sql<number>`count(*) filter (where ${vencido})::int`,
-        venceEm7: sql<string>`coalesce(sum(${contasPagar.valorPrevisto}) filter (
-          where ${aberto} and ${contasPagar.vencimento} between ${hoje} and ${hoje} + 7), 0)`,
-        pagoMes: sql<string>`coalesce(sum(${contasPagar.valorPago}) filter (
-          where date_trunc('month', ${contasPagar.pagoEm}) = date_trunc('month', ${hoje})), 0)`,
-        custoMes: sql<string>`coalesce(sum(${contasPagar.valorPago}) filter (
-          where ${contasPagar.natureza} = 'custo'
-            and date_trunc('month', ${contasPagar.pagoEm}) = date_trunc('month', ${hoje})), 0)`,
+        pago: sql<string>`coalesce(sum(${contasPagar.valorPago}) filter (where ${pago}), 0)`,
+        qtdPago: sql<number>`count(*) filter (where ${pago})::int`,
       })
       .from(contasPagar)
+      .where(doMes)
 
     return linha
   })

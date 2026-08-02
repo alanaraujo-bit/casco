@@ -1,11 +1,17 @@
 'use client'
 
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Banknote, Plus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
+import {
+  FiltrosRapidos,
+  filtrarPorAtalho,
+  type AtalhoFiltro,
+} from '@/components/financeiro/filtros-rapidos'
 import { moeda } from '@/lib/utils'
 import type { ContaPagarLista, SituacaoConta } from '@/modules/financeiro/consultas'
 
@@ -151,37 +157,51 @@ const colunas: Coluna<ContaPagarLista>[] = [
 ]
 
 export function TabelaPagar({ linhas }: { linhas: ContaPagarLista[] }) {
+  const [atalho, setAtalho] = useState<AtalhoFiltro | null>(null)
+  const linhasFiltradas = useMemo(
+    () => filtrarPorAtalho(linhas, atalho, 'Pago'),
+    [linhas, atalho],
+  )
+
   return (
-    <TabelaDados
-      id="contas-pagar"
-      legenda="Contas a pagar"
-      colunas={colunas}
-      linhas={linhas}
-      chaveLinha={(c) => c.id}
-      buscaPlaceholder="Buscar por descrição, fornecedor, categoria…"
-      nomeExportacao="contas-a-pagar"
-      densidadePadrao="compacta"
-      acoesTopo={
-        <Button asChild variant="primario">
-          <Link href="/financeiro/pagar/nova">
-            <Plus aria-hidden />
-            Lançar conta
-          </Link>
-        </Button>
-      }
-      vazio={{
-        titulo: 'Nenhuma conta lançada',
-        descricao:
-          'Lance aqui o que a distribuidora deve — compra de garrafão, energia, combustível. Separar custo de despesa é o que faz o resultado do mês fechar.',
-        acao: (
+    <div className="space-y-3">
+      <FiltrosRapidos atalho={atalho} aoEscolher={setAtalho} rotuloPago="Pago" />
+      <TabelaDados
+        id="contas-pagar"
+        legenda="Contas a pagar"
+        colunas={colunas}
+        linhas={linhasFiltradas}
+        chaveLinha={(c) => c.id}
+        buscaPlaceholder="Buscar por descrição, fornecedor, categoria…"
+        nomeExportacao="contas-a-pagar"
+        densidadePadrao="compacta"
+        acoesTopo={
           <Button asChild variant="primario">
             <Link href="/financeiro/pagar/nova">
               <Plus aria-hidden />
-              Lançar a primeira
+              Lançar conta
             </Link>
           </Button>
-        ),
-      }}
-    />
+        }
+        vazio={{
+          titulo: atalho ? 'Nenhuma conta neste filtro' : 'Nenhuma conta lançada',
+          descricao: atalho
+            ? 'Tente outro atalho, ou limpe o filtro para ver tudo de novo.'
+            : 'Lance aqui o que a distribuidora deve — compra de garrafão, energia, combustível. Separar custo de despesa é o que faz o resultado do mês fechar.',
+          acao: atalho ? (
+            <Button variant="secundario" onClick={() => setAtalho(null)}>
+              Limpar Filtros
+            </Button>
+          ) : (
+            <Button asChild variant="primario">
+              <Link href="/financeiro/pagar/nova">
+                <Plus aria-hidden />
+                Lançar a primeira
+              </Link>
+            </Button>
+          ),
+        }}
+      />
+    </div>
   )
 }
