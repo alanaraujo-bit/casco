@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { AvisoErro } from '@/components/ui/aviso-erro'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -250,15 +251,7 @@ export function FormularioEntrada({ acao, produtos, fornecedores, vencimentoSuge
         <input type="hidden" name="sentido" value={sentido} />
         {ehAjuste && <input type="hidden" name="quantidade" value={qtdLancada || ''} />}
 
-        {estado.erro && (
-          <div
-            role="alert"
-            className="flex items-start gap-2 rounded-md bg-perigo-bg px-3 py-2.5 text-sm text-perigo"
-          >
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span>{estado.erro}</span>
-          </div>
-        )}
+        <AvisoErro erro={estado.erro} />
 
         <Secao
           titulo="O que aconteceu com a mercadoria?"

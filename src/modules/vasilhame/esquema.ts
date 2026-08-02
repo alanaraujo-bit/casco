@@ -1,3 +1,4 @@
+import type { Falha } from '@/lib/erros'
 import { z } from 'zod'
 import { MOTIVOS_VASILHAME, type MotivoVasilhame } from '@/db/schema'
 
@@ -254,7 +255,7 @@ export const CAMPOS_MOVIMENTO = [
 export type CampoMovimento = (typeof CAMPOS_MOVIMENTO)[number]
 
 export interface EstadoFormularioMovimento {
-  erro?: string
+  erro?: Falha | string
   campos?: Partial<Record<CampoMovimento, string>>
   valores?: Partial<Record<CampoMovimento, string>>
   tentativa?: number

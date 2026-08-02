@@ -1,10 +1,12 @@
 'use client'
 
+import type { Falha } from '@/lib/erros'
 import { useActionState, useEffect, useRef, useState } from 'react'
 import { useFormStatus } from 'react-dom'
 import Link from 'next/link'
-import { Banknote, Check, CircleAlert, TriangleAlert, Undo2 } from 'lucide-react'
+import { Banknote, Check, CircleAlert, Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { AvisoErro } from '@/components/ui/aviso-erro'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -142,15 +144,7 @@ export function FormularioQuitar({ acao, conta, contas, formas, hoje }: Props) {
     >
       <input type="hidden" name="contaPagarId" value={conta.id} />
 
-      {estado.erro && (
-        <div
-          role="alert"
-          className="flex items-start gap-2 rounded-md bg-perigo-bg px-3 py-2.5 text-sm text-perigo"
-        >
-          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <span>{estado.erro}</span>
-        </div>
-      )}
+      <AvisoErro erro={estado.erro} />
 
       <Card className="p-4 md:p-5">
         <div className="grid gap-4 sm:grid-cols-2">
@@ -238,7 +232,7 @@ export function FormularioQuitar({ acao, conta, contas, formas, hoje }: Props) {
 function JaPago({ conta }: { conta: ContaPagarDetalhe }) {
   const [confirmando, setConfirmando] = useState(false)
   const [pendente, setPendente] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
+  const [erro, setErro] = useState<Falha | string | null>(null)
 
   async function desfazer() {
     setPendente(true)
@@ -292,11 +286,7 @@ function JaPago({ conta }: { conta: ContaPagarDetalhe }) {
         explicando o que aconteceu.
       </p>
 
-      {erro && (
-        <p role="alert" className="text-sm text-perigo">
-          {erro}
-        </p>
-      )}
+      {erro && <AvisoErro erro={erro} />}
     </Card>
   )
 }

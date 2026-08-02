@@ -1,3 +1,4 @@
+import type { Falha } from '@/lib/erros'
 import { z } from 'zod'
 
 export const esquemaTabela = z.object({
@@ -20,7 +21,7 @@ export const CAMPOS_TABELA = ['nome', 'padrao'] as const
 export type CampoTabela = (typeof CAMPOS_TABELA)[number]
 
 export interface EstadoFormularioTabela {
-  erro?: string
+  erro?: Falha | string
   campos?: Partial<Record<CampoTabela, string>>
   valores?: Partial<Record<CampoTabela, string>>
   tentativa?: number

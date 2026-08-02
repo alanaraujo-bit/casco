@@ -1,3 +1,4 @@
+import type { Falha } from '@/lib/erros'
 import { z } from 'zod'
 import { paraNumero } from '@/modules/vendas/esquema'
 
@@ -65,7 +66,7 @@ export interface ReciboBaixa {
 }
 
 export interface EstadoBaixa {
-  erro?: string
+  erro?: Falha | string
   campos?: Partial<Record<CampoBaixa, string>>
   valores?: Partial<Record<CampoBaixa, string>>
   tentativa?: number
@@ -143,7 +144,7 @@ export const esquemaPagar = z.object({
 })
 
 export interface EstadoPagar {
-  erro?: string
+  erro?: Falha | string
   campos?: Partial<Record<CampoPagar, string>>
   valores?: Partial<Record<CampoPagar, string>>
   tentativa?: number
@@ -197,7 +198,7 @@ export const esquemaConta = z.object({
 })
 
 export interface EstadoConta {
-  erro?: string
+  erro?: Falha | string
   campos?: Partial<Record<CampoConta, string>>
   valores?: Partial<Record<CampoConta, string>>
   tentativa?: number
@@ -262,7 +263,7 @@ export const esquemaForma = z.object({
 })
 
 export interface EstadoForma {
-  erro?: string
+  erro?: Falha | string
   campos?: Partial<Record<CampoForma, string>>
   valores?: Partial<Record<CampoForma, string>>
   tentativa?: number
@@ -291,7 +292,7 @@ export const esquemaQuitar = z.object({
 })
 
 export interface EstadoQuitar {
-  erro?: string
+  erro?: Falha | string
   campos?: Partial<Record<CampoQuitar, string>>
   valores?: Partial<Record<CampoQuitar, string>>
   tentativa?: number

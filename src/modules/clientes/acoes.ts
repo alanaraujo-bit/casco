@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { uuidv7 } from 'uuidv7'
 import { clientes } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
+import { descreverFalha } from '@/lib/erros'
 import { acharPorDocumento } from './consultas'
 import {
   CAMPOS_CLIENTE,
@@ -120,7 +121,11 @@ export async function criarCliente(
         tentativa,
       }
     }
-    throw err
+    // Em vez de deixar estourar para a tela de erro do Next — que diz
+    // "An unexpected error occurred" e nada mais, apagando o que foi
+    // digitado. Aqui o formulário continua preenchido e a frase diz de
+    // quem é o problema. Ver src/lib/erros.ts.
+    return { erro: descreverFalha(err), valores, tentativa }
   }
 
   revalidatePath('/cadastro/clientes')
@@ -164,7 +169,11 @@ export async function atualizarCliente(
         tentativa,
       }
     }
-    throw err
+    // Em vez de deixar estourar para a tela de erro do Next — que diz
+    // "An unexpected error occurred" e nada mais, apagando o que foi
+    // digitado. Aqui o formulário continua preenchido e a frase diz de
+    // quem é o problema. Ver src/lib/erros.ts.
+    return { erro: descreverFalha(err), valores, tentativa }
   }
 
   revalidatePath('/cadastro/clientes')

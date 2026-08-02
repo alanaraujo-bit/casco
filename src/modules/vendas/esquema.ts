@@ -1,3 +1,4 @@
+import type { Falha } from '@/lib/erros'
 import { z } from 'zod'
 
 /**
@@ -154,7 +155,7 @@ export interface ReciboVenda {
 }
 
 export interface EstadoVenda {
-  erro?: string
+  erro?: Falha | string
   campos?: Partial<Record<CampoVenda, string>>
   tentativa?: number
   recibo?: ReciboVenda

@@ -1472,6 +1472,13 @@ try {
      * `RETROATIVO CAIXA ECONOMICA`, criadas para contornar o cadastro.
      */
     await irPara('/financeiro/contas')
+    // Espera a tela montar antes de ler. Sem isto o `texto()` pega o esqueleto
+    // e a falha aparece como "não achei Caixa Loja", que é indistinguível de a
+    // conta não existir.
+    await esperarPor(
+      async () => (await texto()).includes('Formas de Pagamento'),
+      'a tela de contas e formas terminar de montar',
+    )
     const meios = await texto()
     await foto('contas-e-formas')
     check(
@@ -2535,6 +2542,50 @@ try {
       dentro.includes('Acesso Aionix em'),
       dentro.split('\n').slice(0, 3).join(' / '),
     )
+
+    /**
+     * **O admin da Aionix consegue GRAVAR dentro da distribuidora.**
+     *
+     * Esta é a lacuna que deixou um bug chegar em produção. O roteiro entrava
+     * na empresa, conferia a faixa, e saía — nunca escrevia nada. E escrever
+     * era justamente o que estava quebrado: a sessão de trabalho do admin nasce
+     * com `usuarioId = adminId`, que vive em `plataforma_admins`, enquanto toda
+     * coluna `usuario_id` tem FK para `users`. O Postgres recusava com 23503 e
+     * a tela dizia "Tente de novo" — conselho que nunca ia funcionar.
+     *
+     * Nenhum outro teste pegava, porque todos os outros entram com um usuário
+     * de verdade da tabela `users`. Ver `autorDoLancamento` em `lib/sessao.ts`.
+     */
+    // Os produtos de teste já foram levados pela faxina que roda no meio do
+    // roteiro, então o bloco semeia os seus. E a quebra é lançada **sem
+    // cliente** — "quebrou no depósito" —, o que evita depender do cadastro de
+    // cliente de teste, que também já não existe mais a esta altura.
+    const sementeAdmin = await semearVasilhame()
+    if (sementeAdmin) {
+      await irPara('/vasilhame/baixa')
+      await clicar('Quebrado', 15_000, 'label')
+      await esperarPor(
+        async () =>
+          (await js(`return !!document.querySelector('[name="produtoId"]')`)) === true,
+        'o formulário de baixa abrir para o admin',
+      )
+      await escolherPorTexto('produtoId', 'Galão 20L')
+      await preencher({ quantidade: '1' })
+      await clicar('Lançar baixa')
+      const gravou = await esperarPor(
+        async () => {
+          const t = await texto()
+          return t.includes('Registrado como custo') || t.includes('não conseguimos')
+        },
+        'a resposta do lançamento feito pelo admin',
+      )
+      check(
+        'admin da Aionix consegue lançar dentro da distribuidora',
+        Boolean(gravou) && (await texto()).includes('Registrado como custo'),
+        (await texto()).slice(0, 400),
+      )
+      await foto('admin-lancou-na-empresa')
+    }
 
     // A faixa é o elemento mais apertado do sistema no celular: ícone, nome da
     // empresa e um botão na mesma linha de 390px. Se ela empurrar a página

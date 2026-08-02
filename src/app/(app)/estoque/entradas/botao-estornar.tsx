@@ -1,5 +1,7 @@
 'use client'
 
+import { AvisoErro } from '@/components/ui/aviso-erro'
+import type { Falha } from '@/lib/erros'
 import { useState, useTransition } from 'react'
 import { Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -19,7 +21,7 @@ import { estornarMovimento } from '@/modules/estoque/acoes'
  */
 export function BotaoEstornar({ id, estornado }: { id: string; estornado: boolean }) {
   const [confirmando, setConfirmando] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
+  const [erro, setErro] = useState<Falha | string | null>(null)
   const [pendente, iniciar] = useTransition()
 
   if (estornado) {
@@ -69,11 +71,7 @@ export function BotaoEstornar({ id, estornado }: { id: string; estornado: boolea
       >
         Cancelar
       </Button>
-      {erro && (
-        <span role="alert" className="text-xs text-perigo">
-          {erro}
-        </span>
-      )}
+      {erro && <AvisoErro erro={erro} className="w-full" />}
     </span>
   )
 }

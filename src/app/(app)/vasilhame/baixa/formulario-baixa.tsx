@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { AvisoErro } from '@/components/ui/aviso-erro'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -229,19 +230,15 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
         <input type="hidden" name="motivo" value={motivo} />
         <input type="hidden" name="sentido" value={sentido} />
 
-        {estado.erro && (
-          <div
-            role="alert"
-            className="flex items-start gap-2 rounded-md bg-perigo-bg px-3 py-2.5 text-sm text-perigo"
-          >
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-            <span>{estado.erro}</span>
-          </div>
-        )}
+        <AvisoErro erro={estado.erro} />
 
         <Secao
           titulo="O que aconteceu com o galão?"
-          descricao="É este campo que não existe no sistema antigo — e a razão de uma baixa nunca precisar virar venda."
+          // A descrição diz o que o campo faz, e não com o que ele se compara:
+          // o Casco é vendido para distribuidoras que nunca usaram outro
+          // sistema, e para elas uma frase sobre "o sistema antigo" não
+          // significa nada. O que ajuda é saber o que o motivo determina.
+          descricao="O motivo define o resto: se o saldo do cliente sobe ou desce, e se o galão vira custo."
         >
           <fieldset>
             <legend className="sr-only">Motivo da baixa</legend>

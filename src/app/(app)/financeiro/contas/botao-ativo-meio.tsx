@@ -1,8 +1,9 @@
 'use client'
 
+import { AvisoErro } from '@/components/ui/aviso-erro'
 import { useActionState } from 'react'
 import { useFormStatus } from 'react-dom'
-import { Ban, RotateCcw, TriangleAlert } from 'lucide-react'
+import { Ban, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { ResultadoDesfazer } from '@/modules/financeiro/acoes'
 
@@ -54,15 +55,7 @@ export function BotaoAtivoMeio({
       <form action={enviar}>
         <Botao ativo={ativo} />
       </form>
-      {estado?.erro && (
-        <p
-          role="alert"
-          className="flex max-w-[36ch] items-start gap-1 text-right text-2xs text-perigo"
-        >
-          <TriangleAlert className="mt-0.5 size-3 shrink-0" aria-hidden />
-          <span>{estado.erro}</span>
-        </p>
-      )}
+      {estado?.erro && <AvisoErro erro={estado.erro} className="max-w-[42ch] text-left" />}
     </div>
   )
 }

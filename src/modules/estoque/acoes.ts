@@ -13,6 +13,8 @@ import {
   type TipoEstoque,
 } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
+import { descreverFalha, type Falha } from '@/lib/erros'
+import { autorDoLancamento } from '@/lib/sessao'
 import { dataNaLoja, formatarDataHora } from '@/lib/formatos'
 import { centavos, deCentavos } from '@/modules/vendas/esquema'
 import {
@@ -61,28 +63,6 @@ function revalidarTudo() {
   revalidatePath('/cadastro/produtos')
   revalidatePath('/vendas/pdv')
   revalidatePath('/financeiro/pagar')
-}
-
-/**
- * Traduz a recusa do banco para uma frase que serve a quem está no depósito.
- *
- * Os check constraints da 0011 não deveriam ser alcançáveis pela tela — o
- * `esquema.ts` barra antes. Existem para o caso de alcançarem: script solto,
- * requisição forjada, ou um bug nosso. Quando acontecer, o que a operadora não
- * pode ver é `violates check constraint "estoque_mov_sinal_coerente"`.
- */
-function mensagemDoBanco(err: unknown): string {
-  const texto = err instanceof Error ? err.message : String(err)
-  if (texto.includes('estoque_mov_sinal_coerente'))
-    return 'O sentido do movimento não combina com o tipo escolhido.'
-  if (texto.includes('estoque_mov_fornecedor_so_compra'))
-    return 'Só a compra tem fornecedor.'
-  if (texto.includes('estoque_mov_estorno_unico')) return 'Este movimento já foi estornado.'
-  if (texto.includes('estorna um estorno')) return 'Não se estorna um estorno.'
-  if (texto.includes('quantidade oposta'))
-    return 'O estorno precisa espelhar o movimento original. Recarregue a tela.'
-  if (texto.includes('quantidade <> 0')) return 'A quantidade não pode ser zero.'
-  return 'Não foi possível gravar o movimento. Tente de novo.'
 }
 
 export async function lancarMovimento(
@@ -148,7 +128,7 @@ export async function lancarMovimento(
         fornecedorId: dados.fornecedorId,
         documento: dados.documento,
         origem: 'balcao',
-        usuarioId: sessao.usuarioId,
+        usuarioId: autorDoLancamento(sessao),
         observacao: dados.observacao,
       })
 
@@ -209,13 +189,13 @@ export async function lancarMovimento(
       }
     })
   } catch (err) {
-    return { erro: mensagemDoBanco(err), valores, tentativa }
+    return { erro: descreverFalha(err), valores, tentativa }
   }
 }
 
 export interface ResultadoEstorno {
   ok: boolean
-  erro?: string
+  erro?: Falha | string
 }
 
 /**
@@ -265,7 +245,7 @@ export async function estornarMovimento(id: string): Promise<ResultadoEstorno> {
         documento: original.documento,
         origem: 'ajuste',
         origemId: original.id,
-        usuarioId: sessao.usuarioId,
+        usuarioId: autorDoLancamento(sessao),
         // Fuso explícito: esta frase fica gravada no banco e é lida meses
         // depois. A hora do servidor da Vercel (UTC) apontaria para um momento
         // em que a loja estava fechada.
@@ -277,6 +257,6 @@ export async function estornarMovimento(id: string): Promise<ResultadoEstorno> {
       return { ok: true }
     })
   } catch (err) {
-    return { ok: false, erro: mensagemDoBanco(err) }
+    return { ok: false, erro: descreverFalha(err) }
   }
 }

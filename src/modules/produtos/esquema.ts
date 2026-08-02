@@ -1,3 +1,4 @@
+import type { Falha } from '@/lib/erros'
 import { z } from 'zod'
 
 /**
@@ -111,7 +112,7 @@ export const CAMPOS_PRODUTO = [
 export type CampoProduto = (typeof CAMPOS_PRODUTO)[number]
 
 export interface EstadoFormularioProduto {
-  erro?: string
+  erro?: Falha | string
   campos?: Partial<Record<CampoProduto, string>>
   valores?: Partial<Record<CampoProduto, string>>
   tentativa?: number

@@ -3,8 +3,9 @@
 import { useActionState, useEffect, useRef, useState } from 'react'
 import { useFormStatus } from 'react-dom'
 import Link from 'next/link'
-import { Check, Save, TriangleAlert } from 'lucide-react'
+import { Check, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { AvisoErro } from '@/components/ui/aviso-erro'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -118,15 +119,7 @@ export function FormularioForma({ acao, contas, id, inicial }: Props) {
     <form key={estado.tentativa ?? 0} ref={formRef} action={enviar} className="space-y-4" noValidate>
       {id && <input type="hidden" name="id" value={id} />}
 
-      {estado.erro && (
-        <div
-          role="alert"
-          className="flex items-start gap-2 rounded-md bg-perigo-bg px-3 py-2.5 text-sm text-perigo"
-        >
-          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <span>{estado.erro}</span>
-        </div>
-      )}
+      <AvisoErro erro={estado.erro} />
 
       <Card className="p-4 md:p-5">
         <div className="grid gap-4 sm:grid-cols-6">

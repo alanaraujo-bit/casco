@@ -77,6 +77,36 @@ export interface Sessao {
  *   precisa saber — que ali dentro tem um admin. A RLS trata igual.
  * - admin volta ao painel → apaga só `casco_sessao`; a identidade permanece.
  */
+/**
+ * Quem carimbar em `usuario_id` — e por que às vezes é ninguém.
+ *
+ * **`sessao.usuarioId` nem sempre existe na tabela `users`.** Quando alguém da
+ * Aionix entra numa distribuidora pelo "Acesso Aionix", a sessão de trabalho
+ * nasce com `usuarioId = adminId` (ver `entrarNaEmpresa`), e esse id vive em
+ * `plataforma_admins`, que é outra tabela. Todas as colunas `usuario_id` do
+ * sistema têm FK para `users`, então gravar o id do admin faz o Postgres
+ * recusar com `23503` — e como o `insert` roda dentro da transação do
+ * lançamento, a operação inteira é revertida.
+ *
+ * O sintoma era cruel: "Não foi possível gravar o movimento. Tente de novo." em
+ * toda escrita feita por admin — PDV, baixa de vasilhame, entrada de estoque,
+ * baixa de título. Tentar de novo falhava para sempre, e nenhum teste pegava,
+ * porque o `npm run fluxo` entra com um usuário de verdade da tabela `users`.
+ *
+ * Aqui a resposta é `null`: o lançamento existe, e a coluna de autor fica vazia
+ * porque quem operou não é funcionário da distribuidora. A alternativa —
+ * inventar uma linha em `users` para o admin — colocaria a Aionix na lista de
+ * usuários do cliente, com senha e papel, para resolver um problema de auditoria.
+ *
+ * **Trade-off consciente:** o extrato perde o nome de quem lançou nesses casos.
+ * Recuperar isso exige uma coluna `admin_id` própria nas quatro tabelas que
+ * carimbam autor, e é a correção definitiva quando o suporte da Aionix passar a
+ * lançar com frequência.
+ */
+export function autorDoLancamento(sessao: Sessao): string | null {
+  return sessao.adminId ? null : sessao.usuarioId
+}
+
 export interface SessaoAdmin {
   adminId: string
   nome: string

@@ -21,6 +21,8 @@ import {
   vendas,
 } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
+import { descreverFalha } from '@/lib/erros'
+import { autorDoLancamento } from '@/lib/sessao'
 import { dataNaLoja, formatarDataISO } from '@/lib/formatos'
 import {
   CAMPOS_VENDA,
@@ -66,27 +68,6 @@ function erroDeValidacao(erro: z.ZodError, tentativa: number): EstadoVenda {
   }
   const geral = z.flattenError(erro).formErrors[0]
   return { campos, tentativa, erro: Object.keys(campos).length ? undefined : geral }
-}
-
-/**
- * A recusa do banco vira frase de balcão.
- *
- * Os constraints de vasilhame não deveriam ser alcançáveis daqui — a venda só
- * lança `entregue`/`devolvido` quando há cliente, que é justamente o que eles
- * exigem. Existem para o caso de alcançarem, e o que a operadora não pode ver
- * no meio de uma fila é `violates check constraint`.
- */
-function mensagemDoBanco(err: unknown): string {
-  const texto = err instanceof Error ? err.message : String(err)
-  if (texto.includes('vasilhame_mov_exige_cliente'))
-    return 'O comodato do galão exige um cliente identificado. Escolha o cliente ou remova o produto retornável.'
-  if (texto.includes('vasilhame_mov_sinal_coerente'))
-    return 'O movimento de vasilhame desta venda ficou incoerente. Nada foi gravado.'
-  if (texto.includes('contas_receber_baixa_completa'))
-    return 'O título gerado ficou inconsistente. Nada foi gravado.'
-  if (texto.includes('vendas_codigo_unico'))
-    return 'Outro caixa gravou uma venda com o mesmo código. Tente de novo.'
-  return 'Não foi possível fechar a venda. Nada foi gravado — pode tentar de novo.'
 }
 
 function revalidarTudo() {
@@ -262,7 +243,7 @@ export async function fecharVenda(
           companyId: sessao.companyId,
           origem: 'pdv',
           clienteId: cliente?.id ?? null,
-          vendedorId: sessao.usuarioId,
+          vendedorId: autorDoLancamento(sessao),
           status: 'confirmada',
           subtotal: deCentavos(subtotal).toFixed(2),
           desconto: deCentavos(desconto).toFixed(2),
@@ -319,7 +300,7 @@ export async function fecharVenda(
               custoUnitario: custo.toFixed(2),
               origem: 'venda',
               origemId: vendaId,
-              usuarioId: sessao.usuarioId,
+              usuarioId: autorDoLancamento(sessao),
             }
           }),
         )
@@ -369,7 +350,7 @@ export async function fecharVenda(
             origem: 'venda',
             origemId: vendaId,
             custoUnitario: custo,
-            usuarioId: sessao.usuarioId,
+            usuarioId: autorDoLancamento(sessao),
           })
           vasilhameEntregue += l.quantidade
 
@@ -386,7 +367,7 @@ export async function fecharVenda(
               origem: 'venda',
               origemId: vendaId,
               custoUnitario: custo,
-              usuarioId: sessao.usuarioId,
+              usuarioId: autorDoLancamento(sessao),
             })
             vasilhameDevolvido += l.vasilhameDevolvido
           }
@@ -462,7 +443,7 @@ export async function fecharVenda(
             descricao: `Venda ${gravada?.codigo ?? ''} · ${forma.nome}`.trim(),
             origem: 'venda',
             origemId: vendaId,
-            usuarioId: sessao.usuarioId,
+            usuarioId: autorDoLancamento(sessao),
           })
         }
       }
@@ -509,6 +490,6 @@ export async function fecharVenda(
       }
     })
   } catch (err) {
-    return { erro: mensagemDoBanco(err), tentativa }
+    return { erro: descreverFalha(err), tentativa }
   }
 }

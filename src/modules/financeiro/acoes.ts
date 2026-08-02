@@ -14,6 +14,8 @@ import {
   fornecedores,
 } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
+import { descreverFalha, type Falha } from '@/lib/erros'
+import { autorDoLancamento } from '@/lib/sessao'
 import { dataNaLoja } from '@/lib/formatos'
 import { centavos, deCentavos } from '@/modules/vendas/esquema'
 import {
@@ -69,13 +71,6 @@ function erroDeValidacao(
   }
   const geral = z.flattenError(erro).formErrors[0]
   return { campos, valores, tentativa, erro: Object.keys(campos).length ? undefined : geral }
-}
-
-function mensagemDoBanco(err: unknown): string {
-  const texto = err instanceof Error ? err.message : String(err)
-  if (texto.includes('contas_receber_baixa_completa'))
-    return 'Baixa pela metade não é aceita: ou tem data e valor, ou não tem baixa.'
-  return 'Não foi possível dar baixa no título. Nada foi gravado — pode tentar de novo.'
 }
 
 function revalidarTudo() {
@@ -197,7 +192,7 @@ export async function receberTitulo(
         descricao: `Título ${titulo.codigo ?? ''} · ${clienteNome ?? titulo.descricao ?? 'avulso'}`.trim(),
         origem: 'receber',
         origemId: titulo.id,
-        usuarioId: sessao.usuarioId,
+        usuarioId: autorDoLancamento(sessao),
       })
 
       revalidarTudo()
@@ -217,13 +212,13 @@ export async function receberTitulo(
       }
     })
   } catch (err) {
-    return { erro: mensagemDoBanco(err), valores, tentativa }
+    return { erro: descreverFalha(err), valores, tentativa }
   }
 }
 
 export interface ResultadoDesfazer {
   ok: boolean
-  erro?: string
+  erro?: Falha | string
 }
 
 /**
@@ -271,7 +266,7 @@ export async function desfazerBaixa(tituloId: string): Promise<ResultadoDesfazer
           descricao: `Baixa desfeita do título ${titulo.codigo ?? ''}`.trim(),
           origem: 'receber',
           origemId: titulo.id,
-          usuarioId: sessao.usuarioId,
+          usuarioId: autorDoLancamento(sessao),
         })
       }
 
@@ -285,7 +280,7 @@ export async function desfazerBaixa(tituloId: string): Promise<ResultadoDesfazer
       return { ok: true }
     })
   } catch (err) {
-    return { ok: false, erro: mensagemDoBanco(err) }
+    return { ok: false, erro: descreverFalha(err) }
   }
 }
 
@@ -399,8 +394,8 @@ export async function lancarContaPagar(
         },
       }
     })
-  } catch {
-    return { erro: 'Não foi possível lançar a conta. Nada foi gravado.', valores, tentativa }
+  } catch (err) {
+    return { erro: descreverFalha(err), valores, tentativa }
   }
 }
 
@@ -501,7 +496,7 @@ export async function pagarConta(anterior: EstadoQuitar, form: FormData): Promis
         descricao: `Conta ${conta.codigo ?? ''} · ${conta.descricao}`.trim(),
         origem: 'pagar',
         origemId: conta.id,
-        usuarioId: sessao.usuarioId,
+        usuarioId: autorDoLancamento(sessao),
       })
 
       revalidarPagar()
@@ -516,8 +511,8 @@ export async function pagarConta(anterior: EstadoQuitar, form: FormData): Promis
         },
       }
     })
-  } catch {
-    return { erro: 'Não foi possível pagar a conta. Nada foi gravado.', valores, tentativa }
+  } catch (err) {
+    return { erro: descreverFalha(err), valores, tentativa }
   }
 }
 
@@ -555,7 +550,7 @@ export async function desfazerPagamento(contaPagarId: string): Promise<Resultado
           descricao: `Pagamento desfeito da conta ${conta.codigo ?? ''}`.trim(),
           origem: 'pagar',
           origemId: conta.id,
-          usuarioId: sessao.usuarioId,
+          usuarioId: autorDoLancamento(sessao),
         })
       }
 
@@ -567,8 +562,8 @@ export async function desfazerPagamento(contaPagarId: string): Promise<Resultado
       revalidarPagar()
       return { ok: true }
     })
-  } catch {
-    return { ok: false, erro: 'Não foi possível desfazer o pagamento.' }
+  } catch (err) {
+    return { ok: false, erro: descreverFalha(err) }
   }
 }
 
@@ -658,8 +653,8 @@ export async function salvarConta(anterior: EstadoConta, form: FormData): Promis
       revalidarMeios()
       return { tentativa, sucesso: { nome: dados.nome, novo: !id } }
     })
-  } catch {
-    return { erro: 'Não foi possível salvar a conta. Nada foi gravado.', valores, tentativa }
+  } catch (err) {
+    return { erro: descreverFalha(err), valores, tentativa }
   }
 }
 
@@ -744,12 +739,8 @@ export async function salvarForma(anterior: EstadoForma, form: FormData): Promis
       revalidarMeios()
       return { tentativa, sucesso: { nome: dados.nome, novo: !id } }
     })
-  } catch {
-    return {
-      erro: 'Não foi possível salvar a forma de pagamento. Nada foi gravado.',
-      valores,
-      tentativa,
-    }
+  } catch (err) {
+    return { erro: descreverFalha(err), valores, tentativa }
   }
 }
 
@@ -792,8 +783,8 @@ export async function alternarConta(id: string): Promise<ResultadoDesfazer> {
       revalidarMeios()
       return { ok: true }
     })
-  } catch {
-    return { ok: false, erro: 'Não foi possível alterar a conta.' }
+  } catch (err) {
+    return { ok: false, erro: descreverFalha(err) }
   }
 }
 
@@ -829,7 +820,7 @@ export async function alternarForma(id: string): Promise<ResultadoDesfazer> {
       revalidarMeios()
       return { ok: true }
     })
-  } catch {
-    return { ok: false, erro: 'Não foi possível alterar a forma de pagamento.' }
+  } catch (err) {
+    return { ok: false, erro: descreverFalha(err) }
   }
 }

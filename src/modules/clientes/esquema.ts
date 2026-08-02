@@ -1,3 +1,4 @@
+import type { Falha } from '@/lib/erros'
 import { z } from 'zod'
 import { TIPOS_CLIENTE } from '@/db/schema'
 import { documentoValido, soDigitos, telefoneValido, UFS } from '@/lib/formatos'
@@ -125,7 +126,7 @@ export type CampoCliente = (typeof CAMPOS_CLIENTE)[number]
 
 /** Erros por campo + um erro geral que não pertence a campo nenhum. */
 export interface EstadoFormularioCliente {
-  erro?: string
+  erro?: Falha | string
   campos?: Partial<Record<CampoCliente, string>>
   /**
    * Tudo que foi digitado, devolvido junto com o erro.

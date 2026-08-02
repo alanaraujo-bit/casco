@@ -12,6 +12,8 @@ import {
   type MotivoVasilhame,
 } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
+import { descreverFalha, type Falha } from '@/lib/erros'
+import { autorDoLancamento } from '@/lib/sessao'
 import { formatarDataHora } from '@/lib/formatos'
 import {
   CAMPOS_MOVIMENTO,
@@ -59,28 +61,6 @@ function revalidarTudo() {
   revalidatePath('/vasilhame/saldos')
   revalidatePath('/vasilhame/movimentos')
   revalidatePath('/cadastro/clientes')
-}
-
-/**
- * Traduz a recusa do banco para uma frase que serve a quem está no balcão.
- *
- * Os check constraints da 0005 não deveriam ser alcançáveis pela tela — o
- * `esquema.ts` já barra antes. Existem para o caso de alcançarem: script solto,
- * requisição forjada, ou um bug nosso. Quando isso acontecer, o que a operadora
- * não pode ver é `new row for relation "vasilhame_movimentos" violates check
- * constraint`.
- */
-function mensagemDoBanco(err: unknown): string {
-  const texto = err instanceof Error ? err.message : String(err)
-  if (texto.includes('vasilhame_mov_exige_cliente')) return 'Este motivo exige um cliente.'
-  if (texto.includes('vasilhame_mov_fabrica_sem_cliente'))
-    return 'Movimento de fábrica é interno e não pode ter cliente.'
-  if (texto.includes('vasilhame_mov_sinal_coerente'))
-    return 'O sentido do movimento não combina com o motivo escolhido.'
-  if (texto.includes('vasilhame_mov_estorno_unico'))
-    return 'Este movimento já foi estornado.'
-  if (texto.includes('estorna um estorno')) return 'Não se estorna um estorno.'
-  return 'Não foi possível gravar o movimento. Tente de novo.'
 }
 
 export async function lancarMovimento(
@@ -137,7 +117,7 @@ export async function lancarMovimento(
         // Congelado agora. O relatório de maio não pode mudar porque o galão
         // encareceu em agosto — e é o custo desta linha que o DRE vai somar.
         custoUnitario: produto.custo,
-        usuarioId: sessao.usuarioId,
+        usuarioId: autorDoLancamento(sessao),
         observacao: dados.observacao,
       })
 
@@ -172,13 +152,13 @@ export async function lancarMovimento(
       }
     })
   } catch (err) {
-    return { erro: mensagemDoBanco(err), valores, tentativa }
+    return { erro: descreverFalha(err), valores, tentativa }
   }
 }
 
 export interface ResultadoEstorno {
   ok: boolean
-  erro?: string
+  erro?: Falha | string
 }
 
 /**
@@ -216,7 +196,7 @@ export async function estornarMovimento(id: string): Promise<ResultadoEstorno> {
         // O trigger reescreve com o custo do original de qualquer forma; passar
         // o mesmo valor aqui evita que os dois discordem se o trigger mudar.
         custoUnitario: original.custoUnitario,
-        usuarioId: sessao.usuarioId,
+        usuarioId: autorDoLancamento(sessao),
         // Fuso explícito: esta frase fica gravada no banco e é lida meses
         // depois. A hora do servidor da Vercel (UTC) apontaria para um momento
         // em que a loja estava fechada.
@@ -228,6 +208,6 @@ export async function estornarMovimento(id: string): Promise<ResultadoEstorno> {
       return { ok: true }
     })
   } catch (err) {
-    return { ok: false, erro: mensagemDoBanco(err) }
+    return { ok: false, erro: descreverFalha(err) }
   }
 }
