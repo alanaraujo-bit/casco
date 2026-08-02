@@ -117,6 +117,14 @@ export const NAVEGACAO: GrupoNav[] = [
       { rotulo: 'Entradas', href: '/estoque/entradas' },
     ],
   },
+  {
+    // Último grupo, como no sistema deles. É a tela que o dono abre uma vez por
+    // semana — e o DRE é justamente o relatório que lá exibe `NaN` na linha do
+    // lucro líquido (auditoria §4a).
+    rotulo: 'Relatórios',
+    Icone: FileBarChart,
+    itens: [{ rotulo: 'DRE', href: '/relatorios/dre' }],
+  },
 ]
 
 /**
@@ -154,7 +162,6 @@ export const PROXIMAS: GrupoNav[] = [
     rotulo: 'Relatórios',
     Icone: FileBarChart,
     itens: [
-      { rotulo: 'DRE', href: '/relatorios/dre' },
       { rotulo: 'Fluxo de Caixa Diário', href: '/relatorios/caixa-diario' },
       { rotulo: 'Fluxo de Caixa Mensal', href: '/relatorios/caixa-mensal' },
       { rotulo: 'Conciliação Bancária', href: '/relatorios/conciliacao' },
@@ -182,6 +189,7 @@ export const ICONES_ITEM: Record<string, LucideIcon> = {
   '/financeiro/receber': Wallet,
   '/financeiro/caixa': Landmark,
   '/estoque/saldo': Boxes,
+  '/relatorios/dre': FileBarChart,
 }
 
 /**

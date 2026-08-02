@@ -909,6 +909,7 @@ try {
     '/estoque/saldo',
     '/estoque/entradas',
     '/estoque/entradas/nova',
+    '/relatorios/dre',
   ]
   const naoAbriram = []
   for (const rota of rotas) {
@@ -1627,6 +1628,136 @@ try {
       await js('return document.documentElement.scrollWidth <= window.innerWidth + 1'),
       `scrollWidth=${await js('return document.documentElement.scrollWidth')} vs ${await js('return window.innerWidth')}`,
     )
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
+
+    /* ----------------------------------------------------------------- DRE
+     *
+     * Roda no fim do bloco de propósito: a esta altura da rodada existe venda
+     * (PDV), existe saída de estoque ao custo médio, e existe galão quebrado.
+     * É o conjunto mínimo em que o DRE tem alguma coisa a demonstrar — antes
+     * disso ele estaria certo e vazio, que não prova nada.
+     *
+     * A checagem literal de `NaN` não é paranoia: é o defeito exato do
+     * relatório que estamos substituindo (auditoria §4a), e é um defeito que
+     * `tsc` não vê, porque `0/0` é um `number` perfeitamente válido.
+     */
+    /**
+     * Uma quebra nova, porque a do bloco de vasilhame foi estornada.
+     *
+     * Perda estornada some do custo — é a regra da view, e o roteiro já a
+     * prova lá em cima. Então aqui a perda precisa ser lançada de novo, senão
+     * o DRE mostra R$ 0,00 corretamente e a checagem "a perda aparece" estaria
+     * cobrando da tela um número que não deveria existir. Dois galões a R$ 38
+     * de custo congelado: R$ 76,00.
+     */
+    await irPara('/vasilhame/baixa')
+    await clicar('Quebrado', 15_000, 'label')
+    await esperarPor(
+      async () => (await js(`return !!document.querySelector('[name="clienteId"]')`)) === true,
+      'o campo de cliente aparecer para a quebra',
+    )
+    await escolherPorTexto('produtoId', 'Galão 20L')
+    await escolherPorTexto('clienteId', nome)
+    await preencher({ quantidade: '2' })
+    await clicar('Lançar baixa')
+    await esperarPor(
+      async () => (await texto()).includes('Registrado como custo'),
+      'o recibo da perda que o DRE vai ler',
+    )
+
+    await irPara('/relatorios/dre')
+    // O DRE resolve quatro agregações antes de pintar. Ler a tela sem esperar
+    // pega o cabeçalho e o corpo pela metade — e a falha aparece como "não
+    // achei a linha", que é indistinguível de a linha não existir.
+    //
+    // A comparação é sem caixa porque `texto()` lê `innerText`, que já vem com
+    // o `text-transform` aplicado: a linha do total está em versalete na tela,
+    // então o DOM devolve "RESULTADO DO MÊS". Procurar a string como ela está
+    // no código falha com a tela perfeitamente correta na frente.
+    const temTotal = async () => /resultado do mês/i.test(await texto())
+    await esperarPor(temTotal, 'o demonstrativo terminar de montar')
+    const dre = await texto()
+    await foto('dre')
+
+    check(
+      'o DRE abre com as linhas do demonstrativo',
+      dre.includes('Receita líquida') &&
+        dre.includes('Custo das mercadorias vendidas') &&
+        /resultado do mês/i.test(dre),
+      dre.slice(0, 400),
+    )
+    check('nenhum NaN no DRE', !dre.includes('NaN'), dre.slice(0, 600))
+    check(
+      'a venda do PDV virou receita no DRE',
+      /Receita bruta de vendas[\s\S]{0,120}R\$\s?[1-9]/.test(dre),
+      dre.slice(0, 600),
+    )
+    check(
+      'o galão quebrado aparece como linha de custo, e não como receita',
+      /Perda de vasilhame[\s\S]{0,120}\(R\$\s?76,00\)/.test(dre),
+      dre.slice(0, 1200),
+    )
+
+    /**
+     * A regra que a 0012 existe para garantir: a compra de mercadoria **não**
+     * é despesa do mês em que chegou.
+     *
+     * O roteiro cria dois títulos a pagar: a compra de R$ 30 lá no estoque
+     * (`origem = 'estoque'`) e a conta manual de 3× R$ 100 no financeiro. Só a
+     * segunda é custo aqui — o custo da primeira entra pelo CMV quando a
+     * mercadoria sair. Se a exclusão por origem quebrar, esta linha vira
+     * R$ 330,00 e a mesma compra passa a pesar duas vezes no resultado.
+     */
+    check(
+      'a compra de estoque não é contada duas vezes no DRE',
+      /Outros custos[\s\S]{0,120}\(R\$\s?300,00\)/.test(dre),
+      dre.slice(0, 1200),
+    )
+
+    // O mês na URL: é o que faz o dono mandar o link do mês fechado para o
+    // contador e o contador ver o mesmo número. Um mês sem nada tem que dizer
+    // que está vazio — relatório todo zerado é indistinguível de quebrado.
+    await irPara('/relatorios/dre?mes=2020-01')
+    const vazio = await texto()
+    check(
+      'mês sem lançamento diz que está vazio, em vez de exibir uma parede de zeros',
+      vazio.includes('Nenhum lançamento em janeiro de 2020'),
+      vazio.slice(0, 300),
+    )
+    check('nenhum NaN no mês vazio', !vazio.includes('NaN'), vazio.slice(0, 400))
+
+    // --- celular: é onde o dono olha o resultado, fora da loja
+    await comando(ws, 'Emulation.setDeviceMetricsOverride', CELULAR, sessao)
+    await irPara('/relatorios/dre')
+    check(
+      'no celular o DRE não rola de lado',
+      await js('return document.documentElement.scrollWidth <= window.innerWidth + 1'),
+      `scrollWidth=${await js('return document.documentElement.scrollWidth')} vs ${await js('return window.innerWidth')}`,
+    )
+    const setas = await js(`
+      const alvos = [...document.querySelectorAll('a[aria-label*="mês" i]')]
+        .map((e) => ({ rotulo: e.getAttribute('aria-label'), altura: Math.round(e.getBoundingClientRect().height) }))
+        .filter((c) => c.altura < 44)
+      return JSON.stringify(alvos)
+    `)
+    check('as setas de mês têm 44px no toque', setas === '[]', `abaixo de 44px: ${setas}`)
+
+    // Os rótulos truncavam no celular, e a linha mais importante do bloco de
+    // custo aparecia como "(−) C...". Passava em toda checagem de layout que
+    // existia — a tela não rolava de lado, os alvos tinham 44px — porque
+    // nenhuma delas pergunta se o texto ainda está legível.
+    const noCelular = await texto()
+    const cortados = [
+      'Receita bruta de vendas',
+      'Custo das mercadorias vendidas',
+      'Perda de vasilhame',
+    ].filter((r) => !noCelular.includes(r))
+    check(
+      'no celular os rótulos do DRE aparecem inteiros, sem reticências',
+      cortados.length === 0,
+      `truncados: ${cortados.join(' | ')}`,
+    )
+    await foto('celular-dre')
     await comando(ws, 'Emulation.setDeviceMetricsOverride', DESKTOP, sessao)
   } else {
     falhas.push('estoque não testado — sem conexão de banco para semear os produtos')

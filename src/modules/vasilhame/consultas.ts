@@ -404,7 +404,11 @@ export function perdasPorMes(meses = 6) {
              unidades::int as unidades,
              custo::text   as custo
         from vasilhame_perdas
-       where mes >= date_trunc('month', now()) - make_interval(months => ${meses - 1})
+       -- O fuso aparece dos dois lados da comparação de propósito: desde a 0012
+       -- a coluna mes da view é o mês fechado em Tucumã, e comparar com um
+       -- date_trunc sobre now() em UTC traria um mês a mais na virada.
+       where mes >= date_trunc('month', (now() at time zone 'America/Belem'))
+                    - make_interval(months => ${meses - 1})
        order by mes desc, motivo
     `)
     return [...linhas]

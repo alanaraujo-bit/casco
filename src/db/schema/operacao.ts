@@ -191,6 +191,12 @@ export const contasPagar = pgTable(
       .notNull()
       .references(() => companies.id),
     codigo: bigint('codigo', { mode: 'number' }),
+    /**
+     * Quem escreveu a linha. `estoque` = compra de mercadoria, e o DRE a ignora:
+     * o custo dela ja entra pelo CMV quando o produto sai. Somar as duas contaria
+     * a mesma compra duas vezes. Ver a 0012.
+     */
+    origem: text('origem', { enum: ['manual', 'estoque'] }).notNull().default('manual'),
     fornecedorId: uuid('fornecedor_id').references(() => fornecedores.id),
     descricao: text('descricao').notNull(),
     /** Custo entra no CMV, despesa entra em despesa operacional. E o que faz o DRE fechar. */

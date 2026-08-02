@@ -169,8 +169,13 @@ export async function lancarMovimento(
             ? `Compra ${produto.nome} — nota ${dados.documento}`
             : `Compra ${produto.nome}`,
           // Mercadoria para revenda é custo, não despesa: entra no CMV e é o
-          // que faz o DRE da Etapa 6 fechar em vez de exibir NaN.
+          // que faz o DRE fechar em vez de exibir NaN.
+          //
+          // `origem: 'estoque'` é o que impede o DRE de contar esta compra
+          // duas vezes — uma aqui e outra quando a mercadoria sair pela venda,
+          // ao custo médio. O CMV vem da saída; este título é só a dívida.
           natureza: 'custo',
+          origem: 'estoque',
           categoria: 'Compra de mercadoria',
           emissao: dataNaLoja(),
           vencimento: dados.vencimento,

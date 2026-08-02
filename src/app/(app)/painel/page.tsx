@@ -53,7 +53,12 @@ export default async function PainelGerencial() {
         titulo="Painel Gerencial"
         descricao={
           <>
-            <span className="capitalize">{hojePorExtenso()}</span> · {sessao.empresa}
+            {/* `first-letter` e não `capitalize`: este último maiúsculiza toda
+                palavra e escrevia "Sábado, 01 De Agosto De 2026". E
+                `inline-block` junto, porque `::first-letter` não se aplica a
+                caixa inline. */}
+            <span className="inline-block first-letter:uppercase">{hojePorExtenso()}</span> ·{' '}
+            {sessao.empresa}
           </>
         }
       />
