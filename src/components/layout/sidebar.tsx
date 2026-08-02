@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { NAVEGACAO } from '@/lib/navegacao'
+import { ICONES_ITEM, NAVEGACAO } from '@/lib/navegacao'
 import { GlifoCasco } from '@/components/marca/glifo-casco'
 import { cn } from '@/lib/utils'
 
@@ -57,6 +57,13 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
               <ul aria-labelledby={idGrupo} className="space-y-0.5">
                 {grupo.itens.map((item) => {
                   const ativo = caminho === item.href
+                  // Cada item com o próprio ícone, e não só o do grupo: numa
+                  // lista de quatro rótulos parecidos ("Contas a Receber",
+                  // "Contas a Pagar", "Caixa", "Contas e Formas"), o ícone é o
+                  // que se reconhece num relance, antes de ler a palavra — é
+                  // a diferença entre escanear o menu e ler o menu inteiro
+                  // toda vez que se precisa trocar de tela.
+                  const IconeItem = ICONES_ITEM[item.href] ?? grupo.Icone
                   return (
                     <li key={item.href}>
                       <Link
@@ -67,7 +74,7 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
                         aria-current={ativo ? 'page' : undefined}
                         className={cn(
                           // 44px no toque, compacto no desktop.
-                          'flex min-h-11 items-center gap-2 rounded-md py-2 pl-8 pr-3 md:min-h-0 md:py-1',
+                          'flex min-h-11 items-center gap-2.5 rounded-md py-2 pl-3 pr-3 md:min-h-0 md:py-1',
                           'text-sm transition-colors duration-150',
                           // Contorno para dentro, para não ser cortado pelo
                           // contêiner de rolagem.
@@ -78,10 +85,14 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
                               // quem varre a sidebar com o olho procurando
                               // "onde estou" precisa de uma âncora de forma,
                               // não só de cor.
-                              'border-l-2 border-acento bg-acento-suave pl-[30px] font-medium text-acento-texto'
+                              'border-l-2 border-acento bg-acento-suave pl-[10px] font-medium text-acento-texto'
                             : 'text-texto-suave hover:bg-superficie-hover hover:text-texto',
                         )}
                       >
+                        {/* Sem cor própria: herda `currentColor` do `Link`, que
+                            já muda com `ativo` — problema resolvido de graça,
+                            sem duplicar a condição aqui. */}
+                        <IconeItem className="size-4 shrink-0" aria-hidden />
                         <span className="truncate">{item.rotulo}</span>
                       </Link>
                     </li>
