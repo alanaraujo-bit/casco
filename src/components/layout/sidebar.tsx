@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { NAVEGACAO } from '@/lib/navegacao'
+import { GlifoCasco } from '@/components/marca/glifo-casco'
 import { cn } from '@/lib/utils'
 
 const slug = (s: string) =>
@@ -20,9 +21,9 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
       <div className="flex items-center gap-2 px-4 py-3">
         <div
           aria-hidden
-          className="grid size-7 shrink-0 place-items-center rounded-md bg-acento text-acento-contraste text-sm font-bold"
+          className="grid size-7 shrink-0 place-items-center rounded-md bg-acento text-acento-contraste"
         >
-          C
+          <GlifoCasco className="size-4" />
         </div>
         <span className="text-base font-semibold tracking-tight text-texto">Casco</span>
       </div>

@@ -455,4 +455,28 @@
       opacity: 0.55;
     }
   }
+
+  /* Nível do vasilhame em <CascoCarregando>: enche com confiança (parte lenta),
+     segura cheio um instante, esvazia rápido pra reiniciar o ciclo. Os valores
+     de translateY são em unidades do viewBox (0–100), onde 94 deixa o
+     retângulo praticamente todo abaixo da área visível (vasio) e 0 o cobre
+     por inteiro (cheio). */
+  @keyframes casco-encher {
+    0% {
+      transform: translateY(94px);
+    }
+    55% {
+      transform: translateY(0);
+    }
+    72% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(94px);
+    }
+  }
+
+  .casco-carregando__nivel {
+    animation: casco-encher 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
 }

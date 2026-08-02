@@ -21,6 +21,13 @@ export const metadata: Metadata = {
   description:
     'Gestão para distribuidoras com vasilhame retornável — água e gás.',
   applicationName: 'Casco',
+  // Nome curto embaixo do ícone quando adicionado à tela inicial do iOS —
+  // sem isso, o iOS usa o `title` da página (viraria "Entrar" na tela de
+  // login, por exemplo).
+  appleWebApp: {
+    title: 'Casco',
+    statusBarStyle: 'default',
+  },
 }
 
 export const viewport: Viewport = {

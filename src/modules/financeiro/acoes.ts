@@ -8,17 +8,27 @@ import {
   caixaMovimentos,
   clientes,
   contasBancarias,
+  contasPagar,
   contasReceber,
   formasPagamento,
+  fornecedores,
 } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
 import { dataNaLoja } from '@/lib/formatos'
 import { centavos, deCentavos } from '@/modules/vendas/esquema'
 import {
   CAMPOS_BAIXA,
+  CAMPOS_PAGAR,
+  CAMPOS_QUITAR,
   esquemaBaixa,
+  esquemaPagar,
+  esquemaQuitar,
   type CampoBaixa,
+  type CampoPagar,
+  type CampoQuitar,
   type EstadoBaixa,
+  type EstadoPagar,
+  type EstadoQuitar,
 } from './esquema'
 
 /**
@@ -268,5 +278,288 @@ export async function desfazerBaixa(tituloId: string): Promise<ResultadoDesfazer
     })
   } catch (err) {
     return { ok: false, erro: mensagemDoBanco(err) }
+  }
+}
+
+/* --------------------------------------------------------- contas a pagar */
+
+function revalidarPagar() {
+  revalidatePath('/financeiro/pagar')
+  revalidatePath('/financeiro/caixa')
+  revalidatePath('/painel')
+}
+
+/**
+ * O vencimento da parcela `n`: o da primeira, mais `n` meses.
+ *
+ * Somado em **mês de calendário** e não em 30 dias. Boleto vence "todo dia 10";
+ * com 30 dias o vencimento andaria para o dia 9, depois 8, e em um ano a conta
+ * estaria vencendo dez dias antes do combinado. O dia 31 num mês de 30 volta
+ * para o último dia do mês pretendido, que é o que qualquer banco faz.
+ */
+function vencimentoDaParcela(primeiro: string, indice: number): string {
+  const [ano, mes, dia] = primeiro.split('-').map(Number)
+  const alvoMes = mes - 1 + indice
+  const data = new Date(Date.UTC(ano, alvoMes, dia))
+  if (data.getUTCMonth() !== ((alvoMes % 12) + 12) % 12) data.setUTCDate(0)
+  return data.toISOString().slice(0, 10)
+}
+
+/**
+ * Lança uma despesa ou custo, em uma ou várias parcelas.
+ *
+ * **Uma parcela é uma linha.** Um boleto de R$ 1.200 em 3× vira três contas de
+ * R$ 400, cada uma com seu vencimento — e não uma conta de R$ 1.200 com um
+ * campo "parcelas" ao lado. É o que faz a pergunta "o que vence esta semana"
+ * ter resposta, e é como a listagem deles já mostra.
+ *
+ * O resto da divisão vai na última parcela, pelo mesmo motivo do fiado no PDV.
+ */
+export async function lancarContaPagar(
+  anterior: EstadoPagar,
+  form: FormData,
+): Promise<EstadoPagar> {
+  const tentativa = (anterior.tentativa ?? 0) + 1
+  const valores = Object.fromEntries(
+    CAMPOS_PAGAR.map((campo) => [campo, String(form.get(campo) ?? '')]),
+  ) as Record<CampoPagar, string>
+
+  const analise = esquemaPagar.safeParse(valores)
+  if (!analise.success) {
+    const porCampo = z.flattenError(analise.error).fieldErrors as Record<
+      string,
+      string[] | undefined
+    >
+    const campos: Partial<Record<CampoPagar, string>> = {}
+    for (const campo of CAMPOS_PAGAR) {
+      const msg = porCampo[campo]?.[0]
+      if (msg) campos[campo] = msg
+    }
+    const geral = z.flattenError(analise.error).formErrors[0]
+    return { campos, valores, tentativa, erro: Object.keys(campos).length ? undefined : geral }
+  }
+
+  const dados = analise.data
+
+  try {
+    return await comTenant(async (tx, sessao) => {
+      if (dados.fornecedorId) {
+        // Relido dentro do tenant: um id de outra distribuidora simplesmente
+        // não é encontrado, e a RLS vira validação de autorização de graça.
+        const [f] = await tx
+          .select({ id: fornecedores.id })
+          .from(fornecedores)
+          .where(eq(fornecedores.id, dados.fornecedorId))
+          .limit(1)
+        if (!f) {
+          return { campos: { fornecedorId: 'Fornecedor não encontrado' }, valores, tentativa }
+        }
+      }
+
+      const total = centavos(dados.valorPrevisto)
+      const base = Math.floor(total / dados.parcelas)
+      const sobra = total - base * dados.parcelas
+
+      await tx.insert(contasPagar).values(
+        Array.from({ length: dados.parcelas }, (_, i) => ({
+          id: uuidv7(),
+          companyId: sessao.companyId,
+          fornecedorId: dados.fornecedorId,
+          descricao: dados.descricao,
+          natureza: dados.natureza,
+          categoria: dados.categoria,
+          emissao: dataNaLoja(),
+          parcelaNumero: i + 1,
+          parcelaTotal: dados.parcelas,
+          vencimento: vencimentoDaParcela(dados.vencimento, i),
+          valorPrevisto: deCentavos(
+            i === dados.parcelas - 1 ? base + sobra : base,
+          ).toFixed(2),
+          observacao: dados.observacao,
+        })),
+      )
+
+      revalidarPagar()
+
+      return {
+        tentativa,
+        sucesso: {
+          descricao: dados.descricao,
+          parcelas: dados.parcelas,
+          total: deCentavos(total),
+          primeiroVencimento: vencimentoDaParcela(dados.vencimento, 0),
+        },
+      }
+    })
+  } catch {
+    return { erro: 'Não foi possível lançar a conta. Nada foi gravado.', valores, tentativa }
+  }
+}
+
+/**
+ * Paga uma conta: ela muda de estado e o dinheiro sai do caixa, na mesma
+ * transação.
+ *
+ * Espelho exato de `receberTitulo`, e de propósito — as duas telas fazem a
+ * mesma coisa em sentidos opostos. Divergir aqui seria manter duas regras para
+ * o mesmo problema, e uma delas envelheceria.
+ */
+export async function pagarConta(anterior: EstadoQuitar, form: FormData): Promise<EstadoQuitar> {
+  const tentativa = (anterior.tentativa ?? 0) + 1
+  const valores = Object.fromEntries(
+    CAMPOS_QUITAR.map((campo) => [campo, String(form.get(campo) ?? '')]),
+  ) as Record<CampoQuitar, string>
+
+  const analise = esquemaQuitar.safeParse(valores)
+  if (!analise.success) {
+    const porCampo = z.flattenError(analise.error).fieldErrors as Record<
+      string,
+      string[] | undefined
+    >
+    const campos: Partial<Record<CampoQuitar, string>> = {}
+    for (const campo of CAMPOS_QUITAR) {
+      const msg = porCampo[campo]?.[0]
+      if (msg) campos[campo] = msg
+    }
+    const geral = z.flattenError(analise.error).formErrors[0]
+    return { campos, valores, tentativa, erro: Object.keys(campos).length ? undefined : geral }
+  }
+
+  const dados = analise.data
+
+  try {
+    return await comTenant(async (tx, sessao) => {
+      // Sem `join`, pelo mesmo motivo da baixa de título: o Postgres recusa
+      // `for update` sobre o lado anulável de um outer join.
+      const [conta] = await tx
+        .select({
+          id: contasPagar.id,
+          codigo: contasPagar.codigo,
+          descricao: contasPagar.descricao,
+          valorPrevisto: contasPagar.valorPrevisto,
+          pagoEm: contasPagar.pagoEm,
+        })
+        .from(contasPagar)
+        .where(eq(contasPagar.id, dados.contaPagarId))
+        .limit(1)
+        .for('update')
+
+      if (!conta) return { erro: 'Conta não encontrada.', valores, tentativa }
+      if (conta.pagoEm) {
+        return {
+          erro: 'Esta conta já foi paga. Recarregue a tela para ver o pagamento.',
+          valores,
+          tentativa,
+        }
+      }
+
+      const [banco] = await tx
+        .select({ id: contasBancarias.id, nome: contasBancarias.nome })
+        .from(contasBancarias)
+        .where(and(eq(contasBancarias.id, dados.contaId), eq(contasBancarias.ativo, true)))
+        .limit(1)
+      if (!banco) return { campos: { contaId: 'Conta não encontrada' }, valores, tentativa }
+
+      const [forma] = await tx
+        .select({ id: formasPagamento.id, nome: formasPagamento.nome })
+        .from(formasPagamento)
+        .where(and(eq(formasPagamento.id, dados.formaId), eq(formasPagamento.ativo, true)))
+        .limit(1)
+      if (!forma) return { campos: { formaId: 'Forma não encontrada' }, valores, tentativa }
+
+      const pago = centavos(dados.valorPago)
+      const previsto = centavos(Number(conta.valorPrevisto))
+
+      await tx
+        .update(contasPagar)
+        .set({
+          pagoEm: dados.pagoEm,
+          valorPago: deCentavos(pago).toFixed(2),
+          contaId: banco.id,
+          formaId: forma.id,
+        })
+        .where(eq(contasPagar.id, conta.id))
+
+      await tx.insert(caixaMovimentos).values({
+        id: uuidv7(),
+        companyId: sessao.companyId,
+        contaId: banco.id,
+        // A data do caixa é a do pagamento, não a de hoje: conta paga ontem e
+        // lançada hoje pertence ao caixa de ontem.
+        data: dados.pagoEm,
+        sentido: 'saida',
+        valor: deCentavos(pago).toFixed(2),
+        categoria: 'Pagamento',
+        descricao: `Conta ${conta.codigo ?? ''} · ${conta.descricao}`.trim(),
+        origem: 'pagar',
+        origemId: conta.id,
+        usuarioId: sessao.usuarioId,
+      })
+
+      revalidarPagar()
+
+      return {
+        tentativa,
+        sucesso: {
+          descricao: conta.descricao,
+          valorPago: deCentavos(pago),
+          conta: banco.nome,
+          diferenca: deCentavos(previsto - pago),
+        },
+      }
+    })
+  } catch {
+    return { erro: 'Não foi possível pagar a conta. Nada foi gravado.', valores, tentativa }
+  }
+}
+
+/** Desfaz o pagamento. Mesma regra da baixa de título: estorna, não apaga. */
+export async function desfazerPagamento(contaPagarId: string): Promise<ResultadoDesfazer> {
+  try {
+    return await comTenant(async (tx, sessao) => {
+      const [conta] = await tx
+        .select({
+          id: contasPagar.id,
+          codigo: contasPagar.codigo,
+          pagoEm: contasPagar.pagoEm,
+          valorPago: contasPagar.valorPago,
+          contaId: contasPagar.contaId,
+        })
+        .from(contasPagar)
+        .where(eq(contasPagar.id, contaPagarId))
+        .limit(1)
+        .for('update')
+
+      if (!conta) return { ok: false, erro: 'Conta não encontrada.' }
+      if (!conta.pagoEm) return { ok: false, erro: 'Esta conta não está paga.' }
+
+      const valor = centavos(Number(conta.valorPago ?? 0))
+
+      if (conta.contaId && valor > 0) {
+        await tx.insert(caixaMovimentos).values({
+          id: uuidv7(),
+          companyId: sessao.companyId,
+          contaId: conta.contaId,
+          data: dataNaLoja(),
+          sentido: 'entrada',
+          valor: deCentavos(valor).toFixed(2),
+          categoria: 'Estorno de pagamento',
+          descricao: `Pagamento desfeito da conta ${conta.codigo ?? ''}`.trim(),
+          origem: 'pagar',
+          origemId: conta.id,
+          usuarioId: sessao.usuarioId,
+        })
+      }
+
+      await tx
+        .update(contasPagar)
+        .set({ pagoEm: null, valorPago: null })
+        .where(and(eq(contasPagar.id, conta.id), isNotNull(contasPagar.pagoEm)))
+
+      revalidarPagar()
+      return { ok: true }
+    })
+  } catch {
+    return { ok: false, erro: 'Não foi possível desfazer o pagamento.' }
   }
 }

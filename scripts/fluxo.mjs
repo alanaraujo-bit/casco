@@ -204,6 +204,15 @@ async function faxina() {
     await banco`delete from caixa_movimentos where origem = 'receber' and origem_id in ${banco(idsTitulos)}`
   }
 
+  // Contas a pagar do teste, e a saída de caixa que o pagamento gerou.
+  const idsPagar = (
+    await banco`select id from contas_pagar where descricao like ${PREFIXO + '%'}`
+  ).map((c) => c.id)
+  if (idsPagar.length > 0) {
+    await banco`delete from caixa_movimentos where origem = 'pagar' and origem_id in ${banco(idsPagar)}`
+    await banco`delete from contas_pagar where id in ${banco(idsPagar)}`
+  }
+
   // Ordem ditada pelas FKs `restrict`: o que aponta para a venda sai antes dela,
   // e o que aponta para o cliente sai antes dele.
   await banco`delete from contas_receber where cliente_id in (${clientesDoTeste})`
@@ -254,6 +263,12 @@ async function faxina() {
        set valor = coalesce(
              (select max(t.codigo) from contas_receber t where t.company_id = s.company_id), 0)
      where s.nome = 'contas_receber'
+  `
+  await banco`
+    update sequencias s
+       set valor = coalesce(
+             (select max(c.codigo) from contas_pagar c where c.company_id = s.company_id), 0)
+     where s.nome = 'contas_pagar'
   `
 
   // O admin descartável da perna de administração. Domínio `.invalid` (RFC
@@ -857,6 +872,47 @@ try {
   await esperarCaminho((p) => p.startsWith('/painel'), 'entrar no painel')
   check('login pelo formulário funciona', true)
 
+  /**
+   * Aquece todas as telas do menu antes do roteiro começar.
+   *
+   * O `next dev` compila rota por rota, no primeiro acesso — e a compilação de
+   * uma tela nova estoura sozinha os 15s de espera dos passos seguintes. A
+   * falha aparecia num lugar aleatório do roteiro, diferente a cada rodada, e
+   * sempre longe da causa: "esperando voltar ao painel" quando o que houve foi
+   * o Turbopack compilando outra coisa.
+   *
+   * Aquecer aqui vale por si só: é a checagem de que **toda tela do menu abre**
+   * — a mais barata que existe, e a que pega import quebrado antes que ele
+   * apareça disfarçado de timeout três telas adiante.
+   */
+  const rotas = [
+    '/painel',
+    '/vendas/pdv',
+    '/vendas/produtos',
+    '/vasilhame/baixa',
+    '/vasilhame/saldos',
+    '/vasilhame/movimentos',
+    '/cadastro/clientes',
+    '/cadastro/clientes/novo',
+    '/cadastro/produtos',
+    '/cadastro/fornecedores',
+    '/cadastro/tabelas-preco',
+    '/financeiro/receber',
+    '/financeiro/pagar',
+    '/financeiro/pagar/nova',
+    '/financeiro/caixa',
+  ]
+  const naoAbriram = []
+  for (const rota of rotas) {
+    await irPara(rota)
+    // Cair no login significa sessão perdida; qualquer outro caminho significa
+    // redirecionamento inesperado. Os dois são falha de tela, não de espera.
+    if (!(await caminho()).startsWith(rota)) naoAbriram.push(`${rota} → ${await caminho()}`)
+  }
+  check('todas as telas do menu abrem', naoAbriram.length === 0, naoAbriram.join(' | '))
+
+  await irPara('/painel')
+
   // O nome da empresa vem do banco na hora do login e viaja na sessão. Ficava
   // vazio porque a consulta rodava fora do `withTenant` e a RLS negava — e o
   // sintoma era só um "·" solto ao lado da data. Num sistema multi-tenant, o
@@ -1171,6 +1227,14 @@ try {
     await clicar(PREFIXO + ' Água 20L')
     await clicar(PREFIXO + ' Água 20L')
     await escolherPorTexto('clienteId', nome)
+    // Esperar o contador de vasilhame antes de seguir prova que o cliente foi
+    // de fato selecionado. Sem esta espera o roteiro às vezes fechava a venda
+    // com o combo ainda vazio, o servidor recusava — fiado exige cliente — e a
+    // falha aparecia como "o recibo não chegou", sem dizer que faltou cliente.
+    await esperarPor(
+      async () => (await texto()).includes('Galões vazios que ele trouxe'),
+      'o cliente entrar na venda fiada',
+    )
     await escolherPorTexto('formaId', 'Fiado')
     await esperarPor(
       async () => (await texto()).includes('Nada entra no caixa agora'),
@@ -1279,6 +1343,65 @@ try {
       'o caixa registra o estorno da baixa desfeita, em vez de apagar a entrada',
       caixa.includes('Baixa desfeita'),
       caixa.slice(0, 400),
+    )
+
+    /* ------------------------------------------------------ contas a pagar
+     *
+     * O outro lado do caixa. O que este trecho prova é o parcelamento — um
+     * lançamento de R$ 300 em 3× tem que virar três contas de R$ 100, cada uma
+     * com seu vencimento, e não uma conta de R$ 300 com um campo "parcelas" ao
+     * lado. É essa forma que faz "o que vence esta semana" ter resposta.
+     */
+    await irPara('/financeiro/pagar/nova')
+    await clicar('Custo', 15_000, 'label')
+    await preencher({
+      descricao: `${PREFIXO} Compra de garrafões`,
+      categoria: 'Vasilhame',
+      valorPrevisto: '300,00',
+    })
+    await escolherPorTexto('parcelas', '3×')
+    await foto('pagar-lancamento')
+    await clicar('Lançar conta')
+    await esperarPor(
+      async () => (await texto()).includes('Ver Contas a Pagar'),
+      'a confirmação do lançamento',
+    )
+    const lancou = await texto()
+    check(
+      'lançar em 3× cria três parcelas e diz quando vence a primeira',
+      lancou.includes('3 parcelas'),
+      lancou.slice(0, 300),
+    )
+
+    await irPara('/financeiro/pagar')
+    const pagar = await texto()
+    await foto('contas-a-pagar')
+    check(
+      'as três parcelas aparecem com R$ 100,00 cada',
+      (pagar.match(/100,00/g) ?? []).length >= 3,
+      pagar.slice(0, 400),
+    )
+    check('a conta lançada como custo aparece separada de despesa', pagar.includes('Custo'))
+
+    // --- pagar a primeira parcela: sai do caixa
+    await clicar('Pagar', 15_000, 'a[href^="/financeiro/pagar/"]')
+    await esperarCaminho(
+      (p) => /\/financeiro\/pagar\/[0-9a-f-]{36}/.test(p),
+      'abrir o pagamento da conta',
+    )
+    await clicar('Confirmar pagamento')
+    await esperarPor(
+      async () => (await texto()).includes('Voltar para Contas a Pagar'),
+      'a confirmação do pagamento',
+    )
+    check('pagar a conta confirma na tela e diz de onde o dinheiro saiu', true)
+
+    await irPara('/financeiro/caixa')
+    const caixaComSaida = await texto()
+    check(
+      'o pagamento aparece como saída no caixa',
+      caixaComSaida.includes('Compra de garrafões') && caixaComSaida.includes('100,00'),
+      caixaComSaida.slice(0, 400),
     )
 
     // --- celular: o balcão também é atendido com o telefone na mão

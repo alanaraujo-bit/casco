@@ -100,6 +100,7 @@ export const NAVEGACAO: GrupoNav[] = [
     Icone: Wallet,
     itens: [
       { rotulo: 'Contas a Receber', href: '/financeiro/receber' },
+      { rotulo: 'Contas a Pagar', href: '/financeiro/pagar' },
       { rotulo: 'Caixa', href: '/financeiro/caixa' },
     ],
   },
@@ -134,10 +135,7 @@ export const PROXIMAS: GrupoNav[] = [
   {
     rotulo: 'Financeiro',
     Icone: Wallet,
-    itens: [
-      { rotulo: 'Contas a Pagar', href: '/financeiro/pagar' },
-      { rotulo: 'Despesas', href: '/financeiro/despesas' },
-    ],
+    itens: [{ rotulo: 'Despesas', href: '/financeiro/despesas' }],
   },
   {
     rotulo: 'Estoque',

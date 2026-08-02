@@ -5,8 +5,10 @@ import {
   caixaMovimentos,
   clientes,
   contasBancarias,
+  contasPagar,
   contasReceber,
   formasPagamento,
+  fornecedores,
   users,
   type TipoPagamento,
 } from '@/db/schema'
@@ -310,4 +312,168 @@ export function metricasCaixa() {
 
     return linha
   })
+}
+
+/* --------------------------------------------------------- contas a pagar
+ *
+ * Colunas na ordem da listagem deles (auditoria §3): Parcela · Descrição ·
+ * Despesa/Custos · Categoria · Tipo · Vencimento · Valor Previsto · Data
+ * Pagamento · Valor Pagamento · Status · Forma Pagamento · Saída Dinheiro ·
+ * Observação.
+ *
+ * "Despesa/Custos" é a coluna que o DRE precisa e que no legado aparece como
+ * `NaN`: custo entra no CMV, despesa entra em despesa operacional. Aqui ela é
+ * `natureza`, escolhida no lançamento e nunca deduzida do texto da descrição.
+ */
+
+export type SituacaoConta = 'Pago' | 'Em aberto' | 'Vencido'
+
+export interface ContaPagarLista {
+  id: string
+  codigo: number | null
+  descricao: string
+  fornecedor: string | null
+  natureza: string
+  categoria: string | null
+  parcela: string
+  vencimento: string
+  valorPrevisto: string
+  pagoEm: string | null
+  valorPago: string | null
+  situacao: SituacaoConta
+  forma: string | null
+  conta: string | null
+  observacao: string | null
+}
+
+const SITUACAO_PAGAR = sql<SituacaoConta>`
+  case
+    when ${contasPagar.pagoEm} is not null then 'Pago'
+    when ${contasPagar.vencimento} < (now() at time zone 'America/Belem')::date then 'Vencido'
+    else 'Em aberto'
+  end
+`
+
+export function listarContasPagar() {
+  return comTenant((tx) =>
+    tx
+      .select({
+        id: contasPagar.id,
+        codigo: contasPagar.codigo,
+        descricao: contasPagar.descricao,
+        fornecedor: fornecedores.nome,
+        natureza: contasPagar.natureza,
+        categoria: contasPagar.categoria,
+        parcela: sql<string>`${contasPagar.parcelaNumero} || '/' || ${contasPagar.parcelaTotal}`,
+        vencimento: sql<string>`to_char(${contasPagar.vencimento}, 'DD/MM/YYYY')`,
+        valorPrevisto: contasPagar.valorPrevisto,
+        pagoEm: sql<string | null>`to_char(${contasPagar.pagoEm}, 'DD/MM/YYYY')`,
+        valorPago: contasPagar.valorPago,
+        situacao: SITUACAO_PAGAR,
+        forma: formasPagamento.nome,
+        conta: contasBancarias.nome,
+        observacao: contasPagar.observacao,
+      })
+      .from(contasPagar)
+      .leftJoin(fornecedores, eq(fornecedores.id, contasPagar.fornecedorId))
+      .leftJoin(formasPagamento, eq(formasPagamento.id, contasPagar.formaId))
+      .leftJoin(contasBancarias, eq(contasBancarias.id, contasPagar.contaId))
+      .orderBy(asc(contasPagar.vencimento)),
+  ) as Promise<ContaPagarLista[]>
+}
+
+/**
+ * Os cartões do cabeçalho, em uma consulta.
+ *
+ * "Vence em 7 dias" é para-brisa, não retrovisor: é o que ainda dá para evitar.
+ * O vencido já custou.
+ */
+export function metricasPagar() {
+  return comTenant(async (tx) => {
+    const hoje = sql`(now() at time zone 'America/Belem')::date`
+    const aberto = sql`${contasPagar.pagoEm} is null`
+    const vencido = sql`${aberto} and ${contasPagar.vencimento} < ${hoje}`
+
+    const [linha] = await tx
+      .select({
+        emAberto: sql<string>`coalesce(sum(${contasPagar.valorPrevisto}) filter (where ${aberto}), 0)`,
+        qtdAberto: sql<number>`count(*) filter (where ${aberto})::int`,
+        vencido: sql<string>`coalesce(sum(${contasPagar.valorPrevisto}) filter (where ${vencido}), 0)`,
+        qtdVencido: sql<number>`count(*) filter (where ${vencido})::int`,
+        venceEm7: sql<string>`coalesce(sum(${contasPagar.valorPrevisto}) filter (
+          where ${aberto} and ${contasPagar.vencimento} between ${hoje} and ${hoje} + 7), 0)`,
+        pagoMes: sql<string>`coalesce(sum(${contasPagar.valorPago}) filter (
+          where date_trunc('month', ${contasPagar.pagoEm}) = date_trunc('month', ${hoje})), 0)`,
+        custoMes: sql<string>`coalesce(sum(${contasPagar.valorPago}) filter (
+          where ${contasPagar.natureza} = 'custo'
+            and date_trunc('month', ${contasPagar.pagoEm}) = date_trunc('month', ${hoje})), 0)`,
+      })
+      .from(contasPagar)
+
+    return linha
+  })
+}
+
+export interface ContaPagarDetalhe {
+  id: string
+  codigo: number | null
+  descricao: string
+  fornecedor: string | null
+  natureza: string
+  categoria: string | null
+  parcela: string
+  emissao: string
+  vencimento: string
+  valorPrevisto: string
+  pagoEm: string | null
+  valorPago: string | null
+  forma: string | null
+  conta: string | null
+  observacao: string | null
+}
+
+export function acharContaPagar(id: string) {
+  return comTenant(async (tx) => {
+    const [linha] = await tx
+      .select({
+        id: contasPagar.id,
+        codigo: contasPagar.codigo,
+        descricao: contasPagar.descricao,
+        fornecedor: fornecedores.nome,
+        natureza: contasPagar.natureza,
+        categoria: contasPagar.categoria,
+        parcela: sql<string>`${contasPagar.parcelaNumero} || '/' || ${contasPagar.parcelaTotal}`,
+        emissao: sql<string>`to_char(${contasPagar.emissao}, 'DD/MM/YYYY')`,
+        vencimento: sql<string>`to_char(${contasPagar.vencimento}, 'DD/MM/YYYY')`,
+        valorPrevisto: contasPagar.valorPrevisto,
+        pagoEm: sql<string | null>`to_char(${contasPagar.pagoEm}, 'DD/MM/YYYY')`,
+        valorPago: contasPagar.valorPago,
+        forma: formasPagamento.nome,
+        conta: contasBancarias.nome,
+        observacao: contasPagar.observacao,
+      })
+      .from(contasPagar)
+      .leftJoin(fornecedores, eq(fornecedores.id, contasPagar.fornecedorId))
+      .leftJoin(formasPagamento, eq(formasPagamento.id, contasPagar.formaId))
+      .leftJoin(contasBancarias, eq(contasBancarias.id, contasPagar.contaId))
+      .where(eq(contasPagar.id, id))
+      .limit(1)
+    return (linha ?? null) as ContaPagarDetalhe | null
+  })
+}
+
+export interface FornecedorOpcao {
+  id: string
+  codigo: number | null
+  nome: string
+}
+
+export function listarFornecedoresAtivos() {
+  return comTenant((tx) =>
+    tx
+      .select({ id: fornecedores.id, codigo: fornecedores.codigo, nome: fornecedores.nome })
+      .from(fornecedores)
+      .where(eq(fornecedores.ativo, true))
+      .orderBy(asc(fornecedores.nome)),
+  ) as Promise<FornecedorOpcao[]>
 }
