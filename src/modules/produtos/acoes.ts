@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { uuidv7 } from 'uuidv7'
 import { estoqueMovimentos, produtos } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
+import { descreverFalha } from '@/lib/erros'
 import { autorDoLancamento } from '@/lib/sessao'
 import {
   CAMPOS_PRODUTO,
@@ -47,49 +48,56 @@ export async function criarProduto(
   const dados = analise.data
   const id = uuidv7()
 
-  await comTenant(async (tx, sessao) => {
-    await tx.insert(produtos).values({
-      id,
-      companyId: sessao.companyId,
-      nome: dados.nome,
-      sku: dados.sku,
-      categoria: dados.categoria,
-      unidade: dados.unidade,
-      precoPadrao: String(dados.precoPadrao),
-      custo: String(dados.custo),
-      retornavel: dados.retornavel,
-      vasilhameId: dados.vasilhameId,
-      controlaEstoque: dados.controlaEstoque,
-      estoqueMinimo: String(dados.estoqueMinimo),
-      estoqueMaximo: String(dados.estoqueMaximo),
-      ncm: dados.ncm,
-    })
-
-    /**
-     * O galão que já está na prateleira quando o cadastro nasce.
-     *
-     * Vira um `ajuste` — o mesmo tipo que "Ajuste de inventário" lança em
-     * `/estoque/entradas/nova` — e não um `producao` ou `compra`: não foi
-     * fabricado aqui nem chegou de fornecedor agora, só é o que já existia e a
-     * operadora está contando pela primeira vez. Mesma transação do produto:
-     * ou os dois nascem juntos, ou nenhum nasce, senão um produto sem esta
-     * linha pareceria "controla estoque" mentindo um saldo de zero que nunca
-     * foi zero de verdade.
-     */
-    if (dados.controlaEstoque && dados.estoqueInicial > 0) {
-      await tx.insert(estoqueMovimentos).values({
-        id: uuidv7(),
+  try {
+    await comTenant(async (tx, sessao) => {
+      await tx.insert(produtos).values({
+        id,
         companyId: sessao.companyId,
-        produtoId: id,
-        quantidade: String(dados.estoqueInicial),
-        tipo: 'ajuste',
-        custoUnitario: String(dados.custo),
-        origem: 'balcao',
-        usuarioId: autorDoLancamento(sessao),
-        observacao: 'Estoque inicial, lançado no cadastro do produto',
+        nome: dados.nome,
+        sku: dados.sku,
+        categoria: dados.categoria,
+        unidade: dados.unidade,
+        precoPadrao: String(dados.precoPadrao),
+        custo: String(dados.custo),
+        retornavel: dados.retornavel,
+        vasilhameId: dados.vasilhameId,
+        controlaEstoque: dados.controlaEstoque,
+        estoqueMinimo: String(dados.estoqueMinimo),
+        estoqueMaximo: String(dados.estoqueMaximo),
+        ncm: dados.ncm,
       })
-    }
-  })
+
+      /**
+       * O galão que já está na prateleira quando o cadastro nasce.
+       *
+       * Vira um `ajuste` — o mesmo tipo que "Ajuste de inventário" lança em
+       * `/estoque/entradas/nova` — e não um `producao` ou `compra`: não foi
+       * fabricado aqui nem chegou de fornecedor agora, só é o que já existia e a
+       * operadora está contando pela primeira vez. Mesma transação do produto:
+       * ou os dois nascem juntos, ou nenhum nasce, senão um produto sem esta
+       * linha pareceria "controla estoque" mentindo um saldo de zero que nunca
+       * foi zero de verdade.
+       */
+      if (dados.controlaEstoque && dados.estoqueInicial > 0) {
+        await tx.insert(estoqueMovimentos).values({
+          id: uuidv7(),
+          companyId: sessao.companyId,
+          produtoId: id,
+          quantidade: String(dados.estoqueInicial),
+          tipo: 'ajuste',
+          custoUnitario: String(dados.custo),
+          origem: 'balcao',
+          usuarioId: autorDoLancamento(sessao),
+          observacao: 'Estoque inicial, lançado no cadastro do produto',
+        })
+      }
+    })
+  } catch (err) {
+    // Sem isto, SKU repetido ou NCM inválido — as duas regras que só o banco
+    // conhece — estourava para a tela de erro genérica do Next, e o cadastro
+    // inteiro que a operadora acabou de preencher desaparecia com ele.
+    return { erro: descreverFalha(err), valores, tentativa }
+  }
 
   revalidatePath('/cadastro/produtos')
   revalidatePath('/estoque/saldo')
@@ -108,26 +116,31 @@ export async function atualizarProduto(
 
   const dados = analise.data
 
-  const alteradas = await comTenant((tx) =>
-    tx
-      .update(produtos)
-      .set({
-        nome: dados.nome,
-        sku: dados.sku,
-        categoria: dados.categoria,
-        unidade: dados.unidade,
-        precoPadrao: String(dados.precoPadrao),
-        custo: String(dados.custo),
-        retornavel: dados.retornavel,
-        vasilhameId: dados.vasilhameId,
-        controlaEstoque: dados.controlaEstoque,
-        estoqueMinimo: String(dados.estoqueMinimo),
-        estoqueMaximo: String(dados.estoqueMaximo),
-        ncm: dados.ncm,
-      })
-      .where(eq(produtos.id, id))
-      .returning({ id: produtos.id }),
-  )
+  let alteradas: { id: string }[]
+  try {
+    alteradas = await comTenant((tx) =>
+      tx
+        .update(produtos)
+        .set({
+          nome: dados.nome,
+          sku: dados.sku,
+          categoria: dados.categoria,
+          unidade: dados.unidade,
+          precoPadrao: String(dados.precoPadrao),
+          custo: String(dados.custo),
+          retornavel: dados.retornavel,
+          vasilhameId: dados.vasilhameId,
+          controlaEstoque: dados.controlaEstoque,
+          estoqueMinimo: String(dados.estoqueMinimo),
+          estoqueMaximo: String(dados.estoqueMaximo),
+          ncm: dados.ncm,
+        })
+        .where(eq(produtos.id, id))
+        .returning({ id: produtos.id }),
+    )
+  } catch (err) {
+    return { erro: descreverFalha(err), valores, tentativa }
+  }
 
   if (alteradas.length === 0) {
     return { erro: 'Produto não encontrado.', valores, tentativa }

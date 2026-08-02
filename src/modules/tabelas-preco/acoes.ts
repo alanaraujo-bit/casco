@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { uuidv7 } from 'uuidv7'
 import { tabelasPreco, precos } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
+import { descreverFalha } from '@/lib/erros'
 import {
   CAMPOS_TABELA,
   esquemaTabela,
@@ -46,21 +47,25 @@ export async function criarTabela(
   const dados = analise.data
   const id = uuidv7()
 
-  await comTenant(async (tx, sessao) => {
-    if (dados.padrao) {
-      await tx
-        .update(tabelasPreco)
-        .set({ padrao: false })
-        .where(eq(tabelasPreco.padrao, true))
-    }
+  try {
+    await comTenant(async (tx, sessao) => {
+      if (dados.padrao) {
+        await tx
+          .update(tabelasPreco)
+          .set({ padrao: false })
+          .where(eq(tabelasPreco.padrao, true))
+      }
 
-    await tx.insert(tabelasPreco).values({
-      id,
-      companyId: sessao.companyId,
-      nome: dados.nome,
-      padrao: dados.padrao,
+      await tx.insert(tabelasPreco).values({
+        id,
+        companyId: sessao.companyId,
+        nome: dados.nome,
+        padrao: dados.padrao,
+      })
     })
-  })
+  } catch (err) {
+    return { erro: descreverFalha(err), valores, tentativa }
+  }
 
   revalidatePath('/cadastro/tabelas-preco')
   redirect(`/cadastro/tabelas-preco/${id}`)
@@ -78,20 +83,25 @@ export async function atualizarTabela(
 
   const dados = analise.data
 
-  const alteradas = await comTenant(async (tx) => {
-    if (dados.padrao) {
-      await tx
-        .update(tabelasPreco)
-        .set({ padrao: false })
-        .where(eq(tabelasPreco.padrao, true))
-    }
+  let alteradas: { id: string }[]
+  try {
+    alteradas = await comTenant(async (tx) => {
+      if (dados.padrao) {
+        await tx
+          .update(tabelasPreco)
+          .set({ padrao: false })
+          .where(eq(tabelasPreco.padrao, true))
+      }
 
-    return tx
-      .update(tabelasPreco)
-      .set({ nome: dados.nome, padrao: dados.padrao })
-      .where(eq(tabelasPreco.id, id))
-      .returning({ id: tabelasPreco.id })
-  })
+      return tx
+        .update(tabelasPreco)
+        .set({ nome: dados.nome, padrao: dados.padrao })
+        .where(eq(tabelasPreco.id, id))
+        .returning({ id: tabelasPreco.id })
+    })
+  } catch (err) {
+    return { erro: descreverFalha(err), valores, tentativa }
+  }
 
   if (alteradas.length === 0) {
     return { erro: 'Tabela não encontrada.', valores, tentativa }
