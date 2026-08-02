@@ -2,8 +2,9 @@
 
 import * as React from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LogOut, Menu, ShieldCheck, X } from 'lucide-react'
+import { CircleHelp, LogOut, Menu, ShieldCheck, X } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { ConteudoSidebar, Sidebar } from '@/components/layout/sidebar'
 import { MenuUsuario } from '@/components/layout/menu-usuario'
@@ -120,6 +121,20 @@ function Topbar({
       {/* Empurra o seletor de tema para a direita quando o título some. */}
       <div className="hidden flex-1 md:block" />
 
+      {/* Ao contrário do tema, ajuda não é preferência de uma vez: fica
+          visível nos dois tamanhos, sempre a um toque — é o "?" que a
+          operadora precisa achar sem pensar, na primeira vez que trava. */}
+      <Link
+        href="/ajuda"
+        aria-label="Central de Ajuda"
+        className={cn(
+          'grid size-11 shrink-0 place-items-center rounded-md md:size-9',
+          'text-texto-suave hover:bg-superficie-hover hover:text-texto',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foco',
+        )}
+      >
+        <CircleHelp className="size-5" aria-hidden />
+      </Link>
 
       {/* Só a partir de `md`. No celular ele vive dentro do menu da conta —
           ver a nota lá. Tema é preferência que se ajusta uma vez; ocupar 36%

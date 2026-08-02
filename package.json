@@ -13,7 +13,8 @@
     "empresa:criar": "node --env-file-if-exists=.env.local scripts/criar-empresa.mjs",
     "admin:criar": "node --env-file-if-exists=.env.local scripts/criar-admin.mjs",
     "fluxo": "node --env-file-if-exists=.env.local scripts/fluxo.mjs",
-    "empresa:renomear": "node --env-file-if-exists=.env.local scripts/renomear-empresa.mjs"
+    "empresa:renomear": "node --env-file-if-exists=.env.local scripts/renomear-empresa.mjs",
+    "ajuda:capturar": "node --env-file-if-exists=.env.local scripts/capturar-ajuda.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.23",
@@ -42,6 +43,8 @@
     "drizzle-kit": "0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "gifenc": "^1.0.3",
+    "pngjs": "^7.0.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

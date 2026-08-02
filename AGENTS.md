@@ -50,6 +50,15 @@ níveis (Funciona → Fluido → Premium) antes da próxima começar.
 **Pronto significa rodando.** Build passar não é prova. Execute o fluxo de verdade,
 no desktop e no celular, antes de dizer que terminou.
 
+**Toda tela nova é uma pergunta para a Central de Ajuda.** Ao terminar uma tela ou
+mudar um fluxo (Nível 1 em diante), pergunte: isso muda o que a operadora vê ou faz?
+Se sim, a etapa só conta como pronta depois que `src/lib/ajuda.ts` ganhar um artigo novo
+— ou um existente for ajustado. Não espere o Alan pedir; é para isso que esta frase está
+aqui. O padrão de artigo (texto claro, `Passos`, `Dica`/`Atencao`/`Importante`, FAQ) mora
+em `src/components/ajuda/`, com exemplo completo no grupo Vasilhame. Vídeo real do fluxo,
+via `node scripts/capturar-ajuda.mjs`, quando o caminho não for óbvio só de ler — a Central
+existe para o cliente resolver dúvida sozinho, sem ligar para ninguém.
+
 Três comandos tornam isso verificável, e cada um pega o que os outros não pegam:
 
 | | |
@@ -85,10 +94,10 @@ Três armadilhas que custaram caro e estão anotadas no código:
 
 ```
 src/
-  app/         rotas (App Router)
-  components/  ui/ (primitivos) e layout/ (shell, sidebar, topbar)
+  app/         rotas (App Router), inclusive app/(app)/ajuda/
+  components/  ui/ (primitivos), layout/ (shell, sidebar, topbar), ajuda/ (Central de Ajuda)
   db/          schema Drizzle, cliente, withTenant
-  lib/         utilidades, auth
+  lib/         utilidades, auth, ajuda.ts (índice de artigos)
   modules/     lógica por domínio (clientes, vasilhame, vendas, ...)
 docs/          auditoria, arquitetura, modelo de dados, roadmap
 ```
