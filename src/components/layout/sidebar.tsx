@@ -143,10 +143,13 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
  * do `AppShell` — ver a nota do `.sidebar-desktop` em `globals.css` sobre por
  * que o drawer nunca retrai, mesmo com a preferência salva.
  *
- * **A largura muda por CSS, nunca por `style` do React.** `w-60` e
- * `retraida:w-[4.5rem]` são as duas únicas larguras que existem, e a troca
- * entre elas é uma transição de `width` comum — sem `useState` no meio
- * decidindo o número, sem re-render em cascata, sem chance de a largura do
+ * **A largura muda por CSS, nunca por `style` do React**, via `.sidebar-caixa`
+ * em `globals.css` — regra escrita à mão, não o utilitário `retraida:` do
+ * Tailwind. As duas tentativas com o utilitário arbitrário mediram a largura
+ * sem mudança nenhuma no Chrome, apesar do seletor bater e a regra aparecer
+ * compilada; a versão em CSS puro não depende de adivinhar por que. O ganho
+ * que a abordagem original buscava continua de pé: nenhum `useState` decide o
+ * número, nenhum re-render em cascata, nenhuma chance de a largura do
  * primeiro paint discordar da que o `scriptSidebar` já carimbou. O estado do
  * React abaixo existe só para o botão saber que ícone mostrar.
  */
@@ -165,47 +168,45 @@ export function Sidebar() {
   }
 
   return (
-    // `div` e não `aside`: `aside` é landmark de conteúdo complementar, e o
-    // menu principal não é tangencial. O `nav` de dentro já é o landmark certo.
-    //
-    // `sidebar-desktop` é o que escopa o variant `retraida:` só para cá — ver
-    // `globals.css`. `relative` é para o botão de alternar, ancorado na borda.
-    <div
-      className={cn(
-        'sidebar-desktop relative hidden shrink-0 border-r border-borda bg-superficie md:block',
-        'w-60 retraida:w-[4.5rem]',
-        // Só a largura anima. Cor e borda mudam de estado juntas com o resto
-        // da tela (tema, hover) e não precisam de duração própria — dar
-        // `transition-all` aqui accidentalmente animaria a cor do tema também,
-        // trocando instantâneo por lento onde ninguém pediu.
-        'transition-[width] duration-200 ease-in-out',
-      )}
-    >
-      <div className="sticky top-0 h-dvh">
-        <ConteudoSidebar />
-      </div>
-
-      <button
-        type="button"
-        onClick={alternar}
-        aria-expanded={!retraida}
-        aria-label={retraida ? 'Expandir menu' : 'Retrair menu'}
-        title={retraida ? 'Expandir menu' : 'Retrair menu'}
-        className={cn(
-          // Metade para dentro, metade para fora da borda — o formato que
-          // avisa "isto empurra a borda ao lado", sem precisar de legenda.
-          'absolute -right-3 top-16 z-10 grid size-6 place-items-center rounded-full',
-          'border border-borda-controle bg-superficie text-texto-suave shadow-sm',
-          'hover:bg-superficie-hover hover:text-texto',
-          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foco',
-        )}
+    // `sidebar-desktop` marca "estamos no desktop" e não carrega largura
+    // nenhuma — quem muda de largura é sempre a div de dentro, uma
+    // descendente de verdade. Ver a nota longa em `globals.css`: a primeira
+    // versão pôs a largura na PRÓPRIA div marcada, e o `retraida:` nunca
+    // tinha como casar com o elemento que ele mesmo está em cima.
+    <div className="sidebar-desktop hidden shrink-0 md:block">
+      {/* `div` e não `aside`: `aside` é landmark de conteúdo complementar, e
+          o menu principal não é tangencial. O `nav` de dentro já é o
+          landmark certo. `relative` é para o botão de alternar, ancorado na
+          borda desta caixa — a que de fato muda de largura. */}
+      <div
+        // `sidebar-caixa` é quem tem largura de verdade — ver `globals.css` e
+        // a nota acima sobre por que não é `w-60`/`retraida:w-[...]`.
+        className="sidebar-caixa relative sticky top-0 h-dvh border-r border-borda bg-superficie"
       >
-        {retraida ? (
-          <ChevronRight className="size-3.5" aria-hidden />
-        ) : (
-          <ChevronLeft className="size-3.5" aria-hidden />
-        )}
-      </button>
+        <ConteudoSidebar />
+
+        <button
+          type="button"
+          onClick={alternar}
+          aria-expanded={!retraida}
+          aria-label={retraida ? 'Expandir menu' : 'Retrair menu'}
+          title={retraida ? 'Expandir menu' : 'Retrair menu'}
+          className={cn(
+            // Metade para dentro, metade para fora da borda — o formato que
+            // avisa "isto empurra a borda ao lado", sem precisar de legenda.
+            'absolute -right-3 top-16 z-10 grid size-6 place-items-center rounded-full',
+            'border border-borda-controle bg-superficie text-texto-suave shadow-sm',
+            'hover:bg-superficie-hover hover:text-texto',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foco',
+          )}
+        >
+          {retraida ? (
+            <ChevronRight className="size-3.5" aria-hidden />
+          ) : (
+            <ChevronLeft className="size-3.5" aria-hidden />
+          )}
+        </button>
+      </div>
     </div>
   )
 }

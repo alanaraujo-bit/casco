@@ -1027,15 +1027,42 @@ try {
     const span = a ? a.querySelector('span:last-child') : null
     return span ? span.getBoundingClientRect().width : -1
   `)
+  // A largura da CAIXA, não só do rótulo de dentro — é a checagem que faltou
+  // da primeira vez. O rótulo ia a zero por um `retraida:` que se aplicava
+  // certo aos filhos da sidebar; a caixa em si tentou usar o mesmo
+  // `retraida:` sobre a própria `.sidebar-desktop`, e um elemento não é
+  // descendente dele mesmo — a regra nunca tinha como casar. Resultado:
+  // rótulo sumia, caixa continuava com 15rem, sobrava um vão em branco do
+  // tamanho do texto que deveria ter encolhido. Só testar o rótulo não
+  // pegava isso. `.sidebar-desktop > div` é a caixa que de fato muda de
+  // largura — `.sidebar-desktop` em si é só o marcador, sem largura própria.
+  //
+  // A espera é a `transition: width .2s` — sem ela, `getBoundingClientRect`
+  // mede a largura no meio da animação, não no fim dela, e qualquer valor
+  // intermediário reprova uma sidebar que está funcionando perfeitamente.
+  await espera(300)
+  const larguraCaixa = await js(`
+    return document.querySelector('.sidebar-desktop > div')?.getBoundingClientRect().width ?? -1
+  `)
   if (depoisDoClique === 'retraida') {
     check(
       'retraída, o rótulo do item encolhe a largura zero',
       larguraRotulo === 0,
       `largura medida: ${larguraRotulo}px`,
     )
+    check(
+      'retraída, a CAIXA da sidebar encolhe (não só o texto de dentro)',
+      larguraCaixa > 0 && larguraCaixa < 100,
+      `largura da caixa: ${larguraCaixa}px (esperado perto de 72px)`,
+    )
     await foto('sidebar-retraida')
   } else {
     check('expandida de novo, o rótulo do item volta a ter largura', larguraRotulo > 0)
+    check(
+      'expandida de novo, a caixa da sidebar volta à largura cheia',
+      larguraCaixa > 200,
+      `largura da caixa: ${larguraCaixa}px (esperado perto de 240px)`,
+    )
   }
 
   // Devolve ao estado em que a rodada começou — o resto do roteiro não deveria

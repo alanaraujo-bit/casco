@@ -27,8 +27,27 @@
    reaproveitada no drawer do celular, que nunca retrai — sem o escopo, abrir
    o menu no celular com a preferência "retraída" salva do desktop reduziria o
    drawer a uma faixa de ícones, onde o usuário já tem a tela inteira e não
-   precisa economizar espaço nenhum. */
+   precisa economizar espaço nenhum.
+
+   Cobre os detalhes cosméticos (rótulo encolhendo, ícone centralizado) — a
+   LARGURA da caixa em si é CSS puro logo abaixo, e não `retraida:w-[...]`.
+   As duas tentativas com o utilitário arbitrário (primeiro na própria
+   `.sidebar-desktop`, depois numa descendente de verdade) mediram a largura
+   sem mudança nenhuma no Chrome, apesar de `Element.matches()` confirmar que
+   o seletor batia e o utilitário aparecer compilado — um caso melhor resolvido
+   com uma regra direta do que investigado até o fim. */
 @custom-variant retraida (&:is([data-sidebar='retraida'] .sidebar-desktop *));
+
+/* A largura da sidebar, sem passar pelo utilitário arbitrário do Tailwind —
+   ver a nota acima. `.sidebar-caixa` é a única div que muda de largura;
+   `[data-sidebar='retraida']` no ancestral `<html>` decide qual das duas. */
+.sidebar-caixa {
+  width: 15rem;
+  transition: width 200ms ease-in-out;
+}
+[data-sidebar='retraida'] .sidebar-caixa {
+  width: 4.5rem;
+}
 
 /* ==========================================================================
    PALETA CRUA
