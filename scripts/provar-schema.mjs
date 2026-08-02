@@ -234,9 +234,9 @@ try {
   // ---------------------------------------------------------- custo médio
   await comTenant(A, async (tx) => {
     await tx`insert into estoque_movimentos (id, company_id, produto_id, quantidade, tipo, custo_unitario)
-             values (${randomUUID()}, ${A}, ${agua}, 100, 'entrada', 4.00)`
+             values (${randomUUID()}, ${A}, ${agua}, 100, 'producao', 4.00)`
     await tx`insert into estoque_movimentos (id, company_id, produto_id, quantidade, tipo, custo_unitario)
-             values (${randomUUID()}, ${A}, ${agua}, 100, 'entrada', 5.00)`
+             values (${randomUUID()}, ${A}, ${agua}, 100, 'producao', 5.00)`
   })
   const [est] = await dono`select quantidade, custo_medio from estoque_saldos where produto_id = ${agua}`
   check('custo médio de 100@4 + 100@5 = 4,50', Number(est.custo_medio) === 4.5,
@@ -249,6 +249,126 @@ try {
   check('saída não mexe no custo médio', Number(est2.custo_medio) === 4.5, `veio ${est2.custo_medio}`)
   check('saída baixa a quantidade (200 − 50 = 150)', Number(est2.quantidade) === 150,
         `veio ${est2.quantidade}`)
+
+  // -------------------------------------------------------- estoque: sinal (0011)
+  await deveFalhar(
+    'produção com quantidade negativa é rejeitada',
+    () => comTenant(A, (tx) =>
+      tx`insert into estoque_movimentos (id, company_id, produto_id, quantidade, tipo, custo_unitario)
+         values (${randomUUID()}, ${A}, ${agua}, -10, 'producao', 1)`),
+    'estoque_mov_sinal_coerente',
+  )
+  await deveFalhar(
+    'venda com quantidade positiva é rejeitada',
+    () => comTenant(A, (tx) =>
+      tx`insert into estoque_movimentos (id, company_id, produto_id, quantidade, tipo, custo_unitario)
+         values (${randomUUID()}, ${A}, ${agua}, 10, 'venda', 1)`),
+    'estoque_mov_sinal_coerente',
+  )
+
+  // Ajuste é o único que vai nos dois sentidos — a contagem física tanto acha
+  // item a mais quanto a menos, e travar um dos lados obrigaria a operadora a
+  // inventar um tipo errado para o outro.
+  await comTenant(A, (tx) =>
+    tx`insert into estoque_movimentos (id, company_id, produto_id, quantidade, tipo, custo_unitario)
+       values (${randomUUID()}, ${A}, ${agua}, -3, 'ajuste', 0)`)
+  await comTenant(A, (tx) =>
+    tx`insert into estoque_movimentos (id, company_id, produto_id, quantidade, tipo, custo_unitario)
+       values (${randomUUID()}, ${A}, ${agua}, 3, 'ajuste', 0)`)
+  const [est3] = await dono`select quantidade, custo_medio from estoque_saldos where produto_id = ${agua}`
+  check('ajuste anda nos dois sentidos', Number(est3.quantidade) === 150, `veio ${est3.quantidade}`)
+
+  // Achar 3 galões a mais na contagem não barateia o estoque. Sem o trigger de
+  // custo padrão, os 3 entrariam a R$ 0 e o custo médio cairia para R$ 4,41 —
+  // e o CMV do mês sairia junto, sem nenhuma linha explicando.
+  check('ajuste sem custo entra ao custo vigente, não a zero',
+        Number(est3.custo_medio) === 4.5, `veio ${est3.custo_medio}`)
+  const [ajusteGravado] = await dono`
+    select custo_unitario from estoque_movimentos
+     where produto_id = ${agua} and tipo = 'ajuste' and quantidade > 0 limit 1`
+  check('e grava no movimento o custo efetivo, não o digitado',
+        Number(ajusteGravado.custo_unitario) === 4.5, `veio ${ajusteGravado.custo_unitario}`)
+
+  // ------------------------------------------------- estoque: fornecedor (0011)
+  const forn = randomUUID()
+  await comTenant(A, (tx) =>
+    tx`insert into fornecedores (id, company_id, nome) values (${forn}, ${A}, 'Tampas Ltda')`)
+
+  await deveFalhar(
+    'produção com fornecedor é rejeitada',
+    () => comTenant(A, (tx) =>
+      tx`insert into estoque_movimentos
+           (id, company_id, produto_id, quantidade, tipo, custo_unitario, fornecedor_id)
+         values (${randomUUID()}, ${A}, ${agua}, 10, 'producao', 1, ${forn})`),
+    'estoque_mov_fornecedor_so_compra',
+  )
+
+  // ------------------------------------------- estoque: estorno desfaz custo (0011)
+  //
+  // O caso que motivou reescrever o trigger da 0006: uma compra cara lançada por
+  // engano dobra o custo médio, e o estorno precisa devolver o custo ao lugar —
+  // não só a quantidade. Sem isso o CMV do mês fica multiplicado, sem nenhuma
+  // linha visível explicando por quê.
+  const compraErrada = randomUUID()
+  await comTenant(A, (tx) =>
+    tx`insert into estoque_movimentos
+         (id, company_id, produto_id, quantidade, tipo, custo_unitario, fornecedor_id)
+       values (${compraErrada}, ${A}, ${agua}, 150, 'compra', 50.00, ${forn})`)
+  const [inflado] = await dono`select custo_medio from estoque_saldos where produto_id = ${agua}`
+  check('compra cara move o custo médio (150@4,50 + 150@50 = 27,25)',
+        Number(inflado.custo_medio) === 27.25, `veio ${inflado.custo_medio}`)
+
+  await comTenant(A, (tx) =>
+    tx`insert into estoque_movimentos
+         (id, company_id, produto_id, quantidade, tipo, custo_unitario, fornecedor_id, estorno_de)
+       values (${randomUUID()}, ${A}, ${agua}, -150, 'compra', 50.00, ${forn}, ${compraErrada})`)
+  const [voltou] = await dono`select quantidade, custo_medio from estoque_saldos where produto_id = ${agua}`
+  check('estorno devolve o custo médio a 4,50', Number(voltou.custo_medio) === 4.5,
+        `veio ${voltou.custo_medio}`)
+  check('estorno devolve a quantidade a 150', Number(voltou.quantidade) === 150,
+        `veio ${voltou.quantidade}`)
+
+  await deveFalhar(
+    'estornar o mesmo movimento duas vezes é rejeitado',
+    () => comTenant(A, (tx) =>
+      tx`insert into estoque_movimentos
+           (id, company_id, produto_id, quantidade, tipo, custo_unitario, fornecedor_id, estorno_de)
+         values (${randomUUID()}, ${A}, ${agua}, -150, 'compra', 50.00, ${forn}, ${compraErrada})`),
+    'estoque_mov_estorno_unico',
+  )
+
+  await deveFalhar(
+    'estorno com quantidade diferente do original é rejeitado',
+    () => comTenant(A, (tx) =>
+      tx`insert into estoque_movimentos
+           (id, company_id, produto_id, quantidade, tipo, custo_unitario, estorno_de)
+         values (${randomUUID()}, ${A}, ${agua}, -10, 'producao', 4,
+                 (select id from estoque_movimentos
+                   where produto_id = ${agua} and tipo = 'producao' limit 1))`),
+    'quantidade oposta',
+  )
+
+  // ------------------------------------------------- estoque: perda vira custo (0011)
+  const perdaErrada = randomUUID()
+  await comTenant(A, async (tx) => {
+    await tx`insert into estoque_movimentos (id, company_id, produto_id, quantidade, tipo, custo_unitario)
+             values (${randomUUID()}, ${A}, ${agua}, -20, 'perda', 4.50)`
+    await tx`insert into estoque_movimentos (id, company_id, produto_id, quantidade, tipo, custo_unitario)
+             values (${perdaErrada}, ${A}, ${agua}, -500, 'perda', 4.50)`
+  })
+  const [perdaAntes] = await comTenant(A, (tx) =>
+    tx`select coalesce(sum(unidades), 0) as unidades from estoque_perdas`)
+  check('perda entra na view de custo (20 + 500)', Number(perdaAntes.unidades) === 520,
+        `veio ${perdaAntes.unidades}`)
+
+  await comTenant(A, (tx) =>
+    tx`insert into estoque_movimentos
+         (id, company_id, produto_id, quantidade, tipo, custo_unitario, estorno_de)
+       values (${randomUUID()}, ${A}, ${agua}, 500, 'perda', 4.50, ${perdaErrada})`)
+  const [perdaDepois] = await comTenant(A, (tx) =>
+    tx`select coalesce(sum(unidades), 0) as unidades from estoque_perdas`)
+  check('perda estornada sai da view — não custa no DRE para sempre',
+        Number(perdaDepois.unidades) === 20, `veio ${perdaDepois.unidades}`)
 
   // ------------------------------------------------------------- financeiro
   await deveFalhar(

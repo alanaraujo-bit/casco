@@ -243,7 +243,25 @@ export const caixaMovimentos = pgTable(
 
 /* -------------------------------------------------------------------- estoque */
 
-export const TIPOS_ESTOQUE = ['entrada', 'venda', 'ajuste', 'perda', 'devolucao'] as const
+/**
+ * Espelho de `estoque_movimentos_tipo_check` na `migrations/0011_estoque.sql`.
+ *
+ * `compra` e `producao` sao entradas diferentes de proposito: a JM e fabrica de
+ * agua, entao o galao envasado nasce dentro de casa e nao deve nada a ninguem,
+ * enquanto a tampa e o lacre chegam de fornecedor e podem virar Conta a Pagar.
+ * Um `entrada` generico obrigaria a adivinhar qual era, meses depois, olhando se
+ * o campo fornecedor esta preenchido.
+ */
+export const TIPOS_ESTOQUE = [
+  'compra',
+  'producao',
+  'venda',
+  'devolucao',
+  'perda',
+  'ajuste',
+] as const
+
+export type TipoEstoque = (typeof TIPOS_ESTOQUE)[number]
 
 export const estoqueMovimentos = pgTable(
   'estoque_movimentos',
@@ -259,10 +277,16 @@ export const estoqueMovimentos = pgTable(
     quantidade: numeric('quantidade', { precision: 12, scale: 3 }).notNull(),
     tipo: text('tipo', { enum: TIPOS_ESTOQUE }).notNull(),
     custoUnitario: numeric('custo_unitario', { precision: 12, scale: 2 }).notNull().default('0'),
+    /** So a compra tem. O check `estoque_mov_fornecedor_so_compra` garante. */
+    fornecedorId: uuid('fornecedor_id').references(() => fornecedores.id),
+    /** Numero da nota ou romaneio. Livre: nem todo fornecedor da JM emite nota. */
+    documento: text('documento'),
     origem: text('origem'),
     origemId: uuid('origem_id'),
     usuarioId: uuid('usuario_id').references(() => users.id),
     observacao: text('observacao'),
+    /** Preenchido no estorno: aponta o movimento desfeito. Nunca se edita, se estorna. */
+    estornoDe: uuid('estorno_de'),
     criadoEm: timestamp('criado_em', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
