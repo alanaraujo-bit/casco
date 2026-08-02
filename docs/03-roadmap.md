@@ -228,9 +228,47 @@ Três decisões que valem revisão com o cliente:
 - Caixa e formas de pagamento
 - A Prazo (gera conta a receber automaticamente)
 
-### Etapa 5 — Estoque
-- Saldo, entradas, custo médio, estoque mínimo/máximo
-- Movimentação ligada a venda e a vasilhame
+### Etapa 5 — Estoque ✅ *(Nível 1 e 2 — gravando no banco)*
+
+Antes desta etapa o estoque só sabia descer: a 0006 criou as tabelas e o PDV
+dava baixa, mas nenhuma tela dava entrada. Depois de algumas vendas o saldo
+ficava negativo e o alerta de mínimo disparava para sempre.
+
+- **Saldo em Estoque** ✅ — as dez colunas de `Control/Warehouse` na mesma
+  ordem (Código · Descrição · Complemento · Categoria · Qtdade Disponível ·
+  Custo Médio Unit. · Valor Venda · Estoque Máximo · Mínimo · NCM), as três
+  últimas escondidas por padrão. Cabeçalho com itens controlados, abaixo do
+  mínimo, sem estoque e valor em estoque ao custo médio.
+- **Movimentos** ✅ — o razão completo, com estorno em dois toques. A baixa de
+  venda não oferece estorno: desfazer uma venda é cancelar a venda.
+- **Novo movimento** ✅ — `producao` · `compra` · `ajuste` · `perda` ·
+  `devolucao`, com o tipo primeiro e como botão. **Produção e compra são tipos
+  distintos** porque a JM é fábrica: o galão envasado não deve nada a ninguém,
+  a tampa e o lacre vêm de fornecedor. Um `entrada` genérico obrigaria a
+  adivinhar qual era, meses depois, olhando se o fornecedor está preenchido.
+- **O ajuste pergunta a contagem, não a diferença** ✅ — ela contou 145, a tela
+  calcula o `−5` e mostra o lançamento antes de gravar.
+- **Compra gera Conta a Pagar** ✅ — na mesma transação do movimento. Ou a
+  mercadoria entra e a dívida existe, ou nenhuma das duas.
+- **Extrato por produto** ✅ — saldo corrente por função de janela.
+
+Duas correções no custo médio, as duas achadas pelas provas de banco
+(`migrations/0011_estoque.sql`):
+
+- **Estorno de entrada** caía no ramo da saída: devolvia a quantidade e deixava
+  o custo médio onde a compra errada o pôs. Agora remove a camada em valor.
+- **Entrada sem custo digitado** entrava a zero. Achar 3 galões a mais na
+  contagem derrubava o custo médio de R$ 4,50 para R$ 4,41 — o estoque não
+  ficou mais barato, nós é que registramos errado.
+
+Coberto por 40 provas de banco (eram 23) e 120 checagens do `npm run fluxo`.
+
+> **Falta para o Nível 3:** nota de compra com vários itens (hoje é um produto
+> por lançamento), filtro por período e por tipo na listagem, e ficha técnica
+> de insumos — o custo do envase é digitado, não calculado a partir de tampa,
+> lacre e rótulo. **A pergunta em aberto com o cliente:** de onde a operadora
+> tira o custo do galão envasado. Enquanto não sabemos, o campo vem
+> pré-preenchido com o custo médio vigente e ela confirma.
 
 ### Etapa 6 — Dashboard e Relatórios
 *Depois que existe dado real para relatar.*
