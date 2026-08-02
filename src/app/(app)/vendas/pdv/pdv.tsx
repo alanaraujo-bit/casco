@@ -72,6 +72,16 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
     formas.find((f) => f.tipo === 'dinheiro')?.id ?? formas[0]?.id ?? '',
   )
   const [desconto, setDesconto] = useState('')
+  /**
+   * Em que unidade a operadora está digitando o desconto.
+   *
+   * O servidor não sabe disso e não precisa: `esquemaVenda` só aceita
+   * `desconto` em reais, então a conversão acontece aqui e o campo enviado
+   * (`descontoInput`, abaixo) sempre carrega o valor já convertido. Guardar o
+   * modo do lado do cliente é o que permite a operadora alternar sem perder o
+   * número — ela decide se pensa em "R$ 5" ou em "10%", a venda não muda.
+   */
+  const [descontoModo, setDescontoModo] = useState<'reais' | 'percentual'>('reais')
   const [parcelas, setParcelas] = useState('1')
   const [valorRecebido, setValorRecebido] = useState('')
   const [observacao, setObservacao] = useState('')
@@ -162,7 +172,13 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
   /* ----------------------------------------------------------------- totais */
 
   const subtotal = carrinho.reduce((soma, l) => soma + precoDe(l.produtoId) * l.quantidade, 0)
-  const descontoCent = Math.max(0, centavos(paraNumero(desconto) || 0))
+  const descontoDigitado = paraNumero(desconto) || 0
+  const descontoCent = Math.max(
+    0,
+    descontoModo === 'percentual'
+      ? Math.round((subtotal * descontoDigitado) / 100)
+      : centavos(descontoDigitado),
+  )
   const total = Math.max(0, subtotal - descontoCent)
   const taxa = aPrazo || !forma ? 0 : Math.round((total * Number(forma.taxaPercentual)) / 100)
   const recebidoCent = centavos(paraNumero(valorRecebido) || 0)
@@ -174,6 +190,26 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
   )
 
   const descontoExcede = descontoCent > 0 && descontoCent >= subtotal && subtotal > 0
+
+  /**
+   * Trocar de unidade converte o número, em vez de limpar o campo. "10" em %
+   * sobre uma venda de R$ 50 quer dizer R$ 5 — se a troca apagasse o campo, a
+   * operadora que errou de unidade no meio da digitação perderia a conta que
+   * já tinha feito de cabeça.
+   */
+  function alternarDescontoModo(novoModo: 'reais' | 'percentual') {
+    if (novoModo === descontoModo) return
+    if (subtotal > 0 && descontoDigitado > 0) {
+      const convertido =
+        novoModo === 'percentual'
+          ? (descontoCent / subtotal) * 100
+          : deCentavos(descontoCent)
+      setDesconto(convertido.toFixed(2).replace('.', ','))
+    } else {
+      setDesconto('')
+    }
+    setDescontoModo(novoModo)
+  }
 
   /* -------------------------------------------------------------- resultado */
 
@@ -193,6 +229,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
     setCarrinho([])
     setClienteId('')
     setDesconto('')
+    setDescontoModo('reais')
     setParcelas('1')
     setValorRecebido('')
     setObservacao('')
@@ -561,21 +598,53 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId }
             )}
 
             <div className="space-y-1.5">
-              <Label htmlFor="descontoCampo">
-                Desconto
-                <span className="ml-1 font-normal text-texto-fraco">(R$)</span>
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="descontoCampo">Desconto</Label>
+                {/* O servidor só recebe reais (ver `esquemaVenda`); o campo
+                    oculto abaixo carrega a conversão. Alternar aqui não muda
+                    o que a venda grava, só como a operadora prefere digitar. */}
+                <div className="flex overflow-hidden rounded-md border border-borda-controle text-xs">
+                  {(['reais', 'percentual'] as const).map((modo) => (
+                    <button
+                      key={modo}
+                      type="button"
+                      onClick={() => alternarDescontoModo(modo)}
+                      aria-pressed={descontoModo === modo}
+                      className={cn(
+                        'min-w-9 px-2 py-1 font-medium transition-colors',
+                        descontoModo === modo
+                          ? 'bg-acento-suave text-acento-texto'
+                          : 'bg-superficie text-texto-suave hover:bg-superficie-hover',
+                      )}
+                    >
+                      {modo === 'reais' ? 'R$' : '%'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <input type="hidden" name="desconto" value={deCentavos(descontoCent).toFixed(2)} />
               <Input
                 id="descontoCampo"
-                name="desconto"
+                // `descontoDigitado` e não `desconto`: este é o número na
+                // unidade que a operadora escolheu (R$ ou %), e não o que o
+                // servidor grava. O campo oculto acima é quem carrega
+                // `desconto` de verdade — dois campos com o mesmo `name`
+                // fariam o `FormData` enviar só o último.
+                name="descontoDigitado"
                 value={desconto}
                 onChange={(e) => setDesconto(e.target.value)}
                 erro={estado.campos?.desconto ?? (descontoExcede ? 'Desconto maior que a venda' : undefined)}
                 inputMode="decimal"
                 autoComplete="off"
-                placeholder="0,00"
+                placeholder={descontoModo === 'percentual' ? '0' : '0,00'}
                 className="text-right tabular-nums"
               />
+              {descontoModo === 'percentual' && descontoDigitado > 0 && (
+                <p className="text-xs text-texto-fraco">
+                  {descontoDigitado.toString().replace('.', ',')}% de{' '}
+                  {moeda(deCentavos(subtotal))} = {moeda(deCentavos(descontoCent))}
+                </p>
+              )}
             </div>
 
             {forma?.tipo === 'dinheiro' && (

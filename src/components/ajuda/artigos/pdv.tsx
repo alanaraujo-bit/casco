@@ -119,6 +119,11 @@ export function ArtigoPdv() {
             Em <Link href="/ajuda/vendas/vendas-produtos">Vendas de Produtos</Link>, com data,
             cliente, valor e o que ainda está a receber.
           </Faq>
+          <Faq pergunta="Dá para dar desconto em porcentagem?">
+            Sim. Ao lado do campo <strong>Desconto</strong> há dois botões, <strong>R$</strong> e{' '}
+            <strong>%</strong>. Alternando para %, a tela mostra embaixo do campo quanto aquele
+            percentual representa em reais, antes de fechar a venda.
+          </Faq>
         </ListaFaq>
       </SecaoArtigo>
     </>

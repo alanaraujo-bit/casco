@@ -1313,6 +1313,48 @@ try {
     check('a venda aparece na listagem com o valor', listagem.includes('36,00'))
     check('a listagem mostra a operação e a forma', listagem.includes('PDV') && listagem.includes('Dinheiro'))
 
+    /*
+     * --- desconto em porcentagem
+     *
+     * O que este trecho prova: o servidor só entende desconto em reais
+     * (`esquemaVenda`), então alternar para % precisa converter no navegador
+     * antes de enviar — se a conversão estivesse errada, o total cobrado
+     * discordaria do que a tela mostrou, e a operadora só descobriria ao
+     * conferir o caixa no fim do dia.
+     */
+    await irPara('/vendas/pdv')
+    await clicar(PREFIXO + ' Água 20L')
+    await clicar(PREFIXO + ' Água 20L')
+    await esperarPor(async () => (await texto()).includes('24,00'), 'o carrinho somar 2 × R$ 12,00')
+    await clicar('%', 15_000, 'button')
+    await preencher({ descontoDigitado: '10' })
+    // `Intl.NumberFormat` separa "R$" do valor com espaço não separável
+    // (U+00A0), então comparar a frase inteira quebraria por causa de um
+    // caractere invisível — daí conferir só os números, como o resto do
+    // roteiro já faz.
+    await esperarPor(
+      async () => {
+        const t = await texto()
+        return t.includes('10%') && t.includes('2,40')
+      },
+      'a conversão do percentual aparecer antes de fechar',
+    )
+    check('10% de desconto sobre R$ 24,00 mostra R$ 2,40 antes de fechar', true)
+
+    await escolherPorTexto('formaId', 'Dinheiro')
+    await preencher({ valorRecebido: '' })
+    await clicar('Fechar venda')
+    await esperarPor(
+      async () => (await texto()).includes('Ver na listagem de vendas'),
+      'o recibo da venda com desconto percentual',
+    )
+    const reciboPercentual = await texto()
+    check(
+      'a venda fecha cobrando o total com o desconto convertido (24,00 − 2,40 = 21,60)',
+      reciboPercentual.includes('21,60'),
+      reciboPercentual.slice(0, 400),
+    )
+
     // --- venda a prazo: nada entra no caixa, e nasce título a receber
     await irPara('/vendas/pdv')
     await clicar(PREFIXO + ' Água 20L')
@@ -1654,10 +1696,11 @@ try {
    *
    * O que este bloco prova, e nenhum outro prova: o estoque sabe subir.
    *
-   * Ele roda depois do PDV de propósito. As vendas acima consumiram 5 unidades
-   * de um produto que nunca teve entrada, então o saldo chega aqui negativo —
-   * que era o estado permanente do sistema antes desta etapa, e é o ponto de
-   * partida honesto para testar a entrada.
+   * Ele roda depois do PDV de propósito. As vendas acima consumiram 7 unidades
+   * (3 + 2 + 2, a última na venda com desconto percentual) de um produto que
+   * nunca teve entrada, então o saldo chega aqui negativo — que era o estado
+   * permanente do sistema antes desta etapa, e é o ponto de partida honesto
+   * para testar a entrada.
    */
   if (semente) {
     await irPara('/estoque/saldo')
@@ -1666,7 +1709,7 @@ try {
     check('o saldo lista o produto que controla estoque', saldo.includes('Água 20L'))
     check(
       'a venda do PDV deixou o saldo negativo, e a tela mostra',
-      /[-−]\s?5\b/.test(saldo),
+      /[-−]\s?7\b/.test(saldo),
       saldo.slice(0, 400),
     )
 
@@ -1683,8 +1726,8 @@ try {
     // O saldo resultante aparece **antes** de gravar: é quando ele ainda serve
     // para a operadora desistir se o número estiver errado.
     await esperarPor(
-      async () => (await texto()).includes('95'),
-      'o saldo previsto (−5 + 100) aparecer antes de gravar',
+      async () => (await texto()).includes('93'),
+      'o saldo previsto (−7 + 100) aparecer antes de gravar',
     )
     check('a tela mostra onde o saldo vai parar antes de gravar', true)
     await foto('estoque-producao')
@@ -1704,7 +1747,7 @@ try {
       'o recibo da produção',
     )
     const reciboProducao = await texto()
-    check('produção lançada e o saldo sai do negativo', reciboProducao.includes('95'))
+    check('produção lançada e o saldo sai do negativo', reciboProducao.includes('93'))
     check(
       'o recibo mostra o custo médio resultante',
       reciboProducao.includes('2,50'),
@@ -1715,7 +1758,7 @@ try {
     await clicar('Ajuste de inventário', 15_000, 'label')
     await preencher({ contagem: '90' })
     await esperarPor(
-      async () => /Lançamento:\s*[-−]\s?5/.test(await texto()),
+      async () => /Lançamento:\s*[-−]\s?3/.test(await texto()),
       'o ajuste calcular a diferença entre o contado e o sistema',
     )
     check('o ajuste faz a subtração no lugar da operadora', true)
