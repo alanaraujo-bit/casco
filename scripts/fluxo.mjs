@@ -984,6 +984,71 @@ try {
     cabecalho.split('\n').slice(0, 4).join(' / '),
   )
 
+  /*
+   * --- sidebar retrátil
+   *
+   * O que este bloco prova, e nenhum outro prova: o botão de verdade muda o
+   * `data-sidebar` do `<html>` (que é o que a CSS lê para encolher a
+   * largura) e grava a escolha, para o `scriptSidebar` reencontrar no
+   * próximo carregamento — sem isso, a sidebar nasceria sempre expandida e
+   * só encolheria depois do React hidratar, com o salto de largura que todo
+   * este mecanismo existe para evitar.
+   */
+  const estadoInicial = await js(
+    `return document.documentElement.getAttribute('data-sidebar')`,
+  )
+  check(
+    'a sidebar nasce com um estado definido (nunca null)',
+    estadoInicial === 'retraida' || estadoInicial === 'expandida',
+    `veio "${estadoInicial}"`,
+  )
+
+  await clicar('', 15_000, '[aria-label$="Retrair menu"], [aria-label$="Expandir menu"]')
+  await esperarPor(
+    async () =>
+      (await js(`return document.documentElement.getAttribute('data-sidebar')`)) !==
+      estadoInicial,
+    'o atributo data-sidebar trocar ao clicar no botão',
+  )
+  const depoisDoClique = await js(
+    `return document.documentElement.getAttribute('data-sidebar')`,
+  )
+  check('o botão alterna o estado da sidebar', depoisDoClique !== estadoInicial)
+
+  const salvo = await js(`return localStorage.getItem('casco-sidebar')`)
+  check(
+    'a escolha fica salva para o próximo carregamento',
+    salvo === depoisDoClique,
+    `salvo="${salvo}" atributo="${depoisDoClique}"`,
+  )
+
+  const larguraRotulo = await js(`
+    const a = [...document.querySelectorAll('a')].find((e) => e.textContent.includes('Painel Gerencial'))
+    const span = a ? a.querySelector('span:last-child') : null
+    return span ? span.getBoundingClientRect().width : -1
+  `)
+  if (depoisDoClique === 'retraida') {
+    check(
+      'retraída, o rótulo do item encolhe a largura zero',
+      larguraRotulo === 0,
+      `largura medida: ${larguraRotulo}px`,
+    )
+    await foto('sidebar-retraida')
+  } else {
+    check('expandida de novo, o rótulo do item volta a ter largura', larguraRotulo > 0)
+  }
+
+  // Devolve ao estado em que a rodada começou — o resto do roteiro não deveria
+  // se importar, mas não há razão para deixar a preferência alterada.
+  await clicar('', 15_000, '[aria-label$="Retrair menu"], [aria-label$="Expandir menu"]')
+  await esperarPor(
+    async () =>
+      (await js(`return document.documentElement.getAttribute('data-sidebar')`)) ===
+      estadoInicial,
+    'a sidebar voltar ao estado original',
+  )
+  check('clicar de novo devolve a sidebar ao estado original', true)
+
   /* ------------------------------------------------------------ senha errada */
   await irPara('/painel')
 

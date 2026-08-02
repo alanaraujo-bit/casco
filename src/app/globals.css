@@ -18,6 +18,18 @@
 @custom-variant pref-dark (&:is([data-tema-pref='dark'] *));
 @custom-variant pref-sistema (&:is([data-tema-pref='sistema'] *));
 
+/* Mesmo mecanismo do tema, para a sidebar retrátil: um script carimba
+   `data-sidebar` no <html> antes da primeira pintura (ver `scriptSidebar` em
+   sidebar.tsx), e a largura muda por CSS puro — sem esperar o React hidratar
+   para não piscar expandida e só depois encolher.
+
+   Escopado a `.sidebar-desktop` de propósito: a mesma `ConteudoSidebar` é
+   reaproveitada no drawer do celular, que nunca retrai — sem o escopo, abrir
+   o menu no celular com a preferência "retraída" salva do desktop reduziria o
+   drawer a uma faixa de ícones, onde o usuário já tem a tela inteira e não
+   precisa economizar espaço nenhum. */
+@custom-variant retraida (&:is([data-sidebar='retraida'] .sidebar-desktop *));
+
 /* ==========================================================================
    PALETA CRUA
    Em OKLCH porque a luminosidade é perceptualmente uniforme: L=0.60 tem o

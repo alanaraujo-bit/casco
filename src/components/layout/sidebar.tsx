@@ -1,10 +1,28 @@
 'use client'
 
+import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ICONES_ITEM, NAVEGACAO } from '@/lib/navegacao'
 import { GlifoCasco } from '@/components/marca/glifo-casco'
 import { cn } from '@/lib/utils'
+
+const CHAVE_RETRAIDA = 'casco-sidebar'
+
+/**
+ * Carimba `data-sidebar` no `<html>` antes da primeira pintura — mesmo
+ * mecanismo do `scriptTema`, e pelo mesmo motivo: sem isto, a sidebar sempre
+ * nasceria expandida e só encolheria depois do React hidratar, com um salto
+ * de largura visível bem no primeiro instante da tela. Injetado em
+ * `layout.tsx`.
+ */
+export const scriptSidebar = `
+(function(){try{
+  var p = localStorage.getItem('${CHAVE_RETRAIDA}');
+  document.documentElement.setAttribute('data-sidebar', p === 'retraida' ? 'retraida' : 'expandida');
+}catch(e){}})();
+`
 
 const slug = (s: string) =>
   s
@@ -18,14 +36,16 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
 
   return (
     <nav aria-label="Navegação principal" className="flex h-full flex-col">
-      <div className="flex items-center gap-2 px-4 py-3">
+      <div className="flex items-center gap-2 px-4 py-3 retraida:justify-center retraida:px-0">
         <div
           aria-hidden
           className="grid size-7 shrink-0 place-items-center rounded-md bg-acento text-acento-contraste"
         >
           <GlifoCasco className="size-4" />
         </div>
-        <span className="text-base font-semibold tracking-tight text-texto">Casco</span>
+        <span className="overflow-hidden whitespace-nowrap text-base font-semibold tracking-tight text-texto transition-[opacity,width] duration-150 retraida:w-0 retraida:opacity-0">
+          Casco
+        </span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-4">
@@ -38,17 +58,18 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
                   maximizado em 1366×768, então rolar é inevitável. O problema
                   real não é a rolagem, é perder a referência de onde se está —
                   e isso o rótulo fixo resolve sem tirar nada da tela. */}
-              <div className="sticky top-0 z-10 flex items-center gap-2 bg-superficie px-2 py-1.5">
+              <div className="sticky top-0 z-10 flex items-center gap-2 bg-superficie px-2 py-1.5 retraida:justify-center retraida:px-0">
                 <grupo.Icone className="size-3.5 shrink-0 text-texto-fraco" aria-hidden />
                 {/* `span`, não `h2`. Rótulo de grupo de menu não é seção de
                     documento: colocá-lo no outline faria os 8 grupos virem
                     antes do `h1` em TODAS as telas, queimando a navegação por
                     cabeçalho — que é a principal ferramenta de skim de quem usa
                     leitor de tela. O `aria-labelledby` abaixo mantém o grupo
-                    anunciado ("lista Financeiro, 4 itens") sem esse custo. */}
+                    anunciado ("lista Financeiro, 4 itens") sem esse custo, e o
+                    `id` continua no DOM retraído — só o texto encolhe. */}
                 <span
                   id={idGrupo}
-                  className="text-2xs font-medium uppercase tracking-wide text-texto-fraco"
+                  className="overflow-hidden whitespace-nowrap text-2xs font-medium uppercase tracking-wide text-texto-fraco transition-[opacity,width] duration-150 retraida:w-0 retraida:opacity-0"
                 >
                   {grupo.rotulo}
                 </span>
@@ -72,10 +93,16 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
                         // `aria-current` é o que informa o leitor de tela sobre
                         // a página atual. Cor sozinha não comunica isso.
                         aria-current={ativo ? 'page' : undefined}
+                        // Some no lugar do rótulo escondido: retraída, a
+                        // sidebar não mostra texto nenhum, e o título nativo
+                        // do navegador é o que devolve o nome ao passar o
+                        // mouse — sem puxar um componente de tooltip só para
+                        // isto.
+                        title={item.rotulo}
                         className={cn(
                           // 44px no toque, compacto no desktop.
                           'flex min-h-11 items-center gap-2.5 rounded-md py-2 pl-3 pr-3 md:min-h-0 md:py-1',
-                          'text-sm transition-colors duration-150',
+                          'text-sm transition-colors duration-150 retraida:justify-center retraida:px-0',
                           // Contorno para dentro, para não ser cortado pelo
                           // contêiner de rolagem.
                           'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-foco',
@@ -84,8 +111,10 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
                               // ativo tem só 1.07:1 contra a superfície, então
                               // quem varre a sidebar com o olho procurando
                               // "onde estou" precisa de uma âncora de forma,
-                              // não só de cor.
-                              'border-l-2 border-acento bg-acento-suave pl-[10px] font-medium text-acento-texto'
+                              // não só de cor. Continua com a sidebar retraída
+                              // — é a única pista de "onde estou" que sobra
+                              // sem o rótulo.
+                              'border-l-2 border-acento bg-acento-suave pl-[10px] font-medium text-acento-texto retraida:pl-0'
                             : 'text-texto-suave hover:bg-superficie-hover hover:text-texto',
                         )}
                       >
@@ -93,7 +122,9 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
                             já muda com `ativo` — problema resolvido de graça,
                             sem duplicar a condição aqui. */}
                         <IconeItem className="size-4 shrink-0" aria-hidden />
-                        <span className="truncate">{item.rotulo}</span>
+                        <span className="truncate transition-[opacity,width] duration-150 retraida:w-0 retraida:opacity-0">
+                          {item.rotulo}
+                        </span>
                       </Link>
                     </li>
                   )
@@ -107,15 +138,74 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
   )
 }
 
-/** Sidebar fixa do desktop. No mobile ela vira o drawer do AppShell. */
+/**
+ * Sidebar fixa do desktop, com retrair/expandir. No mobile ela vira o drawer
+ * do `AppShell` — ver a nota do `.sidebar-desktop` em `globals.css` sobre por
+ * que o drawer nunca retrai, mesmo com a preferência salva.
+ *
+ * **A largura muda por CSS, nunca por `style` do React.** `w-60` e
+ * `retraida:w-[4.5rem]` são as duas únicas larguras que existem, e a troca
+ * entre elas é uma transição de `width` comum — sem `useState` no meio
+ * decidindo o número, sem re-render em cascata, sem chance de a largura do
+ * primeiro paint discordar da que o `scriptSidebar` já carimbou. O estado do
+ * React abaixo existe só para o botão saber que ícone mostrar.
+ */
 export function Sidebar() {
+  const [retraida, setRetraida] = React.useState(false)
+
+  React.useEffect(() => {
+    setRetraida(document.documentElement.getAttribute('data-sidebar') === 'retraida')
+  }, [])
+
+  function alternar() {
+    const novo = !retraida
+    setRetraida(novo)
+    document.documentElement.setAttribute('data-sidebar', novo ? 'retraida' : 'expandida')
+    localStorage.setItem(CHAVE_RETRAIDA, novo ? 'retraida' : 'expandida')
+  }
+
   return (
     // `div` e não `aside`: `aside` é landmark de conteúdo complementar, e o
     // menu principal não é tangencial. O `nav` de dentro já é o landmark certo.
-    <div className="hidden w-60 shrink-0 border-r border-borda bg-superficie md:block">
+    //
+    // `sidebar-desktop` é o que escopa o variant `retraida:` só para cá — ver
+    // `globals.css`. `relative` é para o botão de alternar, ancorado na borda.
+    <div
+      className={cn(
+        'sidebar-desktop relative hidden shrink-0 border-r border-borda bg-superficie md:block',
+        'w-60 retraida:w-[4.5rem]',
+        // Só a largura anima. Cor e borda mudam de estado juntas com o resto
+        // da tela (tema, hover) e não precisam de duração própria — dar
+        // `transition-all` aqui accidentalmente animaria a cor do tema também,
+        // trocando instantâneo por lento onde ninguém pediu.
+        'transition-[width] duration-200 ease-in-out',
+      )}
+    >
       <div className="sticky top-0 h-dvh">
         <ConteudoSidebar />
       </div>
+
+      <button
+        type="button"
+        onClick={alternar}
+        aria-expanded={!retraida}
+        aria-label={retraida ? 'Expandir menu' : 'Retrair menu'}
+        title={retraida ? 'Expandir menu' : 'Retrair menu'}
+        className={cn(
+          // Metade para dentro, metade para fora da borda — o formato que
+          // avisa "isto empurra a borda ao lado", sem precisar de legenda.
+          'absolute -right-3 top-16 z-10 grid size-6 place-items-center rounded-full',
+          'border border-borda-controle bg-superficie text-texto-suave shadow-sm',
+          'hover:bg-superficie-hover hover:text-texto',
+          'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foco',
+        )}
+      >
+        {retraida ? (
+          <ChevronRight className="size-3.5" aria-hidden />
+        ) : (
+          <ChevronLeft className="size-3.5" aria-hidden />
+        )}
+      </button>
     </div>
   )
 }

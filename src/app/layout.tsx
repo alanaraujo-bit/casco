@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { scriptTema } from '@/components/theme-toggle'
+import { scriptSidebar } from '@/components/layout/sidebar'
 import './globals.css'
 
 /**
@@ -68,6 +69,9 @@ export default function RootLayout({
 
         {/* Antes de qualquer pintura, para não piscar o tema errado. */}
         <script dangerouslySetInnerHTML={{ __html: scriptTema }} />
+        {/* Idem, para a sidebar não nascer expandida e encolher na frente do
+            usuário assim que o React hidrata. */}
+        <script dangerouslySetInnerHTML={{ __html: scriptSidebar }} />
       </head>
       <body className="min-h-full">{children}</body>
     </html>
