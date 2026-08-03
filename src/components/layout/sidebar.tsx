@@ -243,7 +243,7 @@ export function Sidebar() {
     // descendente de verdade. Ver a nota longa em `globals.css`: a primeira
     // versão pôs a largura na PRÓPRIA div marcada, e o `retraida:` nunca
     // tinha como casar com o elemento que ele mesmo está em cima.
-    <div className="sidebar-desktop hidden shrink-0 md:block">
+    <div className="sidebar-desktop hidden shrink-0 md:block print:hidden">
       {/* `div` e não `aside`: `aside` é landmark de conteúdo complementar, e
           o menu principal não é tangencial. O `nav` de dentro já é o
           landmark certo. `relative` é para o botão de alternar, ancorado na

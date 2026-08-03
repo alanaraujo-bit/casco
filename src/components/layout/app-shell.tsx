@@ -184,7 +184,7 @@ export function AppShell({
   }, [])
 
   return (
-    <div className="flex min-h-dvh bg-fundo">
+    <div className="flex min-h-dvh bg-fundo print:min-h-0 print:bg-white">
       {/* PRIMEIRO elemento do DOM, antes da sidebar — e isso é o ponto inteiro.
           A ordem de tabulação segue o DOM, não o layout: colocado depois da
           sidebar, o link viraria a 25ª parada e não pularia nada. A operadora
@@ -193,7 +193,7 @@ export function AppShell({
       <a
         href="#conteudo"
         className={cn(
-          'sr-only focus:not-sr-only',
+          'sr-only focus:not-sr-only print:hidden',
           // `fixed` e não `absolute`: com `absolute` ele se posiciona contra o
           // topo do documento, então voltar com Shift+Tab no meio de uma
           // tabela longa faria o link aparecer fora da tela.
@@ -210,10 +210,10 @@ export function AppShell({
 
       <Dialog.Root open={menuAberto} onOpenChange={setMenuAberto}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-40 bg-sobreposicao md:hidden" />
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-sobreposicao md:hidden print:hidden" />
           <Dialog.Content
             className={cn(
-              'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] border-r border-borda bg-superficie md:hidden',
+              'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] border-r border-borda bg-superficie md:hidden print:hidden',
               'pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]',
               'focus:outline-none',
             )}
@@ -245,7 +245,7 @@ export function AppShell({
               nasceu: ela passa a ser o primeiro elemento sob o notch, e o
               inset precisa reservar espaço acima de quem estiver no topo —
               não dentro do header, que nem sempre é o primeiro. */}
-          <div className="sticky top-0 z-20 pt-[env(safe-area-inset-top)] bg-superficie">
+          <div className="sticky top-0 z-20 pt-[env(safe-area-inset-top)] bg-superficie print:hidden">
             {usuario?.admin && <FaixaAdmin empresa={usuario.empresa} />}
             <Topbar aoAbrirMenu={() => setMenuAberto(true)} usuario={usuario} />
           </div>

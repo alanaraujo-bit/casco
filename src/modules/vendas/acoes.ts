@@ -7,6 +7,7 @@ import { uuidv7 } from 'uuidv7'
 import {
   caixaMovimentos,
   clientes,
+  companies,
   contasReceber,
   estoqueMovimentos,
   estoqueSaldos,
@@ -23,7 +24,14 @@ import {
 import { comTenant } from '@/lib/dal'
 import { descreverFalha } from '@/lib/erros'
 import { autorDoLancamento } from '@/lib/sessao'
-import { dataNaLoja, formatarDataHora, formatarDataISO, formatarEndereco } from '@/lib/formatos'
+import {
+  dataNaLoja,
+  formatarDataHora,
+  formatarDataISO,
+  formatarDocumento,
+  formatarEndereco,
+  formatarTelefone,
+} from '@/lib/formatos'
 import {
   CAMPOS_VENDA,
   centavos,
@@ -485,6 +493,14 @@ export async function fecharVenda(
       const troco =
         forma.tipo === 'dinheiro' && recebido > total ? deCentavos(recebido - total) : null
 
+      // CNPJ/CPF e telefone da distribuidora, para o cabeçalho do cupom — o
+      // cliente confere quem vendeu, não só quem comprou.
+      const [dadosEmpresa] = await tx
+        .select({ documento: companies.documento, telefone: companies.telefone })
+        .from(companies)
+        .where(eq(companies.id, sessao.companyId))
+        .limit(1)
+
       revalidarTudo()
 
       return {
@@ -495,6 +511,9 @@ export async function fecharVenda(
           cliente: cliente?.nome ?? null,
           clienteEndereco: cliente ? formatarEndereco(cliente) : null,
           empresa: sessao.empresa,
+          empresaDocumento: dadosEmpresa?.documento ? formatarDocumento(dadosEmpresa.documento) : null,
+          empresaTelefone: dadosEmpresa?.telefone ? formatarTelefone(dadosEmpresa.telefone) : null,
+          vendedor: sessao.nome,
           emitidoEm: formatarDataHora(new Date()),
           itens: linhas.length,
           itensDetalhe: linhas.map((l) => ({

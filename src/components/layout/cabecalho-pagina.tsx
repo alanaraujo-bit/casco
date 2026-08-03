@@ -22,7 +22,7 @@ export function CabecalhoPagina({
   return (
     <div
       className={cn(
-        'flex flex-wrap items-end justify-between gap-x-4 gap-y-2',
+        'flex flex-wrap items-end justify-between gap-x-4 gap-y-2 print:hidden',
         className,
       )}
     >

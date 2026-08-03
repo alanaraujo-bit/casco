@@ -400,7 +400,8 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
   }
 
   return (
-    <form action={enviar} className="space-y-4" noValidate>
+    <>
+    <form action={enviar} className="space-y-4 print:hidden" noValidate>
       {/* O único campo escondido é o carrinho: ele é uma lista, e lista não tem
           controle de formulário. Todo o resto são campos de verdade, com
           `name`, e é isso que faz a venda ser enviada mesmo se o React ainda
@@ -855,6 +856,8 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
         </div>
       </div>
     </form>
+    {estado.recibo && <PrintCupom recibo={estado.recibo} />}
+    </>
   )
 }
 
@@ -961,85 +964,137 @@ function Recibo({ recibo }: { recibo: NonNullable<EstadoVenda['recibo']> }) {
 }
 
 /**
- * O cupom entregável — nome, endereço e itens, para o cliente conferir ou
- * guardar. É separado do banner de sucesso porque ali a operadora só precisa
- * dos três números que repete em voz alta; isso aqui é o papel que sai do
- * balcão com o cliente.
+ * O papel em si — preto sobre branco, sempre, não importa o tema da tela.
+ *
+ * É deliberado ignorar `text-texto`/`bg-superficie` aqui: essas variáveis
+ * existem para telas claras ou escuras, mas o cupom é um objeto físico, e
+ * "modo escuro impresso" não existe — só desperdiça tinta e fica ilegível.
+ * O mesmo componente serve à pré-visualização no diálogo (para não surpreender
+ * a operadora com um layout diferente do que vai sair impresso) e ao bloco
+ * silencioso em `<PrintCupom>`, que é o que realmente vai para o papel.
+ *
+ * `M` no círculo é um marcador de posição para a logo da distribuidora — o
+ * espaço já está desenhado para o dia em que o cadastro de empresa ganhar
+ * upload de imagem; até lá, a inicial cumpre o mesmo papel de identificar a
+ * empresa à primeira vista.
+ */
+function ConteudoCupom({ recibo }: { recibo: NonNullable<EstadoVenda['recibo']> }) {
+  const inicial = recibo.empresa.trim().charAt(0).toUpperCase() || 'C'
+  return (
+    <div className="mx-auto w-full max-w-[420px] bg-white text-black">
+      <div className="flex flex-col items-center gap-2 pb-3 text-center">
+        <div className="grid size-12 place-items-center rounded-full bg-black text-lg font-semibold text-white">
+          {inicial}
+        </div>
+        <div>
+          <p className="text-base font-semibold tracking-tight">{recibo.empresa}</p>
+          <p className="text-xs text-black/55">Comprovante de venda</p>
+          {(recibo.empresaDocumento || recibo.empresaTelefone) && (
+            <p className="text-2xs text-black/45">
+              {[recibo.empresaDocumento, recibo.empresaTelefone].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between border-y border-black/20 py-1.5 text-xs text-black/60">
+        <span>{recibo.codigo ? `Venda #${recibo.codigo}` : 'Venda'}</span>
+        <span>{recibo.emitidoEm}</span>
+      </div>
+
+      <div className="space-y-0.5 py-3">
+        <p className="text-2xs font-medium uppercase tracking-wide text-black/45">Cliente</p>
+        <p className="text-sm font-semibold">{recibo.cliente ?? 'Consumidor no balcão'}</p>
+        {recibo.clienteEndereco && (
+          <p className="text-xs text-black/60">{recibo.clienteEndereco}</p>
+        )}
+      </div>
+
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr className="border-b border-black/25 text-black/45">
+            <th className="py-1.5 text-left font-medium">Item</th>
+            <th className="py-1.5 pl-2 text-right font-medium">Qtd</th>
+            <th className="py-1.5 pl-2 text-right font-medium">Unit.</th>
+            <th className="py-1.5 pl-2 text-right font-medium">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {recibo.itensDetalhe.map((item, i) => (
+            <tr key={i} className="border-b border-black/10">
+              <td className="py-1.5 pr-2">{item.produto}</td>
+              <td className="py-1.5 pl-2 text-right tabular-nums">{item.quantidade}</td>
+              <td className="py-1.5 pl-2 text-right tabular-nums">
+                {moeda(item.precoUnitario)}
+              </td>
+              <td className="py-1.5 pl-2 text-right font-medium tabular-nums">
+                {moeda(item.total)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="mt-3 space-y-1 border-t border-black/25 pt-2 text-xs">
+        <div className="flex justify-between text-black/60">
+          <span>Subtotal</span>
+          <span className="tabular-nums">{moeda(recibo.subtotal)}</span>
+        </div>
+        {recibo.desconto > 0 && (
+          <div className="flex justify-between text-black/60">
+            <span>Desconto</span>
+            <span className="tabular-nums">− {moeda(recibo.desconto)}</span>
+          </div>
+        )}
+        <div className="flex items-baseline justify-between border-t border-black/25 pt-1.5 text-sm font-semibold">
+          <span>Total</span>
+          <span className="tabular-nums">{moeda(recibo.total)}</span>
+        </div>
+        <div className="flex justify-between text-black/60">
+          <span>Forma de pagamento</span>
+          <span>{recibo.forma}</span>
+        </div>
+        {recibo.troco !== null && recibo.troco > 0 && (
+          <div className="flex justify-between text-black/60">
+            <span>Troco</span>
+            <span className="tabular-nums">{moeda(recibo.troco)}</span>
+          </div>
+        )}
+        {recibo.vasilhameEntregue > 0 && (
+          <div className="flex justify-between text-black/60">
+            <span>Vasilhame</span>
+            <span className="tabular-nums">
+              {recibo.vasilhameEntregue} entregue(s)
+              {recibo.vasilhameDevolvido > 0 && `, ${recibo.vasilhameDevolvido} devolvido(s)`}
+            </span>
+          </div>
+        )}
+        <div className="flex justify-between text-black/60">
+          <span>Atendente</span>
+          <span>{recibo.vendedor}</span>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-1 border-t border-black/20 pt-2 text-center">
+        <p className="text-2xs text-black/40">Obrigado pela preferência!</p>
+        <p className="text-2xs text-black/30">
+          Este comprovante não substitui documento fiscal.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * A pré-visualização no diálogo — o mesmo `<ConteudoCupom>` que vai para o
+ * papel, dentro de um cartão para não parecer uma página em branco perdida no
+ * meio de uma tela escura.
  */
 function CupomVenda({ recibo }: { recibo: NonNullable<EstadoVenda['recibo']> }) {
   return (
     <div>
-      <div id="cupom-impressao" className="space-y-3 text-sm text-texto">
-        <div className="space-y-0.5 text-center">
-          <p className="font-semibold">{recibo.empresa}</p>
-          <p className="text-xs text-texto-suave">
-            Venda {recibo.codigo ? `#${recibo.codigo}` : ''} · {recibo.emitidoEm}
-          </p>
-        </div>
-
-        <div className="border-t border-borda pt-2">
-          <p className="font-medium">{recibo.cliente ?? 'Consumidor no balcão'}</p>
-          {recibo.clienteEndereco && (
-            <p className="text-xs text-texto-suave">{recibo.clienteEndereco}</p>
-          )}
-        </div>
-
-        <table className="w-full border-t border-borda pt-2 text-xs">
-          <thead>
-            <tr className="text-texto-suave">
-              <th className="py-1 text-left font-normal">Item</th>
-              <th className="py-1 text-right font-normal">Qtd</th>
-              <th className="py-1 text-right font-normal">Unit.</th>
-              <th className="py-1 text-right font-normal">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recibo.itensDetalhe.map((item, i) => (
-              <tr key={i} className="border-t border-borda">
-                <td className="py-1">{item.produto}</td>
-                <td className="py-1 text-right tabular-nums">{item.quantidade}</td>
-                <td className="py-1 text-right tabular-nums">{moeda(item.precoUnitario)}</td>
-                <td className="py-1 text-right tabular-nums">{moeda(item.total)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <dl className="space-y-1 border-t border-borda pt-2 text-xs">
-          <div className="flex justify-between text-texto-suave">
-            <dt>Subtotal</dt>
-            <dd className="tabular-nums">{moeda(recibo.subtotal)}</dd>
-          </div>
-          {recibo.desconto > 0 && (
-            <div className="flex justify-between text-texto-suave">
-              <dt>Desconto</dt>
-              <dd className="tabular-nums">− {moeda(recibo.desconto)}</dd>
-            </div>
-          )}
-          <div className="flex justify-between text-sm font-semibold">
-            <dt>Total</dt>
-            <dd className="tabular-nums">{moeda(recibo.total)}</dd>
-          </div>
-          <div className="flex justify-between text-texto-suave">
-            <dt>Forma de pagamento</dt>
-            <dd>{recibo.forma}</dd>
-          </div>
-          {recibo.troco !== null && recibo.troco > 0 && (
-            <div className="flex justify-between text-texto-suave">
-              <dt>Troco</dt>
-              <dd className="tabular-nums">{moeda(recibo.troco)}</dd>
-            </div>
-          )}
-          {recibo.vasilhameEntregue > 0 && (
-            <div className="flex justify-between text-texto-suave">
-              <dt>Vasilhame</dt>
-              <dd className="tabular-nums">
-                {recibo.vasilhameEntregue} entregue(s)
-                {recibo.vasilhameDevolvido > 0 && `, ${recibo.vasilhameDevolvido} devolvido(s)`}
-              </dd>
-            </div>
-          )}
-        </dl>
+      <div className="overflow-hidden rounded-md border border-borda bg-white p-4 shadow-sm">
+        <ConteudoCupom recibo={recibo} />
       </div>
 
       <Button
@@ -1051,6 +1106,26 @@ function CupomVenda({ recibo }: { recibo: NonNullable<EstadoVenda['recibo']> }) 
         <Printer aria-hidden />
         Imprimir cupom
       </Button>
+    </div>
+  )
+}
+
+/**
+ * O que realmente vai para o papel — escondido na tela (`hidden`), presente
+ * assim que a venda fecha e só visível para o motor de impressão
+ * (`print:block`).
+ *
+ * **Por que não imprimir o diálogo que já está na tela:** ele vive dentro de
+ * uma caixa `max-h-[85dvh] overflow-y-auto` (ver `dialog.tsx`) — no celular,
+ * `window.print()` captura só o que está rolado à vista naquele instante; o
+ * resto do cupom saía cortado, e o espaço reservado pela caixa `fixed` virava
+ * página em branco. Este bloco é irmão do diálogo, nunca dentro de uma caixa
+ * com altura ou rolagem travada, então flui e pagina como qualquer texto.
+ */
+function PrintCupom({ recibo }: { recibo: NonNullable<EstadoVenda['recibo']> }) {
+  return (
+    <div className="hidden print:block">
+      <ConteudoCupom recibo={recibo} />
     </div>
   )
 }

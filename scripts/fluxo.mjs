@@ -1516,7 +1516,35 @@ try {
     check('o cupom mostra o nome do cliente', cupom.includes(nome))
     check('o cupom mostra os itens da venda', cupom.includes(PREFIXO + ' Água 20L'))
     check('o cupom mostra o total', cupom.includes('36,00'))
+    check('o cupom mostra o atendente e o aviso fiscal', cupom.includes('Atendente') && /não substitui/i.test(cupom))
     await foto('pdv-cupom')
+
+    /**
+     * Renderiza o PDF de impressão de verdade — não o diálogo na tela.
+     *
+     * As checagens de `texto()` acima provam que o dado certo chega ao DOM,
+     * mas não que ele sobrevive ao `window.print()`: o bug que motivou este
+     * bloco (linhas cortadas, página em branco) só existia no papel, com o
+     * diálogo perfeito na tela e nenhum destes `check()` acima acusando nada.
+     * `preferCSSPageSize` faz o Chrome respeitar o `@page` de `globals.css`
+     * em vez do tamanho padrão do motor de impressão.
+     */
+    const { data: pdfBase64 } = await comando(
+      ws,
+      'Page.printToPDF',
+      { printBackground: true, preferCSSPageSize: true },
+      sessao,
+    )
+    const pdfBuffer = Buffer.from(pdfBase64, 'base64')
+    await writeFile(path.join(PASTA_FOTOS, 'cupom.pdf'), pdfBuffer)
+    check(
+      'o PDF de impressão do cupom sai em A5, não no padrão do motor de impressão',
+      /\/MediaBox\s*\[0 0 420 594\.9/.test(pdfBuffer.toString('latin1')),
+    )
+    // Um PDF só com o cromo do diálogo (sem o cupom, cortado pelo
+    // `overflow-y-auto`) sai bem menor que um com a tabela de itens inteira.
+    check('o PDF de impressão tem conteúdo de verdade, não uma página vazia', pdfBuffer.length > 20_000)
+
     await comando(ws, 'Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, sessao)
     await comando(ws, 'Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, sessao)
 

@@ -144,6 +144,12 @@ export interface ReciboVenda {
   /** `null` quando o cliente não tem endereço cadastrado. */
   clienteEndereco: string | null
   empresa: string
+  /** `null` quando o cadastro da distribuidora não tem CNPJ/CPF preenchido. */
+  empresaDocumento: string | null
+  /** `null` quando o cadastro da distribuidora não tem telefone preenchido. */
+  empresaTelefone: string | null
+  /** Quem fechou a venda — o nome de quem está logado, para constar no cupom. */
+  vendedor: string
   /** Data e hora do fechamento, já formatada no fuso da loja — ver `formatarDataHora`. */
   emitidoEm: string
   itens: number

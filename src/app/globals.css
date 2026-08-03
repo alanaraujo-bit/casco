@@ -511,21 +511,38 @@
   }
 }
 
-/* Cupom de venda: `window.print()` imprime a página inteira por padrão —
-   overlay do diálogo, sidebar, topbar. Isso esconde tudo que não é o cupom
-   e projeta só ele por cima da página impressa, sem precisar de uma rota ou
-   janela própria. */
+/* Cupom de venda: impresso é um bloco próprio (`.cupom-impressao` em
+   `pdv.tsx`), sempre em fluxo normal — nunca dentro da caixa `overflow-y-auto`
+   do diálogo, que corta no papel o que não estava rolado à tela no momento do
+   `window.print()`. Sidebar, topbar e o diálogo em si somem via `print:hidden`
+   em cada componente (ver `app-shell.tsx`, `sidebar.tsx`, `dialog.tsx`); aqui
+   fica só o tamanho da página. */
 @media print {
-  body * {
-    visibility: hidden;
+  /* A5, não A4: o cupom é curto — nome, endereço, alguns itens, total — e
+     numa folha cheia mais de meia página fica em branco a cada venda, o que
+     ninguém nota na tela mas soma rápido em papel de verdade. Navegadores
+     que respeitam `@page` (a maioria no desktop; `Page.printToPDF` com
+     `preferCSSPageSize` sempre) imprimem só o necessário; o sistema de
+     impressão do celular que ignorar isso volta para o padrão dele, sem
+     quebrar nada — só sem o ganho de papel.
+
+     Altura dinâmica (`size: 148mm auto`) foi tentada e descartada: a
+     especificação de CSS Paged Media só aceita `auto` sozinho ou duas
+     medidas explícitas — misturar os dois é sintaxe inválida, e o Chrome
+     não cai para A5 nesse caso, cai para Letter (612×792pt) como se `@page`
+     não existisse. Uma altura fixa errada é pior que um pouco de papel
+     sobrando. */
+  @page {
+    size: A5;
+    margin: 10mm;
   }
-  #cupom-impressao,
-  #cupom-impressao * {
-    visibility: visible;
-  }
-  #cupom-impressao {
-    position: fixed;
-    inset: 0;
-    padding: 1rem;
+
+  /* Papel é branco, sempre — mesmo com o tema escuro ligado na tela.
+     `bg-fundo` (a cor de fundo da página) some do print pelo `print:hidden`
+     nos elementos que a mostram, mas o body em si continua com a variável do
+     tema, e imprimir cinza-escuro ao redor de um cupom branco desperdiça
+     tinta e destoa do papel. */
+  body {
+    background: #fff !important;
   }
 }

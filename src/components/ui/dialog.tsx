@@ -20,7 +20,7 @@ export function DialogContent({
 }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-sobreposicao" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-sobreposicao print:hidden" />
       <DialogPrimitive.Content
         {...props}
         className={cn(
@@ -28,6 +28,12 @@ export function DialogContent({
           'rounded-lg border border-borda bg-superficie shadow-lg',
           'max-h-[85dvh] overflow-y-auto',
           'focus:outline-none',
+          // Impresso é o conteúdo em si, nunca o diálogo por cima dele — quem
+          // precisa de papel são os dados, não o cromo (borda, sombra, o X de
+          // fechar). O bloco imprimível de verdade fica fora daqui, fora do
+          // recorte de `overflow-y-auto`, que corta o que não está rolado à
+          // vista antes de mandar imprimir.
+          'print:hidden',
           className,
         )}
       >
