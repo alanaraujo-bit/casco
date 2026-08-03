@@ -10,6 +10,8 @@ import {
   Minus,
   Package,
   Plus,
+  Printer,
+  Receipt,
   Search,
   ShoppingCart,
   Trash2,
@@ -19,6 +21,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
@@ -931,16 +934,123 @@ function Recibo({ recibo }: { recibo: NonNullable<EstadoVenda['recibo']> }) {
             </p>
           )}
 
-          <p>
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <Link
               href="/vendas/produtos"
               className="underline underline-offset-2"
             >
               Ver na listagem de vendas
             </Link>
+
+            <Dialog>
+              <DialogTrigger asChild>
+                <button type="button" className="inline-flex items-center gap-1 underline underline-offset-2">
+                  <Receipt className="size-3.5" aria-hidden />
+                  Ver cupom
+                </button>
+              </DialogTrigger>
+              <DialogContent titulo="Cupom da venda" descricao="Comprovante para entregar ou ler ao cliente.">
+                <CupomVenda recibo={recibo} />
+              </DialogContent>
+            </Dialog>
           </p>
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * O cupom entregável — nome, endereço e itens, para o cliente conferir ou
+ * guardar. É separado do banner de sucesso porque ali a operadora só precisa
+ * dos três números que repete em voz alta; isso aqui é o papel que sai do
+ * balcão com o cliente.
+ */
+function CupomVenda({ recibo }: { recibo: NonNullable<EstadoVenda['recibo']> }) {
+  return (
+    <div>
+      <div id="cupom-impressao" className="space-y-3 text-sm text-texto">
+        <div className="space-y-0.5 text-center">
+          <p className="font-semibold">{recibo.empresa}</p>
+          <p className="text-xs text-texto-suave">
+            Venda {recibo.codigo ? `#${recibo.codigo}` : ''} · {recibo.emitidoEm}
+          </p>
+        </div>
+
+        <div className="border-t border-borda pt-2">
+          <p className="font-medium">{recibo.cliente ?? 'Consumidor no balcão'}</p>
+          {recibo.clienteEndereco && (
+            <p className="text-xs text-texto-suave">{recibo.clienteEndereco}</p>
+          )}
+        </div>
+
+        <table className="w-full border-t border-borda pt-2 text-xs">
+          <thead>
+            <tr className="text-texto-suave">
+              <th className="py-1 text-left font-normal">Item</th>
+              <th className="py-1 text-right font-normal">Qtd</th>
+              <th className="py-1 text-right font-normal">Unit.</th>
+              <th className="py-1 text-right font-normal">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recibo.itensDetalhe.map((item, i) => (
+              <tr key={i} className="border-t border-borda">
+                <td className="py-1">{item.produto}</td>
+                <td className="py-1 text-right tabular-nums">{item.quantidade}</td>
+                <td className="py-1 text-right tabular-nums">{moeda(item.precoUnitario)}</td>
+                <td className="py-1 text-right tabular-nums">{moeda(item.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <dl className="space-y-1 border-t border-borda pt-2 text-xs">
+          <div className="flex justify-between text-texto-suave">
+            <dt>Subtotal</dt>
+            <dd className="tabular-nums">{moeda(recibo.subtotal)}</dd>
+          </div>
+          {recibo.desconto > 0 && (
+            <div className="flex justify-between text-texto-suave">
+              <dt>Desconto</dt>
+              <dd className="tabular-nums">− {moeda(recibo.desconto)}</dd>
+            </div>
+          )}
+          <div className="flex justify-between text-sm font-semibold">
+            <dt>Total</dt>
+            <dd className="tabular-nums">{moeda(recibo.total)}</dd>
+          </div>
+          <div className="flex justify-between text-texto-suave">
+            <dt>Forma de pagamento</dt>
+            <dd>{recibo.forma}</dd>
+          </div>
+          {recibo.troco !== null && recibo.troco > 0 && (
+            <div className="flex justify-between text-texto-suave">
+              <dt>Troco</dt>
+              <dd className="tabular-nums">{moeda(recibo.troco)}</dd>
+            </div>
+          )}
+          {recibo.vasilhameEntregue > 0 && (
+            <div className="flex justify-between text-texto-suave">
+              <dt>Vasilhame</dt>
+              <dd className="tabular-nums">
+                {recibo.vasilhameEntregue} entregue(s)
+                {recibo.vasilhameDevolvido > 0 && `, ${recibo.vasilhameDevolvido} devolvido(s)`}
+              </dd>
+            </div>
+          )}
+        </dl>
+      </div>
+
+      <Button
+        type="button"
+        variant="primario"
+        className="mt-4 w-full"
+        onClick={() => window.print()}
+      >
+        <Printer aria-hidden />
+        Imprimir cupom
+      </Button>
     </div>
   )
 }

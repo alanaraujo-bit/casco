@@ -1506,6 +1506,20 @@ try {
     )
     await foto('pdv-recibo')
 
+    // --- cupom: o comprovante que o cliente confere ou leva
+    await clicar('Ver cupom')
+    await esperarPor(
+      async () => (await texto()).includes('Imprimir cupom'),
+      'o cupom abrir no diálogo',
+    )
+    const cupom = await texto()
+    check('o cupom mostra o nome do cliente', cupom.includes(nome))
+    check('o cupom mostra os itens da venda', cupom.includes(PREFIXO + ' Água 20L'))
+    check('o cupom mostra o total', cupom.includes('36,00'))
+    await foto('pdv-cupom')
+    await comando(ws, 'Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, sessao)
+    await comando(ws, 'Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 }, sessao)
+
     // O saldo do comodato subiu pelos galões da venda: eram 10 (a quebra de 3
     // foi estornada logo acima) e a venda entregou mais 3.
     await irPara('/vasilhame/saldos')

@@ -23,7 +23,7 @@ import {
 import { comTenant } from '@/lib/dal'
 import { descreverFalha } from '@/lib/erros'
 import { autorDoLancamento } from '@/lib/sessao'
-import { dataNaLoja, formatarDataISO } from '@/lib/formatos'
+import { dataNaLoja, formatarDataHora, formatarDataISO, formatarEndereco } from '@/lib/formatos'
 import {
   CAMPOS_VENDA,
   centavos,
@@ -97,13 +97,33 @@ export async function fecharVenda(
     return await comTenant(async (tx, sessao) => {
       /* -------------------------------------------------- quem está comprando */
 
-      let cliente: { id: string; nome: string; tabelaPrecoId: string | null } | null = null
+      let cliente:
+        | {
+            id: string
+            nome: string
+            tabelaPrecoId: string | null
+            cep: string | null
+            logradouro: string | null
+            numero: string | null
+            complemento: string | null
+            bairro: string | null
+            cidade: string | null
+            uf: string | null
+          }
+        | null = null
       if (dados.clienteId) {
         const [linha] = await tx
           .select({
             id: clientes.id,
             nome: clientes.nome,
             tabelaPrecoId: clientes.tabelaPrecoId,
+            cep: clientes.cep,
+            logradouro: clientes.logradouro,
+            numero: clientes.numero,
+            complemento: clientes.complemento,
+            bairro: clientes.bairro,
+            cidade: clientes.cidade,
+            uf: clientes.uf,
           })
           .from(clientes)
           .where(and(eq(clientes.id, dados.clienteId), eq(clientes.ativo, true)))
@@ -473,7 +493,16 @@ export async function fecharVenda(
           vendaId,
           codigo: gravada?.codigo ?? null,
           cliente: cliente?.nome ?? null,
+          clienteEndereco: cliente ? formatarEndereco(cliente) : null,
+          empresa: sessao.empresa,
+          emitidoEm: formatarDataHora(new Date()),
           itens: linhas.length,
+          itensDetalhe: linhas.map((l) => ({
+            produto: porId.get(l.produtoId)!.nome,
+            quantidade: l.quantidade,
+            precoUnitario: deCentavos(l.unitario),
+            total: deCentavos(l.total),
+          })),
           subtotal: deCentavos(subtotal),
           desconto: deCentavos(desconto),
           total: deCentavos(total),

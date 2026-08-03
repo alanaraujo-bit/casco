@@ -128,12 +128,26 @@ export const esquemaVenda = z.object({
 
 export type VendaValidada = z.output<typeof esquemaVenda>
 
+/** Uma linha do cupom impresso — o que o cliente confere no papel. */
+export interface ItemCupom {
+  produto: string
+  quantidade: number
+  precoUnitario: number
+  total: number
+}
+
 /** O recibo que fica na tela depois de fechar — é o que a operadora lê em voz alta. */
 export interface ReciboVenda {
   vendaId: string
   codigo: number | null
   cliente: string | null
+  /** `null` quando o cliente não tem endereço cadastrado. */
+  clienteEndereco: string | null
+  empresa: string
+  /** Data e hora do fechamento, já formatada no fuso da loja — ver `formatarDataHora`. */
+  emitidoEm: string
   itens: number
+  itensDetalhe: ItemCupom[]
   subtotal: number
   desconto: number
   total: number

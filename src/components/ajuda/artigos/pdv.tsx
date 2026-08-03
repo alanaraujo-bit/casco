@@ -74,6 +74,9 @@ export function ArtigoPdv() {
             <p>
               O comprovante fica na tela com o total, o troco (se houver) e o saldo de vasilhame
               do cliente depois da venda. Repita esses números para ele antes que saia do balcão.
+              Clicando em <strong>Ver cupom</strong>, abre o cupom completo — nome e endereço do
+              cliente, cada item vendido e a distribuidora — pronto para <strong>Imprimir
+              cupom</strong> e entregar junto com a mercadoria.
             </p>
           </Passo>
         </Passos>
@@ -123,6 +126,12 @@ export function ArtigoPdv() {
             Sim. Ao lado do campo <strong>Desconto</strong> há dois botões, <strong>R$</strong> e{' '}
             <strong>%</strong>. Alternando para %, a tela mostra embaixo do campo quanto aquele
             percentual representa em reais, antes de fechar a venda.
+          </Faq>
+          <Faq pergunta="Como entrego um cupom impresso para o cliente?">
+            No comprovante que aparece depois de fechar a venda, clique em{' '}
+            <strong>Ver cupom</strong>. Ele mostra o nome e endereço do cliente (quando
+            cadastrados), cada item vendido e a distribuidora. O botão{' '}
+            <strong>Imprimir cupom</strong> abre a impressão só dele, sem o resto da tela.
           </Faq>
           <Faq pergunta="Saí da tela no meio de uma venda. Perdi tudo?">
             Não. O carrinho, o cliente, a forma de pagamento e o desconto ficam salvos neste

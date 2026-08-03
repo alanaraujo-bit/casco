@@ -233,6 +233,32 @@ export function formatarHora(valor: Date | string): string {
   })
 }
 
+/**
+ * Junta as partes de endereço do cliente numa linha só, para cupom e nota.
+ *
+ * Cada campo é opcional no cadastro (ver `cadastros.ts`), então a junção
+ * descarta o que está vazio em vez de render "Rua , 123 - , -" com buracos.
+ * `null` quando não sobra nenhuma parte — cliente sem endereço cadastrado.
+ */
+export function formatarEndereco(cliente: {
+  logradouro?: string | null
+  numero?: string | null
+  complemento?: string | null
+  bairro?: string | null
+  cidade?: string | null
+  uf?: string | null
+  cep?: string | null
+}): string | null {
+  const rua = [cliente.logradouro, cliente.numero].filter(Boolean).join(', ')
+  const linha1 = [rua, cliente.complemento].filter(Boolean).join(' - ')
+  const cidadeUf = [cliente.cidade, cliente.uf].filter(Boolean).join('/')
+  const linha2 = [cliente.bairro, cidadeUf].filter(Boolean).join(' - ')
+  const cep = cliente.cep ? formatarCep(cliente.cep) : ''
+
+  const partes = [linha1, linha2, cep].filter(Boolean)
+  return partes.length > 0 ? partes.join(' · ') : null
+}
+
 export const UFS = [
   'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT',
   'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO',

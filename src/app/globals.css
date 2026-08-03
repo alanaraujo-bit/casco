@@ -510,3 +510,22 @@
     animation: casco-encher 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   }
 }
+
+/* Cupom de venda: `window.print()` imprime a página inteira por padrão —
+   overlay do diálogo, sidebar, topbar. Isso esconde tudo que não é o cupom
+   e projeta só ele por cima da página impressa, sem precisar de uma rota ou
+   janela própria. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #cupom-impressao,
+  #cupom-impressao * {
+    visibility: visible;
+  }
+  #cupom-impressao {
+    position: fixed;
+    inset: 0;
+    padding: 1rem;
+  }
+}
