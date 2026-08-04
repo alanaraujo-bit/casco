@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { ICONES_ITEM, NAVEGACAO } from '@/lib/navegacao'
 import { GlifoCasco } from '@/components/marca/glifo-casco'
 import { cn } from '@/lib/utils'
@@ -11,16 +11,13 @@ import { cn } from '@/lib/utils'
 const CHAVE_RETRAIDA = 'casco-sidebar'
 
 /**
- * Carimba `data-sidebar` no `<html>` antes da primeira pintura — mesmo
- * mecanismo do `scriptTema`, e pelo mesmo motivo: sem isto, a sidebar sempre
- * nasceria expandida e só encolheria depois do React hidratar, com um salto
- * de largura visível bem no primeiro instante da tela. Injetado em
- * `layout.tsx`.
+ * Garante que a sidebar sempre inicie expandida.
+ * A funcionalidade de retrair foi removida do desktop.
  */
 export const scriptSidebar = `
 (function(){try{
-  var p = localStorage.getItem('${CHAVE_RETRAIDA}');
-  document.documentElement.setAttribute('data-sidebar', p === 'retraida' ? 'retraida' : 'expandida');
+  document.documentElement.setAttribute('data-sidebar', 'expandida');
+  localStorage.removeItem('${CHAVE_RETRAIDA}');
 }catch(e){}})();
 `
 
@@ -224,19 +221,6 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
  * React abaixo existe só para o botão saber que ícone mostrar.
  */
 export function Sidebar() {
-  const [retraida, setRetraida] = React.useState(false)
-
-  React.useEffect(() => {
-    setRetraida(document.documentElement.getAttribute('data-sidebar') === 'retraida')
-  }, [])
-
-  function alternar() {
-    const novo = !retraida
-    setRetraida(novo)
-    document.documentElement.setAttribute('data-sidebar', novo ? 'retraida' : 'expandida')
-    localStorage.setItem(CHAVE_RETRAIDA, novo ? 'retraida' : 'expandida')
-  }
-
   return (
     // `sidebar-desktop` marca "estamos no desktop" e não carrega largura
     // nenhuma — quem muda de largura é sempre a div de dentro, uma
@@ -246,36 +230,13 @@ export function Sidebar() {
     <div className="sidebar-desktop hidden shrink-0 md:block print:hidden">
       {/* `div` e não `aside`: `aside` é landmark de conteúdo complementar, e
           o menu principal não é tangencial. O `nav` de dentro já é o
-          landmark certo. `relative` é para o botão de alternar, ancorado na
-          borda desta caixa — a que de fato muda de largura. */}
+          landmark certo. */}
       <div
         // `sidebar-caixa` é quem tem largura de verdade — ver `globals.css` e
         // a nota acima sobre por que não é `w-60`/`retraida:w-[...]`.
-        className="sidebar-caixa relative sticky top-0 h-dvh border-r border-borda bg-superficie"
+        className="sidebar-caixa sticky top-0 h-dvh border-r border-borda bg-superficie"
       >
         <ConteudoSidebar />
-
-        <button
-          type="button"
-          onClick={alternar}
-          aria-expanded={!retraida}
-          aria-label={retraida ? 'Expandir menu' : 'Retrair menu'}
-          title={retraida ? 'Expandir menu' : 'Retrair menu'}
-          className={cn(
-            // Metade para dentro, metade para fora da borda — o formato que
-            // avisa "isto empurra a borda ao lado", sem precisar de legenda.
-            'absolute -right-3 top-16 z-10 grid size-6 place-items-center rounded-full',
-            'border border-borda-controle bg-superficie text-texto-suave shadow-sm',
-            'hover:bg-superficie-hover hover:text-texto',
-            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foco',
-          )}
-        >
-          {retraida ? (
-            <ChevronRight className="size-3.5" aria-hidden />
-          ) : (
-            <ChevronLeft className="size-3.5" aria-hidden />
-          )}
-        </button>
       </div>
     </div>
   )
