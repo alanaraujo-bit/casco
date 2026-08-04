@@ -60,6 +60,10 @@ export function listarClientes() {
         vasilhames: saldo,
       })
       .from(clientes)
+      // Só ativos: cliente excluído (inativado pela lixeira da lista) some
+      // daqui. Reativar é decisão da ficha, que continua acessível por link
+      // direto mesmo sem o cliente aparecer nesta lista.
+      .where(eq(clientes.ativo, true))
       .orderBy(asc(clientes.nome)),
   ) as Promise<ClienteLista[]>
 }

@@ -370,6 +370,68 @@ try {
   check('perda estornada sai da view — não custa no DRE para sempre',
         Number(perdaDepois.unidades) === 20, `veio ${perdaDepois.unidades}`)
 
+  // --------------------------------------------------- estoque: exclusão (0015)
+  //
+  // Excluir não é o espelho do estorno: em vez de somar uma linha nova ao saldo
+  // corrente, tira a linha excluída do cálculo e refaz o custo médio do zero a
+  // partir do que sobrou — é o que prova que a ordem das entradas continua
+  // certa mesmo com uma removida do meio.
+  const [antesExclusao] = await dono`
+    select quantidade, custo_medio from estoque_saldos where produto_id = ${agua}`
+
+  const compraExcluida = randomUUID()
+  await comTenant(A, (tx) =>
+    tx`insert into estoque_movimentos
+         (id, company_id, produto_id, quantidade, tipo, custo_unitario, fornecedor_id)
+       values (${compraExcluida}, ${A}, ${agua}, 50, 'compra', 20.00, ${forn})`)
+  const [inflado2] = await dono`select custo_medio from estoque_saldos where produto_id = ${agua}`
+  check('compra cara antes de excluir move o custo médio',
+        Number(inflado2.custo_medio) !== Number(antesExclusao.custo_medio),
+        `veio ${inflado2.custo_medio}`)
+
+  await comTenant(A, (tx) =>
+    tx`update estoque_movimentos set excluido_em = now() where id = ${compraExcluida}`)
+  const [depoisExclusao] = await dono`
+    select quantidade, custo_medio from estoque_saldos where produto_id = ${agua}`
+  check('excluir recalcula o saldo do zero, sem a linha excluída',
+        Number(depoisExclusao.quantidade) === Number(antesExclusao.quantidade),
+        `veio ${depoisExclusao.quantidade}, esperava ${antesExclusao.quantidade}`)
+  check('excluir devolve o custo médio de antes da compra',
+        Number(depoisExclusao.custo_medio) === Number(antesExclusao.custo_medio),
+        `veio ${depoisExclusao.custo_medio}, esperava ${antesExclusao.custo_medio}`)
+
+  await deveFalhar(
+    'excluir o mesmo movimento duas vezes é rejeitado',
+    () => comTenant(A, (tx) =>
+      tx`update estoque_movimentos set excluido_em = now() where id = ${compraExcluida}`),
+    'já foi excluído',
+  )
+
+  await deveFalhar(
+    'apagar movimento de estoque do banco é rejeitado, mesmo excluído pela tela',
+    () => comTenant(A, (tx) => tx`delete from estoque_movimentos where id = ${compraExcluida}`),
+    'não pode ser apagado',
+  )
+
+  const naoExcluido = randomUUID()
+  await comTenant(A, (tx) =>
+    tx`insert into estoque_movimentos (id, company_id, produto_id, quantidade, tipo, custo_unitario)
+       values (${naoExcluido}, ${A}, ${agua}, 5, 'ajuste', 0)`)
+  await deveFalhar(
+    'alterar quantidade de um movimento não passa pela exceção da exclusão',
+    () => comTenant(A, (tx) =>
+      tx`update estoque_movimentos set quantidade = 999 where id = ${naoExcluido}`),
+    'não pode ser alterado',
+  )
+  await deveFalhar(
+    'marcar excluido_em e mudar outro campo junto é rejeitado',
+    () => comTenant(A, (tx) =>
+      tx`update estoque_movimentos
+           set excluido_em = now(), observacao = 'tentando mudar junto'
+         where id = ${naoExcluido}`),
+    'não pode ser alterado',
+  )
+
   // ------------------------------------------------------------- financeiro
   await deveFalhar(
     'baixa pela metade em contas a receber é rejeitada',

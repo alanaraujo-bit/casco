@@ -42,7 +42,7 @@ export const ROTULO_UNIDADE: Record<Unidade, string> = {
   l: 'Litro',
   pc: 'Pacote',
   fd: 'Fardo',
-  gl: 'Galão',
+  gl: 'Vasilhame',
 }
 
 export const esquemaProduto = z.object({

@@ -66,9 +66,9 @@ export const produtos = pgTable(
     unidade: text('unidade').notNull().default('un'),
     precoPadrao: numeric('preco_padrao', { precision: 12, scale: 2 }).notNull().default('0'),
     custo: numeric('custo', { precision: 12, scale: 2 }).notNull().default('0'),
-    /** Produto vendido que gera comodato (Agua 20L), nao o galao em si. */
+    /** Produto vendido que gera comodato (Agua 20L), nao o vasilhame em si. */
     retornavel: boolean('retornavel').notNull().default(false),
-    /** O galao vazio correspondente. Obrigatorio quando `retornavel`. */
+    /** O vasilhame vazio correspondente. Obrigatorio quando `retornavel`. */
     vasilhameId: uuid('vasilhame_id'),
     controlaEstoque: boolean('controla_estoque').notNull().default(true),
     estoqueMinimo: numeric('estoque_minimo', { precision: 12, scale: 3 }).notNull().default('0'),

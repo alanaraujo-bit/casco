@@ -10,7 +10,7 @@ import { alternarAtivoCliente } from '@/modules/clientes/acoes'
  *
  * Cliente carrega venda, título e extrato de vasilhame. Apagar levaria junto o
  * histórico que explica o saldo — e no dia em que ele reclamasse de estar
- * devendo galão, não haveria como responder. Inativo some das listas de venda e
+ * devendo vasilhame, não haveria como responder. Inativo some das listas de venda e
  * continua existindo para o histórico.
  *
  * **`<form action>` e não `onClick` + `useTransition`.** O motivo que vale é

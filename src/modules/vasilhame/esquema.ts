@@ -7,7 +7,7 @@ import { MOTIVOS_VASILHAME, type MotivoVasilhame } from '@/db/schema'
  *
  * Este arquivo existe para uma decisão só, e ela é o módulo inteiro:
  * **a operadora nunca digita sinal.** Ela escolhe o motivo e digita quantos
- * galões — sempre um número positivo, do jeito que se conta galão no balcão.
+ * vasilhames — sempre um número positivo, do jeito que se conta vasilhame no balcão.
  * O sinal sai daqui, da tabela `REGRA` abaixo.
  *
  * A alternativa seria um campo "quantidade" que aceita negativo, e a tela
@@ -22,7 +22,7 @@ import { MOTIVOS_VASILHAME, type MotivoVasilhame } from '@/db/schema'
  * arquivo importa venda, preço ou conta a receber.
  */
 
-/** Para onde o galão vai, do ponto de vista da empresa. */
+/** Para onde o vasilhame vai, do ponto de vista da empresa. */
 export type Direcao =
   /** Saiu da empresa. `quantidade > 0` — o cliente passa a dever mais. */
   | 'saida'
@@ -40,7 +40,7 @@ export interface RegraMotivo {
   ajuda: string
   direcao: Direcao
   cliente: ExigenciaCliente
-  /** Vira custo no DRE. Os três motivos em que o galão não volta. */
+  /** Vira custo no DRE. Os três motivos em que o vasilhame não volta. */
   perda: boolean
   /** Como o selo aparece na listagem e no extrato. */
   tom: 'sucesso' | 'info' | 'perigo' | 'alerta' | 'neutro'
@@ -57,7 +57,7 @@ export interface RegraMotivo {
 export const REGRA: Record<MotivoVasilhame, RegraMotivo> = {
   entregue: {
     rotulo: 'Entregue ao cliente',
-    ajuda: 'O cliente levou o galão e passa a dever a devolução.',
+    ajuda: 'O cliente levou o vasilhame e passa a dever a devolução.',
     direcao: 'saida',
     cliente: 'obrigatorio',
     perda: false,
@@ -65,7 +65,7 @@ export const REGRA: Record<MotivoVasilhame, RegraMotivo> = {
   },
   devolvido: {
     rotulo: 'Devolvido pelo cliente',
-    ajuda: 'O cliente trouxe o galão de volta, inteiro. Quita a dívida dele.',
+    ajuda: 'O cliente trouxe o vasilhame de volta, inteiro. Quita a dívida dele.',
     direcao: 'entrada',
     cliente: 'obrigatorio',
     perda: false,
@@ -73,7 +73,7 @@ export const REGRA: Record<MotivoVasilhame, RegraMotivo> = {
   },
   quebrado: {
     rotulo: 'Quebrado',
-    ajuda: 'Galão inutilizado. Sai do patrimônio e vira custo — nunca receita.',
+    ajuda: 'Vasilhame inutilizado. Sai do patrimônio e vira custo — nunca receita.',
     direcao: 'entrada',
     cliente: 'opcional',
     perda: true,

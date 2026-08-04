@@ -34,7 +34,7 @@ export const metadata: Metadata = { title: 'DRE' }
  * de Caixa, e a diferença entre os dois é a resposta para "vendi bem e estou
  * sem dinheiro na conta".
  *
- * A linha de perda de vasilhame é a razão de existir do produto: galão
+ * A linha de perda de vasilhame é a razão de existir do produto: vasilhame
  * quebrado é custo, e **desce** o resultado com o nome do que aconteceu.
  * Tratá-lo como receita seria inflar o faturamento com um prejuízo.
  */
@@ -240,7 +240,7 @@ export default async function PaginaDre({
                 Icone={Droplets}
                 detalhe={
                   d.perdaVasilhameUnidades > 0
-                    ? `${d.perdaVasilhameUnidades} ${d.perdaVasilhameUnidades === 1 ? 'galão' : 'galões'}`
+                    ? `${d.perdaVasilhameUnidades} ${d.perdaVasilhameUnidades === 1 ? 'vasilhame' : 'vasilhames'}`
                     : undefined
                 }
               />
@@ -277,7 +277,7 @@ export default async function PaginaDre({
               produto <em>sai</em>, pela linha do CMV. Contá-la nos dois lugares somaria a
               mesma compra duas vezes. A perda de vasilhame entra aqui e{' '}
               <strong className="font-medium">não</strong> no Fluxo de Caixa — quando um
-              galão quebra, nenhum dinheiro sai da gaveta.
+              vasilhame quebra, nenhum dinheiro sai da gaveta.
             </p>
           </Card>
 
@@ -377,7 +377,7 @@ export default async function PaginaDre({
                   ))}
                 </ul>
                 <p className="mt-3 text-2xs leading-relaxed text-texto-fraco">
-                  Cada galão aqui saiu do patrimônio e entrou como custo. Nenhum deles
+                  Cada vasilhame aqui saiu do patrimônio e entrou como custo. Nenhum deles
                   <em> soma</em> ao faturamento.
                 </p>
               </Card>

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Boxes, Package, RefreshCw, Tag } from 'lucide-react'
+import { Boxes, Droplet, Flame, Tag } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Chip } from '@/components/painel/pecas'
 import { Card } from '@/components/ui/card'
@@ -13,22 +13,22 @@ export default async function PaginaProdutos() {
 
   const cartoes = [
     {
-      rotulo: 'Total de produtos',
-      valor: metricas.total.toLocaleString('pt-BR'),
-      Icone: Package,
-      tom: 'cat-1' as const,
+      rotulo: 'Água em estoque',
+      valor: metricas.aguas.toLocaleString('pt-BR'),
+      Icone: Droplet,
+      tom: 'cat-4' as const,
     },
     {
-      rotulo: 'Ativos',
-      valor: `${metricas.ativos} de ${metricas.total}`,
+      rotulo: 'Vasilhame em estoque',
+      valor: metricas.vasilhames.toLocaleString('pt-BR'),
       Icone: Boxes,
       tom: 'cat-3' as const,
     },
     {
-      rotulo: 'Retornáveis',
-      valor: metricas.retornaveis.toLocaleString('pt-BR'),
-      Icone: RefreshCw,
-      tom: 'cat-4' as const,
+      rotulo: 'Gás em estoque',
+      valor: metricas.gas.toLocaleString('pt-BR'),
+      Icone: Flame,
+      tom: 'cat-1' as const,
     },
     {
       rotulo: 'Sem preço',

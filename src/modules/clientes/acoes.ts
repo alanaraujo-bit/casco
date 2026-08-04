@@ -185,7 +185,7 @@ export async function atualizarCliente(
  *
  * Cliente tem venda, título e extrato de vasilhame pendurados nele. Apagar
  * levaria junto o histórico que explica o saldo — e no dia em que ele
- * reclamasse de estar devendo galão, não haveria como responder. O banco
+ * reclamasse de estar devendo vasilhame, não haveria como responder. O banco
  * também recusa, por `on delete restrict`; aqui a interface nem oferece.
  */
 export async function alternarAtivoCliente(id: string, ativo: boolean) {

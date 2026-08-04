@@ -4,6 +4,12 @@ import { asc, eq, sql } from 'drizzle-orm'
 import { produtos, estoqueSaldos } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
 
+/**
+ * Só ativos: produto excluído (inativado pela lixeira da lista) some daqui.
+ * Reativar é decisão da ficha (`/cadastro/produtos/[id]`), que continua
+ * acessível por link direto mesmo sem o produto aparecer nesta lista.
+ */
+
 export interface ProdutoLista {
   id: string
   codigo: number | null
@@ -49,6 +55,7 @@ export function listarProdutos() {
         estoque: saldo,
       })
       .from(produtos)
+      .where(eq(produtos.ativo, true))
       .orderBy(asc(produtos.nome)),
   ) as Promise<ProdutoLista[]>
 }
@@ -57,12 +64,14 @@ export function metricasProdutos() {
   return comTenant(async (tx) => {
     const [linha] = await tx
       .select({
-        total: sql<number>`count(*)::int`,
-        ativos: sql<number>`count(*) filter (where ${produtos.ativo})::int`,
-        retornaveis: sql<number>`count(*) filter (where ${produtos.retornavel})::int`,
-        semPreco: sql<number>`count(*) filter (where ${produtos.precoPadrao} = 0)::int`,
+        total: sql<number>`count(distinct ${produtos.id})::int`,
+        aguas: sql<number>`coalesce(sum(${estoqueSaldos.quantidade}) filter (where lower(${produtos.categoria}) like '%água%' or lower(${produtos.categoria}) like '%agua%'), 0)::int`,
+        vasilhames: sql<number>`coalesce(sum(${estoqueSaldos.quantidade}) filter (where lower(${produtos.categoria}) like '%galao%' or lower(${produtos.categoria}) like '%galão%' or lower(${produtos.categoria}) like '%vasilhame%'), 0)::int`,
+        gas: sql<number>`coalesce(sum(${estoqueSaldos.quantidade}) filter (where lower(${produtos.categoria}) like '%gás%' or lower(${produtos.categoria}) like '%gas%'), 0)::int`,
+        semPreco: sql<number>`count(distinct ${produtos.id}) filter (where ${produtos.precoPadrao} = 0)::int`,
       })
       .from(produtos)
+      .leftJoin(estoqueSaldos, eq(estoqueSaldos.produtoId, produtos.id))
 
     return linha
   })

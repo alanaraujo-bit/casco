@@ -88,7 +88,7 @@ function BotaoLancar() {
 }
 
 /**
- * A tela onde o galão que quebrou, trincou ou sumiu vira custo — nunca venda.
+ * A tela onde o vasilhame que quebrou, trincou ou sumiu vira custo — nunca venda.
  *
  * Duas decisões guiam tudo aqui:
  *
@@ -151,7 +151,7 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
   /**
    * Depois de gravar, o formulário fica pronto para o próximo lançamento — mas
    * não zerado. Motivo e vasilhame ficam, porque na prática ela lança dez
-   * devoluções do mesmo galão em sequência; cliente e quantidade limpam,
+   * devoluções do mesmo vasilhame em sequência; cliente e quantidade limpam,
    * porque o próximo é outra pessoa e outro número. Zerar tudo obrigaria a
    * refazer duas escolhas idênticas a cada cliente da fila.
    *
@@ -201,7 +201,7 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
         </div>
         <p className="mt-3 text-base font-medium text-texto">Nenhum vasilhame configurado</p>
         <p className="mx-auto mt-1 max-w-[46ch] text-sm text-texto-suave">
-          O controle de comodato precisa saber qual produto é o galão vazio. No cadastro do
+          O controle de comodato precisa saber qual produto é o vasilhame vazio. No cadastro do
           produto retornável, escolha o vasilhame correspondente.
         </p>
         <Button asChild variant="primario" className="mt-4">
@@ -233,10 +233,10 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
         <AvisoErro erro={estado.erro} />
 
         <Secao
-          titulo="O que aconteceu com o galão?"
+          titulo="O que aconteceu com o vasilhame?"
           // A descrição diz o que o campo faz. O que ajuda a operadora é saber
           // o que o motivo determina, não de onde a ideia veio.
-          descricao="O motivo define o resto: se o saldo do cliente sobe ou desce, e se o galão vira custo."
+          descricao="O motivo define o resto: se o saldo do cliente sobe ou desce, e se o vasilhame vira custo."
         >
           <fieldset>
             <legend className="sr-only">Motivo da baixa</legend>
@@ -302,7 +302,7 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
               <div className="space-y-0.5">
                 <p className="font-medium">Isto não é uma venda.</p>
                 <p>
-                  Nenhuma receita é gerada e nada entra no caixa. O galão sai do patrimônio e
+                  Nenhuma receita é gerada e nada entra no caixa. O vasilhame sai do patrimônio e
                   vira custo do mês
                   {custoTotal > 0 && (
                     <>
@@ -470,8 +470,8 @@ export function FormularioBaixa({ acao, vasilhames, clientes, saldos }: Props) {
                     setSentido(e.target.value === 'saida' ? 'saida' : 'entrada')
                   }}
                 >
-                  <option value="entrada">Encontrou galão a mais</option>
-                  <option value="saida">Faltou galão na contagem</option>
+                  <option value="entrada">Encontrou vasilhame a mais</option>
+                  <option value="saida">Faltou vasilhame na contagem</option>
                 </Select>
               </div>
             )}

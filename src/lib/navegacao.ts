@@ -71,7 +71,7 @@ export const NAVEGACAO: GrupoNav[] = [
     ],
   },
   {
-    // O grupo que define o produto: sem lugar para lançar galão quebrado, a
+    // O grupo que define o produto: sem lugar para lançar vasilhame quebrado, a
     // operadora acaba registrando venda de centavos e contaminando o
     // faturamento.
     //
@@ -111,16 +111,13 @@ export const NAVEGACAO: GrupoNav[] = [
     ],
   },
   {
-    // "Entradas" é o rótulo deles (`Control/WarehouseInputs`), e a tela faz
-    // mais do que entrada — lança também ajuste, perda e devolução. Mantido
-    // assim mesmo: é o nome que a operadora procura no menu, e "Movimentos de
-    // Estoque" seria mais preciso e menos encontrável. O título dentro da tela
-    // diz o que ela faz.
     rotulo: 'Estoque',
     Icone: Boxes,
     itens: [
       { rotulo: 'Saldo em Estoque', href: '/estoque/saldo' },
-      { rotulo: 'Entradas', href: '/estoque/entradas' },
+      // A tela lança e desfaz entrada, ajuste, perda e devolução — "Entradas"
+      // não cobria mais o que ela faz assim que ganhou estornar e excluir.
+      { rotulo: 'Movimentações', href: '/estoque/entradas' },
     ],
   },
   {

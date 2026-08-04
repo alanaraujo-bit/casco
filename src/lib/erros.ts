@@ -108,7 +108,7 @@ const REGRAS: { marca: string; falha: Omit<Falha, 'codigo'>; codigo: string }[] 
     codigo: 'VAS-SINAL',
     falha: {
       titulo: 'O sentido não combina com o motivo escolhido',
-      detalhe: 'Cada motivo já decide se o galão sai ou volta; a quantidade é sempre positiva.',
+      detalhe: 'Cada motivo já decide se o vasilhame sai ou volta; a quantidade é sempre positiva.',
       acao: 'Recarregue a tela e lance de novo. Se repetir, avise o suporte.',
       culpa: 'sistema',
     },

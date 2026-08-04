@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { ArrowDown, ArrowUp, TriangleAlert, Wallet } from 'lucide-react'
+import { ArrowDown, Boxes, Droplet, Flame, TriangleAlert, Wallet } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Chip } from '@/components/painel/pecas'
 import { Card } from '@/components/ui/card'
@@ -7,29 +7,41 @@ import { moeda, quantidade as fmtQtd } from '@/lib/utils'
 import { listarMovimentos, metricasMovimentos } from '@/modules/estoque/consultas'
 import { TabelaMovimentos } from './tabela-movimentos'
 
-export const metadata: Metadata = { title: 'Movimentos de Estoque' }
+export const metadata: Metadata = { title: 'Movimentações' }
 
 export default async function PaginaMovimentosEstoque() {
   const [linhas, metricas] = await Promise.all([listarMovimentos(), metricasMovimentos()])
 
   const cartoes = [
     {
-      rotulo: 'Entrou no mês',
-      valor: fmtQtd(metricas.entradasMes),
-      Icone: ArrowUp,
+      rotulo: 'Água entrou no mês',
+      valor: fmtQtd(metricas.entradasAguaMes),
+      Icone: Droplet,
+      tom: 'cat-4' as const,
+    },
+    {
+      rotulo: 'Vasilhame entrou no mês',
+      valor: fmtQtd(metricas.entradasVasilhameMes),
+      Icone: Boxes,
       tom: 'cat-3' as const,
+    },
+    {
+      rotulo: 'Gás entrou no mês',
+      valor: fmtQtd(metricas.entradasGasMes),
+      Icone: Flame,
+      tom: 'cat-1' as const,
     },
     {
       rotulo: 'Saiu no mês',
       valor: fmtQtd(metricas.saidasMes),
       Icone: ArrowDown,
-      tom: 'cat-1' as const,
+      tom: 'cat-2' as const,
     },
     {
       rotulo: 'Comprado/produzido no mês',
       valor: moeda(metricas.valorEntradasMes),
       Icone: Wallet,
-      tom: 'cat-4' as const,
+      tom: 'cat-5' as const,
     },
     {
       // Sai da mesma regra da view `estoque_perdas`, que o DRE vai ler: sem
@@ -37,18 +49,18 @@ export default async function PaginaMovimentosEstoque() {
       rotulo: 'Perda no mês',
       valor: moeda(metricas.perdaMes),
       Icone: TriangleAlert,
-      tom: metricas.perdaMes > 0 ? ('perigo' as const) : ('cat-2' as const),
+      tom: metricas.perdaMes > 0 ? ('perigo' as const) : ('cat-6' as const),
     },
   ]
 
   return (
     <div className="space-y-5">
       <CabecalhoPagina
-        titulo="Movimentos de Estoque"
-        descricao="Todo lançamento que mexeu no saldo, com quem lançou e quando"
+        titulo="Movimentações"
+        descricao="Todo lançamento que mexeu no saldo, com quem lançou e quando — inclusive o que foi estornado ou excluído"
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {cartoes.map((m) => (
           <Card key={m.rotulo} className="flex items-center gap-3 p-3">
             <Chip Icone={m.Icone} tom={m.tom} tamanho="sm" />

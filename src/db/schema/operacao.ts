@@ -221,7 +221,7 @@ export const contasPagar = pgTable(
 /**
  * Caixa: so dinheiro que entrou ou saiu de fato.
  *
- * Perda de vasilhame nao entra aqui — galao quebrado e custo, mas nenhum real
+ * Perda de vasilhame nao entra aqui — vasilhame quebrado e custo, mas nenhum real
  * sai do caixa quando ele quebra. Ver `vasilhame.ts` e a nota na migration 0005.
  */
 export const caixaMovimentos = pgTable(
@@ -253,7 +253,7 @@ export const caixaMovimentos = pgTable(
  * Espelho de `estoque_movimentos_tipo_check` na `migrations/0011_estoque.sql`.
  *
  * `compra` e `producao` sao entradas diferentes de proposito: a JM e fabrica de
- * agua, entao o galao envasado nasce dentro de casa e nao deve nada a ninguem,
+ * agua, entao o vasilhame envasado nasce dentro de casa e nao deve nada a ninguem,
  * enquanto a tampa e o lacre chegam de fornecedor e podem virar Conta a Pagar.
  * Um `entrada` generico obrigaria a adivinhar qual era, meses depois, olhando se
  * o campo fornecedor esta preenchido.
@@ -294,6 +294,9 @@ export const estoqueMovimentos = pgTable(
     /** Preenchido no estorno: aponta o movimento desfeito. Nunca se edita, se estorna. */
     estornoDe: uuid('estorno_de'),
     criadoEm: timestamp('criado_em', { withTimezone: true }).notNull().defaultNow(),
+    /** Nulo enquanto o lançamento vale. Preenchido pela exclusão da tela — a linha não some do banco. */
+    excluidoEm: timestamp('excluido_em', { withTimezone: true }),
+    excluidoPor: uuid('excluido_por').references(() => users.id),
   },
   (t) => [
     index('estoque_mov_company_idx').on(t.companyId, t.criadoEm),

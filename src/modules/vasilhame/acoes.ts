@@ -114,7 +114,7 @@ export async function lancarMovimento(
         quantidade,
         motivo: dados.motivo,
         origem: 'balcao',
-        // Congelado agora. O relatório de maio não pode mudar porque o galão
+        // Congelado agora. O relatório de maio não pode mudar porque o vasilhame
         // encareceu em agosto — e é o custo desta linha que o DRE vai somar.
         custoUnitario: produto.custo,
         usuarioId: autorDoLancamento(sessao),
@@ -165,7 +165,7 @@ export interface ResultadoEstorno {
  * Desfaz um movimento lançando o oposto, com o mesmo motivo.
  *
  * O mesmo motivo é o detalhe que importa: estornar `entregue 5` como
- * `devolvido 5` faria o extrato afirmar que o cliente trouxe o galão de volta.
+ * `devolvido 5` faria o extrato afirmar que o cliente trouxe o vasilhame de volta.
  * Ele não trouxe — nós erramos. O trigger `vasilhame_valida_estorno` garante o
  * espelhamento, e a view de perdas ignora os dois lados, para que um
  * `quebrado` digitado errado não fique custando no DRE para sempre.

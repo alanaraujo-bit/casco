@@ -36,11 +36,11 @@ export interface VasilhameOpcao {
  * Os produtos que valem como vasilhame.
  *
  * Não é "todo produto ativo", e a diferença importa: se a lista trouxer
- * `Água 20L` junto de `Galão 20L vazio`, a operadora vai escolher o primeiro
+ * `Água 20L` junto de `Vasilhame 20L vazio`, a operadora vai escolher o primeiro
  * que reconhecer — e o saldo de comodato passa a contar água, que não volta.
  *
  * Vale como vasilhame quem é apontado por `produtos.vasilhame_id` (foi
- * configurado como o galão de algum produto) ou quem já tem movimento lançado
+ * configurado como o vasilhame de algum produto) ou quem já tem movimento lançado
  * (foi usado como vasilhame antes, e esconder agora quebraria o extrato).
  */
 export function listarVasilhames() {
@@ -130,7 +130,7 @@ export interface SaldoLista {
 }
 
 /**
- * Quem está devendo galão — a pergunta mais frequente do balcão.
+ * Quem está devendo vasilhame — a pergunta mais frequente do balcão.
  *
  * Saldo zero fica de fora. Cliente que pegou e devolveu tudo não é uma linha
  * que alguém precise ler; deixá-lo aqui só faria a lista crescer até esconder
@@ -160,9 +160,9 @@ export function listarSaldos() {
 /**
  * Os números do cabeçalho, em uma viagem por pergunta e não uma por cartão.
  *
- * A perda vem separada e **em custo**, não em receita. É o número que o sistema
- * antigo não sabe produzir: lá as baixas viraram vendas de centavos, então
- * "quanto perdemos em galão" só existe somando venda de valor estranho na mão.
+ * A perda vem separada e **em custo**, não em receita. É o número que registrar
+ * baixa de vasilhame como venda nunca produz: nesse desenho, "quanto perdemos
+ * em vasilhame" só existe somando venda de valor estranho na mão.
  */
 export function metricasVasilhame() {
   return comTenant(async (tx) => {
@@ -236,7 +236,7 @@ export interface LinhaExtrato {
  * somar em memória obrigaria a trazer o histórico inteiro para calcular a
  * última linha, e a conta pararia de fechar no dia em que a tela ganhasse
  * paginação. Aqui a soma é por vasilhame (`partition by`) porque devolver um
- * galão de 20L não abate um de 10L — e é exatamente essa mistura que faz o
+ * vasilhame de 20L não abate um de 10L — e é exatamente essa mistura que faz o
  * cliente e o sistema chegarem a números diferentes.
  */
 export function extratoCliente(clienteId: string) {

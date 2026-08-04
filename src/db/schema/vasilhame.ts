@@ -59,7 +59,7 @@ export const vasilhameMovimentos = pgTable(
     motivo: text('motivo', { enum: MOTIVOS_VASILHAME }).notNull(),
     origem: text('origem', { enum: ORIGENS_VASILHAME }),
     origemId: uuid('origem_id'),
-    /** Congelado no lancamento: relatorio de maio nao muda porque o galao encareceu em agosto. */
+    /** Congelado no lancamento: relatorio de maio nao muda porque o vasilhame encareceu em agosto. */
     custoUnitario: numeric('custo_unitario', { precision: 12, scale: 2 }).notNull().default('0'),
     usuarioId: uuid('usuario_id').references(() => users.id),
     observacao: text('observacao'),
@@ -79,7 +79,7 @@ export const vasilhameMovimentos = pgTable(
 )
 
 /**
- * Saldo por cliente — quem esta devendo galao.
+ * Saldo por cliente — quem esta devendo vasilhame.
  *
  * Mantido por trigger a partir dos movimentos. **Nunca escrever aqui pela
  * aplicacao:** lance o movimento e deixe o banco derivar, senao o saldo descola

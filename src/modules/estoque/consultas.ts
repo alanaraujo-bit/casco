@@ -1,6 +1,7 @@
 import 'server-only'
 
-import { and, asc, desc, eq, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 import {
   estoqueMovimentos,
   estoqueSaldos,
@@ -24,7 +25,6 @@ export interface SaldoLista {
   id: string
   codigo: number | null
   nome: string
-  /** No lugar do "Complemento" da tela deles; é o campo mais próximo que temos. */
   sku: string | null
   categoria: string | null
   unidade: string
@@ -107,6 +107,62 @@ export function metricasEstoque() {
   }) as Promise<MetricasEstoque>
 }
 
+export interface MetricasPorTipo {
+  quantidade: number
+  abaixoDoMinimo: number
+}
+
+export interface MetricasEstoquePorTipo {
+  agua: MetricasPorTipo
+  vasilhame: MetricasPorTipo
+  gas: MetricasPorTipo
+}
+
+/**
+ * O mesmo cabeçalho, quebrado por água/vasilhame/gás — os três únicos tipos
+ * que a distribuidora vende. "Abaixo do mínimo" somado por tudo dizia que
+ * havia problema, nunca em quê: a operadora tinha que abrir a tabela inteira
+ * para achar o produto. Aqui a pergunta "o que está faltando" já vem
+ * respondida no card.
+ *
+ * A classificação é a mesma de `metricasProdutos()` (cadastro de produtos):
+ * substring sobre `categoria`, texto livre. Não há um terceiro balde "outro"
+ * porque a distribuidora não vende nada fora dessas três linhas — um produto
+ * fora do padrão simplesmente não soma em nenhum card, e seguiria aparecendo
+ * na tabela abaixo.
+ */
+export function metricasEstoquePorTipo() {
+  const saldo = sql`coalesce(${estoqueSaldos.quantidade}, 0)`
+  const abaixo = sql`${produtos.estoqueMinimo} > 0 and ${saldo} < ${produtos.estoqueMinimo}`
+  const ehAgua = sql`(lower(${produtos.categoria}) like '%água%' or lower(${produtos.categoria}) like '%agua%')`
+  const ehVasilhame = sql`(lower(${produtos.categoria}) like '%vasilhame%' or lower(${produtos.categoria}) like '%galao%' or lower(${produtos.categoria}) like '%galão%')`
+  const ehGas = sql`(lower(${produtos.categoria}) like '%gás%' or lower(${produtos.categoria}) like '%gas%')`
+
+  return comTenant(async (tx) => {
+    const [linha] = await tx
+      .select({
+        aguaQuantidade: sql<number>`coalesce(sum(${saldo}) filter (where ${ehAgua}), 0)::float8`,
+        aguaAbaixo: sql<number>`count(*) filter (where ${ehAgua} and ${abaixo})::int`,
+        vasilhameQuantidade: sql<number>`coalesce(sum(${saldo}) filter (where ${ehVasilhame}), 0)::float8`,
+        vasilhameAbaixo: sql<number>`count(*) filter (where ${ehVasilhame} and ${abaixo})::int`,
+        gasQuantidade: sql<number>`coalesce(sum(${saldo}) filter (where ${ehGas}), 0)::float8`,
+        gasAbaixo: sql<number>`count(*) filter (where ${ehGas} and ${abaixo})::int`,
+      })
+      .from(produtos)
+      .leftJoin(estoqueSaldos, eq(estoqueSaldos.produtoId, produtos.id))
+      .where(eq(produtos.controlaEstoque, true))
+
+    return {
+      agua: { quantidade: Number(linha.aguaQuantidade), abaixoDoMinimo: Number(linha.aguaAbaixo) },
+      vasilhame: {
+        quantidade: Number(linha.vasilhameQuantidade),
+        abaixoDoMinimo: Number(linha.vasilhameAbaixo),
+      },
+      gas: { quantidade: Number(linha.gasQuantidade), abaixoDoMinimo: Number(linha.gasAbaixo) },
+    }
+  }) as Promise<MetricasEstoquePorTipo>
+}
+
 /* ------------------------------------------------------------- movimentos */
 
 export interface MovimentoLista {
@@ -126,6 +182,9 @@ export interface MovimentoLista {
   usuario: string | null
   estornoDe: string | null
   estornado: boolean
+  /** Preenchido quando a operadora excluiu esta linha pela tela. */
+  excluidoEm: Date | null
+  excluidoPor: string | null
 }
 
 /**
@@ -134,11 +193,15 @@ export interface MovimentoLista {
  * Sem paginação no banco, pela mesma razão da listagem de vasilhame: a
  * `TabelaDados` já pagina, busca e ordena do lado do cliente. Quando passar de
  * alguns milhares de linhas, o lugar de mudar é aqui, sozinho.
+ *
+ * Linha excluída continua na lista — é o histórico da exclusão. Quem esconde
+ * o detalhe financeiro dela é a tabela na tela, não esta consulta.
  */
 export function listarMovimentos() {
   const estornado = sql<boolean>`exists (
     select 1 from estoque_movimentos e where e.estorno_de = ${estoqueMovimentos.id}
   )`
+  const usuariosExclusao = alias(users, 'usuarios_exclusao')
 
   return comTenant((tx) =>
     tx
@@ -158,11 +221,14 @@ export function listarMovimentos() {
         usuario: users.nome,
         estornoDe: estoqueMovimentos.estornoDe,
         estornado,
+        excluidoEm: estoqueMovimentos.excluidoEm,
+        excluidoPor: usuariosExclusao.nome,
       })
       .from(estoqueMovimentos)
       .innerJoin(produtos, eq(produtos.id, estoqueMovimentos.produtoId))
       .leftJoin(fornecedores, eq(fornecedores.id, estoqueMovimentos.fornecedorId))
       .leftJoin(users, eq(users.id, estoqueMovimentos.usuarioId))
+      .leftJoin(usuariosExclusao, eq(usuariosExclusao.id, estoqueMovimentos.excluidoPor))
       .orderBy(desc(estoqueMovimentos.criadoEm), desc(estoqueMovimentos.id)),
   ) as Promise<MovimentoLista[]>
 }
@@ -204,7 +270,9 @@ export function listarProdutosParaMovimento() {
 }
 
 export interface MetricasMovimentos {
-  entradasMes: number
+  entradasAguaMes: number
+  entradasVasilhameMes: number
+  entradasGasMes: number
   saidasMes: number
   perdaMes: number
   valorEntradasMes: number
@@ -216,6 +284,12 @@ export interface MetricasMovimentos {
  * O mês é o da loja, não o do servidor: `date_trunc` sobre `criado_em` em UTC
  * jogaria os lançamentos das últimas três horas de cada mês para o mês seguinte
  * — e o fechamento nunca bateria, sem ninguém entender por quê.
+ *
+ * "Entrou no mês" é o único quebrado por tipo (água/vasilhame/gás): é o número
+ * que a operadora confere contra a nota de compra ou a produção do dia, e
+ * somado por tudo ele não diz se faltou entrada de um dos três. Saída, perda e
+ * valor comprado continuam agregados — mistura pouco ali, porque saída é sobre
+ * o caixa fechar, não sobre qual produto se moveu.
  */
 export function metricasMovimentos() {
   const doMes = sql`date_trunc('month', ${estoqueMovimentos.criadoEm} at time zone 'America/Belem')
@@ -230,11 +304,20 @@ export function metricasMovimentos() {
       select 1 from estoque_movimentos e where e.estorno_de = ${estoqueMovimentos.id}
     )`
 
+  // Mesma classificação por substring de `metricasProdutos()`/`metricasEstoquePorTipo()`.
+  const ehAgua = sql`(lower(${produtos.categoria}) like '%água%' or lower(${produtos.categoria}) like '%agua%')`
+  const ehVasilhame = sql`(lower(${produtos.categoria}) like '%vasilhame%' or lower(${produtos.categoria}) like '%galao%' or lower(${produtos.categoria}) like '%galão%')`
+  const ehGas = sql`(lower(${produtos.categoria}) like '%gás%' or lower(${produtos.categoria}) like '%gas%')`
+
   return comTenant(async (tx) => {
     const [linha] = await tx
       .select({
-        entradasMes: sql<number>`coalesce(sum(${estoqueMovimentos.quantidade})
-          filter (where ${estoqueMovimentos.quantidade} > 0 and ${doMes}), 0)::float8`,
+        entradasAguaMes: sql<number>`coalesce(sum(${estoqueMovimentos.quantidade})
+          filter (where ${estoqueMovimentos.quantidade} > 0 and ${doMes} and ${ehAgua}), 0)::float8`,
+        entradasVasilhameMes: sql<number>`coalesce(sum(${estoqueMovimentos.quantidade})
+          filter (where ${estoqueMovimentos.quantidade} > 0 and ${doMes} and ${ehVasilhame}), 0)::float8`,
+        entradasGasMes: sql<number>`coalesce(sum(${estoqueMovimentos.quantidade})
+          filter (where ${estoqueMovimentos.quantidade} > 0 and ${doMes} and ${ehGas}), 0)::float8`,
         saidasMes: sql<number>`coalesce(-sum(${estoqueMovimentos.quantidade})
           filter (where ${estoqueMovimentos.quantidade} < 0 and ${doMes}), 0)::float8`,
         perdaMes: sql<number>`coalesce(sum(
@@ -245,6 +328,10 @@ export function metricasMovimentos() {
         ) filter (where ${estoqueMovimentos.quantidade} > 0 and ${doMes}), 0)::float8`,
       })
       .from(estoqueMovimentos)
+      .innerJoin(produtos, eq(produtos.id, estoqueMovimentos.produtoId))
+      // Excluído não é lançamento válido — não deveria mover nenhum destes
+      // números, mesmo tendo movido o saldo antes de ser excluído.
+      .where(isNull(estoqueMovimentos.excluidoEm))
 
     return linha
   }) as Promise<MetricasMovimentos>

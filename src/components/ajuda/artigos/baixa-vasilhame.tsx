@@ -20,7 +20,7 @@ export function ArtigoBaixaVasilhame() {
         <p>
           Nada nesta tela gera receita nem entra no caixa. Quando você escolhe{' '}
           <strong>Quebrado</strong>, <strong>Trincado</strong> ou{' '}
-          <strong>Perdido pelo cliente</strong>, o galão sai do patrimônio e entra como custo do
+          <strong>Perdido pelo cliente</strong>, o vasilhame sai do patrimônio e entra como custo do
           mês. O faturamento do dia não muda — e é isso que mantém o número do faturamento
           confiável.
         </p>
@@ -41,7 +41,7 @@ export function ArtigoBaixaVasilhame() {
         />
 
         <Passos>
-          <Passo numero={1} titulo="Escolha o que aconteceu com o galão">
+          <Passo numero={1} titulo="Escolha o que aconteceu com o vasilhame">
             <p>
               É o primeiro campo da tela, em botões grandes. Cada motivo significa uma coisa
               diferente para o saldo do cliente e para o resultado do mês:
@@ -84,7 +84,7 @@ export function ArtigoBaixaVasilhame() {
           <Passo numero={2} titulo="Escolha o vasilhame e informe a quantidade">
             <p>
               A quantidade é sempre um número positivo — você nunca digita sinal de mais ou de
-              menos. O sistema já sabe, pelo motivo do passo 1, se o galão está saindo ou
+              menos. O sistema já sabe, pelo motivo do passo 1, se o vasilhame está saindo ou
               voltando. Os botões <strong>−</strong> e <strong>+</strong> ao lado do campo
               resolvem o caso mais comum, que é lançar 1 ou 2 por vez.
             </p>
@@ -132,7 +132,7 @@ export function ArtigoBaixaVasilhame() {
             lançamento e faça um novo com o motivo certo.
           </Faq>
           <Faq pergunta="Preciso escolher um cliente em toda baixa?">
-            Não. Um galão quebrado no depósito, por exemplo, não tem cliente — o campo some da
+            Não. Um vasilhame quebrado no depósito, por exemplo, não tem cliente — o campo some da
             tela quando o motivo não precisa dele.
           </Faq>
           <Faq pergunta="Isso aparece em algum relatório de vendas?">

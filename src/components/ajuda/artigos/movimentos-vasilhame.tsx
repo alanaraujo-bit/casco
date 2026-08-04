@@ -10,7 +10,7 @@ export function ArtigoMovimentosVasilhame() {
     <>
       <SecaoArtigo titulo="Para que serve">
         <p>
-          É o histórico completo do vasilhame: todo galão que entrou, saiu ou se perdeu, um por
+          É o histórico completo do vasilhame: todo vasilhame que entrou, saiu ou se perdeu, um por
           um, com o motivo e quem lançou. É onde você confere o mês e onde corrige um lançamento
           errado.
         </p>

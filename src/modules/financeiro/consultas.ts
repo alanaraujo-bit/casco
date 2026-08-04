@@ -228,7 +228,7 @@ export function acharTitulo(id: string) {
 /* ------------------------------------------------------------------- caixa
  *
  * **Só dinheiro que entrou ou saiu de fato.** É o que separa esta tela do DRE,
- * e a ausência mais importante aqui é a perda de vasilhame: galão quebrado é
+ * e a ausência mais importante aqui é a perda de vasilhame: vasilhame quebrado é
  * custo, mas nenhum real sai do caixa quando ele quebra. A perda vive em
  * `vasilhame_perdas` e aparece no resultado, nunca aqui.
  */
