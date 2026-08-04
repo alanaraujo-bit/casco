@@ -9,7 +9,13 @@ import { uuidv7 } from 'uuidv7'
 import { db } from '@/db/client'
 import { comTenant, exigirAdmin } from '@/lib/dal'
 import { descreverFalha } from '@/lib/erros'
-import { patchNotesReacoes, TIPOS_REACAO_PATCH_NOTE, type StatusPatchNote, type TipoReacaoPatchNote } from '@/db/schema'
+import {
+  patchNotesLeituras,
+  patchNotesReacoes,
+  TIPOS_REACAO_PATCH_NOTE,
+  type StatusPatchNote,
+  type TipoReacaoPatchNote,
+} from '@/db/schema'
 import {
   CAMPOS_PATCH_NOTE_ADMIN,
   esquemaPatchNoteAdmin,
@@ -189,4 +195,32 @@ export async function alternarReacaoPatchNote(form: FormData): Promise<void> {
   })
 
   revalidatePath('/atualizacoes')
+}
+
+// ------------------------------------------------------------- "visto"
+
+/**
+ * Marca como lida cada novidade da lista que ainda não tinha registro —
+ * chamado direto pela página `/atualizacoes` ao renderizar (não é ação de
+ * botão: entrar na tela já conta como "vi"). `onConflictDoNothing` cobre a
+ * corrida de duas abas abertas marcando a mesma novidade ao mesmo tempo.
+ */
+export async function marcarPatchNotesComoLidas(patchNoteIds: string[]): Promise<void> {
+  if (patchNoteIds.length === 0) return
+
+  await comTenant(async (tx, sessao) => {
+    if (sessao.adminId) return
+
+    await tx
+      .insert(patchNotesLeituras)
+      .values(
+        patchNoteIds.map((patchNoteId) => ({
+          id: uuidv7(),
+          companyId: sessao.companyId,
+          patchNoteId,
+          usuarioId: sessao.usuarioId,
+        })),
+      )
+      .onConflictDoNothing()
+  })
 }

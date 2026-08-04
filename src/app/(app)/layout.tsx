@@ -1,5 +1,6 @@
 import { AppShell } from '@/components/layout/app-shell'
 import { exigirSessao } from '@/lib/dal'
+import { contarPatchNotesNaoLidos } from '@/modules/patch-notes/consultas'
 
 /**
  * Tudo que está sob este layout exige sessão.
@@ -11,7 +12,10 @@ import { exigirSessao } from '@/lib/dal'
  * todas as telas de negócio.
  */
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
-  const sessao = await exigirSessao()
+  const [sessao, naoLidosAtualizacoes] = await Promise.all([
+    exigirSessao(),
+    contarPatchNotesNaoLidos(),
+  ])
 
   return (
     <AppShell
@@ -23,6 +27,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         // Aionix. Vira a faixa de aviso no topo — ver `AppShell`.
         admin: Boolean(sessao.adminId),
       }}
+      naoLidosAtualizacoes={naoLidosAtualizacoes}
     >
       {children}
     </AppShell>

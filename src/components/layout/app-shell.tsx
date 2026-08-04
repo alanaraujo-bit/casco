@@ -156,9 +156,11 @@ function Topbar({
 export function AppShell({
   children,
   usuario,
+  naoLidosAtualizacoes = 0,
 }: {
   children: React.ReactNode
   usuario?: UsuarioShell
+  naoLidosAtualizacoes?: number
 }) {
   const [menuAberto, setMenuAberto] = React.useState(false)
   const caminho = usePathname()
@@ -206,7 +208,7 @@ export function AppShell({
         Pular para o conteúdo
       </a>
 
-      <Sidebar />
+      <Sidebar naoLidosAtualizacoes={naoLidosAtualizacoes} />
 
       <Dialog.Root open={menuAberto} onOpenChange={setMenuAberto}>
         <Dialog.Portal>
@@ -236,7 +238,10 @@ export function AppShell({
               <X className="size-5" aria-hidden />
             </Dialog.Close>
 
-            <ConteudoSidebar aoNavegar={() => setMenuAberto(false)} />
+            <ConteudoSidebar
+              aoNavegar={() => setMenuAberto(false)}
+              naoLidosAtualizacoes={naoLidosAtualizacoes}
+            />
           </Dialog.Content>
         </Dialog.Portal>
 

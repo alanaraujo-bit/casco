@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { ChevronDown } from 'lucide-react'
 import { ICONES_ITEM, NAVEGACAO } from '@/lib/navegacao'
 import { GlifoCasco } from '@/components/marca/glifo-casco'
+import { BadgeContador } from '@/components/ui/badge-contador'
 import { cn } from '@/lib/utils'
 
 const CHAVE_RETRAIDA = 'casco-sidebar'
@@ -39,7 +40,14 @@ function acharGrupoDoCaminho(caminho: string): string | null {
   return NAVEGACAO.find((g) => g.itens.some((i) => caminho.startsWith(i.href)))?.rotulo ?? null
 }
 
-export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
+export function ConteudoSidebar({
+  aoNavegar,
+  naoLidosAtualizacoes = 0,
+}: {
+  aoNavegar?: () => void
+  /** Contador do sino de "Central de Atualizações" — 0 não desenha nada. */
+  naoLidosAtualizacoes?: number
+}) {
   const caminho = usePathname()
   const grupoAtivo = React.useMemo(() => acharGrupoDoCaminho(caminho), [caminho])
 
@@ -188,8 +196,11 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
                             já muda com `ativo` — problema resolvido de graça,
                             sem duplicar a condição aqui. */}
                         <IconeItem className="size-4 shrink-0" aria-hidden />
-                        <span className="truncate transition-[opacity,width] duration-150 retraida:w-0 retraida:opacity-0">
-                          {item.rotulo}
+                        <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate transition-[opacity,width] duration-150 retraida:w-0 retraida:opacity-0">
+                          <span className="truncate">{item.rotulo}</span>
+                          {item.href === '/atualizacoes' && (
+                            <BadgeContador valor={naoLidosAtualizacoes} />
+                          )}
                         </span>
                       </Link>
                     </li>
@@ -220,7 +231,7 @@ export function ConteudoSidebar({ aoNavegar }: { aoNavegar?: () => void }) {
  * primeiro paint discordar da que o `scriptSidebar` já carimbou. O estado do
  * React abaixo existe só para o botão saber que ícone mostrar.
  */
-export function Sidebar() {
+export function Sidebar({ naoLidosAtualizacoes = 0 }: { naoLidosAtualizacoes?: number }) {
   return (
     // `sidebar-desktop` marca "estamos no desktop" e não carrega largura
     // nenhuma — quem muda de largura é sempre a div de dentro, uma
@@ -236,7 +247,7 @@ export function Sidebar() {
         // a nota acima sobre por que não é `w-60`/`retraida:w-[...]`.
         className="sidebar-caixa sticky top-0 h-dvh border-r border-borda bg-superficie"
       >
-        <ConteudoSidebar />
+        <ConteudoSidebar naoLidosAtualizacoes={naoLidosAtualizacoes} />
       </div>
     </div>
   )

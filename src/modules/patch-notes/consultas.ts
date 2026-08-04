@@ -46,6 +46,27 @@ export async function listarPatchNotesPublicados(): Promise<PatchNotePublicado[]
   }))
 }
 
+/**
+ * Quantas novidades publicadas este usuário ainda não viu — o número do sino
+ * na sidebar. `patch_notes_contar_nao_lidos()` cruza a tabela global com
+ * `patch_notes_leituras` (por-tenant); por rodar como dono do banco, o filtro
+ * de empresa e usuário é passado explícito, não deduzido de RLS.
+ *
+ * Admin da Aionix dentro de uma empresa não tem linha em `users`, então nunca
+ * marca nada como lido — o contador ficaria sempre no total de publicados
+ * para ele. Sem prejuízo real: é suporte de passagem, não quem acompanha a
+ * Central no dia a dia.
+ */
+export async function contarPatchNotesNaoLidos(): Promise<number> {
+  const sessao = await exigirSessao()
+  if (sessao.adminId) return 0
+
+  const [linha] = await db.execute<{ patch_notes_contar_nao_lidos: number }>(
+    sql`select patch_notes_contar_nao_lidos(${sessao.companyId}, ${sessao.usuarioId})`,
+  )
+  return Number(linha?.patch_notes_contar_nao_lidos ?? 0)
+}
+
 // --------------------------------------------------------------- reações
 
 export type ContagemReacaoPatchNote = { likes: number; dislikes: number; minha: TipoReacaoPatchNote | null }

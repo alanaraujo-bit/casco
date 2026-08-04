@@ -8,6 +8,7 @@ import { CorpoMarkdown } from '@/components/patch-notes/corpo-markdown'
 import { Reacoes } from '@/components/patch-notes/reacoes'
 import { formatarData } from '@/lib/formatos'
 import { listarPatchNotesPublicados, listarReacoesPatchNotes } from '@/modules/patch-notes/consultas'
+import { marcarPatchNotesComoLidas } from '@/modules/patch-notes/acoes'
 import { ROTULO_CATEGORIA_PATCH_NOTE } from '@/modules/patch-notes/esquema'
 
 export const metadata: Metadata = { title: 'Central de Atualizações' }
@@ -24,6 +25,12 @@ const VARIANTE_CATEGORIA = {
 export default async function PaginaAtualizacoes() {
   const notas = await listarPatchNotesPublicados()
   const reacoes = await listarReacoesPatchNotes(notas.map((n) => n.id))
+
+  // Entrar na tela já conta como "vi" — é o comportamento que um sino de
+  // notificação promete. `await`ado de propósito: numa função serverless, uma
+  // promise disparada e esquecida pode nunca terminar de rodar — a resposta
+  // sai antes dela, e o processo é encerrado no meio do caminho.
+  await marcarPatchNotesComoLidas(notas.map((n) => n.id))
 
   return (
     <div className="space-y-6">
