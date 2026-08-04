@@ -196,7 +196,7 @@ export function ConteudoSidebar({
                             já muda com `ativo` — problema resolvido de graça,
                             sem duplicar a condição aqui. */}
                         <IconeItem className="size-4 shrink-0" aria-hidden />
-                        <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate transition-[opacity,width] duration-150 retraida:w-0 retraida:opacity-0">
+                        <span className="inline-flex items-center gap-1.5 truncate transition-[opacity,width] duration-150 retraida:w-0 retraida:opacity-0">
                           <span className="truncate">{item.rotulo}</span>
                           {item.href === '/atualizacoes' && (
                             <BadgeContador valor={naoLidosAtualizacoes} />
