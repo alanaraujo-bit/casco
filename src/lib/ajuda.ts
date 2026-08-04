@@ -6,6 +6,7 @@ import { ArtigoSaldoVasilhame } from '@/components/ajuda/artigos/saldo-vasilhame
 import { ArtigoMovimentosVasilhame } from '@/components/ajuda/artigos/movimentos-vasilhame'
 import { ArtigoPdv } from '@/components/ajuda/artigos/pdv'
 import { ArtigoVendasProdutos } from '@/components/ajuda/artigos/vendas-produtos'
+import { ArtigoAtualizacoes } from '@/components/ajuda/artigos/atualizacoes'
 
 /**
  * O índice da Central de Ajuda — espelha o papel de `NAVEGACAO` em
@@ -27,6 +28,7 @@ export type GrupoSlug =
   | 'financeiro'
   | 'estoque'
   | 'relatorios'
+  | 'atualizacoes'
 
 export type ArtigoAjuda = {
   slug: string
@@ -67,6 +69,7 @@ export const GRUPOS_AJUDA: GrupoAjuda[] = [
   grupo('financeiro', 'Financeiro'),
   grupo('estoque', 'Estoque'),
   grupo('relatorios', 'Relatórios'),
+  grupo('atualizacoes', 'Atualizações'),
 ]
 
 /**
@@ -114,6 +117,14 @@ export const ARTIGOS_AJUDA: ArtigoAjuda[] = [
     resumo: 'O razão completo de vasilhame, a perda do mês, e como corrigir um lançamento errado',
     palavrasChave: ['movimentos', 'estorno', 'estornar', 'perda', 'extrato', 'histórico'],
     Componente: ArtigoMovimentosVasilhame,
+  },
+  {
+    slug: 'central-de-atualizacoes',
+    grupoSlug: 'atualizacoes',
+    titulo: 'Central de Atualizações',
+    resumo: 'O que mudou no Casco, com curtir/não curtir e o contador do que falta ler',
+    palavrasChave: ['atualizações', 'novidades', 'patch notes', 'curtir', 'não lido', 'changelog'],
+    Componente: ArtigoAtualizacoes,
   },
 ]
 
