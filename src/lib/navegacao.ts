@@ -15,6 +15,7 @@ import {
   Receipt,
   Settings,
   ShoppingCart,
+  Sparkles,
   Truck,
   Users,
   Wallet,
@@ -133,6 +134,14 @@ export const NAVEGACAO: GrupoNav[] = [
       { rotulo: 'Fluxo de Caixa Diário', href: '/relatorios/caixa-diario' },
       { rotulo: 'Fluxo de Caixa Mensal', href: '/relatorios/caixa-mensal' },
     ],
+  },
+  {
+    // Transversal — não é grupo de negócio de uma distribuidora, é o que
+    // mudou no Casco em si. Último no menu: consultado de vez em quando,
+    // não parte do dia a dia de balcão.
+    rotulo: 'Atualizações',
+    Icone: Sparkles,
+    itens: [{ rotulo: 'Central de Atualizações', href: '/atualizacoes' }],
   },
 ]
 
