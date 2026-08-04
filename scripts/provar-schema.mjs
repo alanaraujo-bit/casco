@@ -66,6 +66,7 @@ async function limpar() {
     'pagamentos', 'venda_itens', 'vendas', 'contas_receber', 'contas_pagar',
     'caixa_movimentos', 'precos', 'produtos', 'clientes', 'fornecedores',
     'tabelas_preco', 'formas_pagamento', 'contas_bancarias', 'sequencias', 'feedbacks',
+    'patch_notes_reacoes', 'patch_notes_leituras', 'users',
   ]) {
     await dono.unsafe(`delete from ${t} where company_id in ('${A}','${B}')`)
   }
@@ -73,6 +74,7 @@ async function limpar() {
   // O admin de prova não tem company_id para filtrar; o domínio reservado
   // `.invalid` (RFC 2606) é o que garante que nenhum admin de verdade case.
   await dono`delete from plataforma_admins where email like '%@exemplo.invalid'`
+  await dono`delete from patch_notes where slug like 'prova-%'`
   await dono`set session_replication_role = 'origin'`
 }
 
@@ -445,6 +447,78 @@ try {
   const achado = await app`select id from admin_find(${`prova-${adminId}@exemplo.invalid`})`
   check('admin_find continua funcionando para a aplicação',
         achado[0]?.id === adminId, `veio ${achado[0]?.id}`)
+
+  // ------------------------------------------------------- patch notes (0015)
+  //
+  // `patch_notes` é global (sem company_id) — a leitura direta tem que se
+  // comportar exatamente como `plataforma_admins`: negada mesmo dentro de um
+  // tenant. `patch_notes_reacoes`/`patch_notes_leituras` são por-tenant
+  // normais, então a prova de isolamento é a mesma já feita para `feedbacks`.
+  await deveFalhar(
+    'aplicação não consegue ler patch_notes direto',
+    () => app`select id from patch_notes`,
+    'permission denied',
+  )
+  await deveFalhar(
+    'nem dentro de um tenant',
+    () => comTenant(A, (tx) => tx`select id from patch_notes`),
+    'permission denied',
+  )
+
+  const notaSlug = `prova-${randomUUID()}`
+  const notaId = await app`
+    select patch_notes_admin_criar(
+      ${randomUUID()}, ${notaSlug}, 'Nota de prova', 'Resumo de prova',
+      'Corpo de prova em markdown.', 'melhoria', ${['abc1234']}, ${adminId}
+    ) as id`
+  check('patch_notes_admin_criar grava e devolve o id', !!notaId[0]?.id)
+
+  const antesDePublicar = await app`select * from patch_notes_listar_publicados()`
+  check('rascunho não aparece na lista pública',
+        !antesDePublicar.some((n) => n.slug === notaSlug))
+
+  await app`select patch_notes_admin_mudar_status(${notaId[0].id}, 'publicado', ${adminId})`
+  const depoisDePublicar = await app`select * from patch_notes_listar_publicados()`
+  const publicada = depoisDePublicar.find((n) => n.slug === notaSlug)
+  check('publicado aparece na lista pública', !!publicada, `viu ${depoisDePublicar.length} notas`)
+  check('a lista pública não expõe quem aprovou', publicada && !('aprovado_por' in publicada))
+
+  // Reação e leitura precisam de um usuário de cada empresa — a FK aponta
+  // para `users`, não para o admin de prova.
+  const uA = randomUUID(), uB = randomUUID()
+  await dono`insert into users (id, company_id, nome, email, senha_hash, papel)
+             values (${uA}, ${A}, 'Prova A', ${`prova-${uA}@exemplo.invalid`}, 'x', 'dono')`
+  await dono`insert into users (id, company_id, nome, email, senha_hash, papel)
+             values (${uB}, ${B}, 'Prova B', ${`prova-${uB}@exemplo.invalid`}, 'x', 'dono')`
+
+  await comTenant(A, (tx) =>
+    tx`insert into patch_notes_reacoes (id, company_id, patch_note_id, usuario_id, tipo)
+       values (${randomUUID()}, ${A}, ${notaId[0].id}, ${uA}, 'like')`)
+  await comTenant(B, (tx) =>
+    tx`insert into patch_notes_reacoes (id, company_id, patch_note_id, usuario_id, tipo)
+       values (${randomUUID()}, ${B}, ${notaId[0].id}, ${uB}, 'dislike')`)
+
+  const reacoesDeA = await comTenant(A, (tx) => tx`select tipo from patch_notes_reacoes`)
+  check('tenant A não enxerga reação de B', reacoesDeA.length === 1 && reacoesDeA[0].tipo === 'like',
+        `viu ${JSON.stringify(reacoesDeA)}`)
+
+  await comTenant(A, (tx) =>
+    tx`insert into patch_notes_leituras (id, company_id, patch_note_id, usuario_id)
+       values (${randomUUID()}, ${A}, ${notaId[0].id}, ${uA})`)
+
+  const naoLidosA = await app`select patch_notes_contar_nao_lidos(${A}, ${uA}) as n`
+  const naoLidosB = await app`select patch_notes_contar_nao_lidos(${B}, ${uB}) as n`
+  check('quem leu não conta como não lido', Number(naoLidosA[0].n) === 0, `veio ${naoLidosA[0].n}`)
+  check('quem não leu continua contando (isolado por empresa)',
+        Number(naoLidosB[0].n) >= 1, `veio ${naoLidosB[0].n}`)
+
+  await deveFalhar(
+    'gravar reação com company_id alheio é rejeitado',
+    () => comTenant(A, (tx) =>
+      tx`insert into patch_notes_reacoes (id, company_id, patch_note_id, usuario_id, tipo)
+         values (${randomUUID()}, ${B}, ${notaId[0].id}, ${uA}, 'like')`),
+    'row-level security',
+  )
 
   // -------------------------------------------- config da plataforma (0014)
   //
