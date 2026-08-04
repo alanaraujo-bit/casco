@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Settings, ShieldCheck } from 'lucide-react'
+import { Settings, ShieldCheck, Sparkles } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { exigirAdmin } from '@/lib/dal'
@@ -41,6 +41,16 @@ export default async function LayoutAdmin({ children }: { children: React.ReactN
         <span className="hidden max-w-[20ch] truncate text-sm text-texto-suave sm:block">
           {admin.nome}
         </span>
+
+        <Link
+          href="/admin/patch-notes"
+          aria-label="Patch Notes"
+          className="grid size-9 shrink-0 place-items-center rounded-md text-texto-suave
+                     hover:bg-superficie-hover hover:text-texto
+                     focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foco"
+        >
+          <Sparkles className="size-4" aria-hidden />
+        </Link>
 
         <Link
           href="/admin/config"
