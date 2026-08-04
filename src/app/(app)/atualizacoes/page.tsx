@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { EstadoVazio } from '@/components/ui/estados'
 import { CorpoMarkdown } from '@/components/patch-notes/corpo-markdown'
+import { Reacoes } from '@/components/patch-notes/reacoes'
 import { formatarData } from '@/lib/formatos'
-import { listarPatchNotesPublicados } from '@/modules/patch-notes/consultas'
+import { listarPatchNotesPublicados, listarReacoesPatchNotes } from '@/modules/patch-notes/consultas'
 import { ROTULO_CATEGORIA_PATCH_NOTE } from '@/modules/patch-notes/esquema'
 
 export const metadata: Metadata = { title: 'Central de Atualizações' }
@@ -22,6 +23,7 @@ const VARIANTE_CATEGORIA = {
 
 export default async function PaginaAtualizacoes() {
   const notas = await listarPatchNotesPublicados()
+  const reacoes = await listarReacoesPatchNotes(notas.map((n) => n.id))
 
   return (
     <div className="space-y-6">
@@ -54,8 +56,9 @@ export default async function PaginaAtualizacoes() {
                 </div>
                 <Sparkles className="size-4 shrink-0 text-acento-texto" aria-hidden />
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <CorpoMarkdown corpo={nota.corpo} />
+                <Reacoes patchNoteId={nota.id} contagem={reacoes[nota.id]} />
               </CardContent>
             </Card>
           ))}

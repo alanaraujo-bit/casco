@@ -4,11 +4,12 @@ import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
+import { uuidv7 } from 'uuidv7'
 import { db } from '@/db/client'
-import { exigirAdmin } from '@/lib/dal'
+import { comTenant, exigirAdmin } from '@/lib/dal'
 import { descreverFalha } from '@/lib/erros'
-import type { StatusPatchNote } from '@/db/schema'
+import { patchNotesReacoes, TIPOS_REACAO_PATCH_NOTE, type StatusPatchNote, type TipoReacaoPatchNote } from '@/db/schema'
 import {
   CAMPOS_PATCH_NOTE_ADMIN,
   esquemaPatchNoteAdmin,
@@ -133,5 +134,59 @@ export async function mudarStatusPatchNote(form: FormData): Promise<void> {
   await db.execute(sql`select patch_notes_admin_mudar_status(${id}, ${statusAlvo}, ${admin.adminId})`)
 
   revalidatePath('/admin/patch-notes')
+  revalidatePath('/atualizacoes')
+}
+
+// ------------------------------------------------------------------ reações
+
+/**
+ * Curtir/não curtir alterna: clicar de novo no mesmo botão remove a reação.
+ * Um único server action para os dois botões — o `tipo` vem do formulário —
+ * porque "curtir" e "não curtir" são a mesma operação com sinal trocado, e
+ * duas actions quase idênticas envelheceriam separadas (mesmo raciocínio de
+ * `alternarAcesso` em `src/modules/admin/acoes.ts`).
+ */
+export async function alternarReacaoPatchNote(form: FormData): Promise<void> {
+  const patchNoteId = String(form.get('patchNoteId') ?? '')
+  const tipo = String(form.get('tipo') ?? '') as TipoReacaoPatchNote
+  if (!(TIPOS_REACAO_PATCH_NOTE as readonly string[]).includes(tipo)) return
+
+  await comTenant(async (tx, sessao) => {
+    // `usuario_id` aqui é `not null` e aponta para `users`, ao contrário de
+    // `feedbacks.usuario_id`. Um admin da Aionix dentro de uma empresa não
+    // tem linha em `users` (ver `autorDoLancamento` em `src/lib/sessao.ts`) —
+    // e não faria sentido ele curtir em nome da distribuidora mesmo que
+    // tivesse. Sem reação, silenciosamente: não é erro, é "não se aplica".
+    if (sessao.adminId) return
+
+    const [existente] = await tx
+      .select({ id: patchNotesReacoes.id, tipo: patchNotesReacoes.tipo })
+      .from(patchNotesReacoes)
+      .where(
+        and(
+          eq(patchNotesReacoes.patchNoteId, patchNoteId),
+          eq(patchNotesReacoes.usuarioId, sessao.usuarioId),
+        ),
+      )
+
+    if (existente?.tipo === tipo) {
+      await tx.delete(patchNotesReacoes).where(eq(patchNotesReacoes.id, existente.id))
+      return
+    }
+
+    if (existente) {
+      await tx.update(patchNotesReacoes).set({ tipo }).where(eq(patchNotesReacoes.id, existente.id))
+      return
+    }
+
+    await tx.insert(patchNotesReacoes).values({
+      id: uuidv7(),
+      companyId: sessao.companyId,
+      patchNoteId,
+      usuarioId: sessao.usuarioId,
+      tipo,
+    })
+  })
+
   revalidatePath('/atualizacoes')
 }

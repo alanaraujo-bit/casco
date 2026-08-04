@@ -1,9 +1,9 @@
 import 'server-only'
 
-import { sql } from 'drizzle-orm'
+import { inArray, sql } from 'drizzle-orm'
 import { db } from '@/db/client'
-import { exigirAdmin, exigirSessao } from '@/lib/dal'
-import type { CategoriaPatchNote, StatusPatchNote } from '@/db/schema'
+import { comTenant, exigirAdmin, exigirSessao } from '@/lib/dal'
+import { patchNotesReacoes, type CategoriaPatchNote, type StatusPatchNote, type TipoReacaoPatchNote } from '@/db/schema'
 import type { PatchNoteAdmin, PatchNotePublicado } from './esquema'
 
 /**
@@ -44,6 +44,44 @@ export async function listarPatchNotesPublicados(): Promise<PatchNotePublicado[]
     categoria: l.categoria,
     publicadoEm: l.publicado_em,
   }))
+}
+
+// --------------------------------------------------------------- reações
+
+export type ContagemReacaoPatchNote = { likes: number; dislikes: number; minha: TipoReacaoPatchNote | null }
+
+/**
+ * Curtidas e não-curtidas de quem está na mesma empresa — `patch_notes_reacoes`
+ * é por-tenant, então a contagem é a da distribuidora, não do Casco inteiro.
+ * `comTenant()` de verdade aqui: ao contrário da leitura de `patch_notes`, esta
+ * tabela tem RLS normal e é dado de negócio como outro qualquer.
+ */
+export async function listarReacoesPatchNotes(
+  patchNoteIds: string[],
+): Promise<Record<string, ContagemReacaoPatchNote>> {
+  if (patchNoteIds.length === 0) return {}
+
+  return comTenant(async (tx, sessao) => {
+    const linhas = await tx
+      .select({
+        patchNoteId: patchNotesReacoes.patchNoteId,
+        tipo: patchNotesReacoes.tipo,
+        usuarioId: patchNotesReacoes.usuarioId,
+      })
+      .from(patchNotesReacoes)
+      .where(inArray(patchNotesReacoes.patchNoteId, patchNoteIds))
+
+    const porNota: Record<string, ContagemReacaoPatchNote> = {}
+    for (const id of patchNoteIds) porNota[id] = { likes: 0, dislikes: 0, minha: null }
+
+    for (const l of linhas) {
+      const c = porNota[l.patchNoteId]
+      if (l.tipo === 'like') c.likes++
+      else c.dislikes++
+      if (l.usuarioId === sessao.usuarioId) c.minha = l.tipo
+    }
+    return porNota
+  })
 }
 
 // ------------------------------------------------------------------ admin
