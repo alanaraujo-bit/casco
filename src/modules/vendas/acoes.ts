@@ -46,7 +46,7 @@ import {
  *
  * É o ponto onde o sistema deixa de ser um cadastro. Uma venda de balcão não é
  * uma linha em `vendas`: ela é receita, saída de estoque, entrada de caixa (ou
- * um título a receber), e galão que passou a ser dívida do cliente. Ou as seis
+ * um título a receber), e vasilhame que passou a ser dívida do cliente. Ou as seis
  * coisas acontecem, ou nenhuma acontece — e é por isso que tudo mora dentro do
  * mesmo `comTenant`, que já abre a transação.
  *
@@ -54,17 +54,15 @@ import {
  * estoque que não bate com venda. Aqui não existe caminho em que a venda entre
  * e o estoque não saia.
  *
- * Duas coisas que este arquivo deliberadamente **não** faz:
+ * **Não vende além do saldo.** Produto que controla estoque tem a quantidade
+ * pedida conferida contra `estoque_saldos` dentro desta mesma transação — não
+ * contra o que a tela mostrou quando abriu, que já pode estar velho. Passou
+ * do saldo, a venda inteira é recusada antes de qualquer tabela ser tocada.
  *
- * - **Não bloqueia venda por falta de estoque.** O saldo aparece na tela, em
- *   vermelho, antes de fechar. Mas travar a venda porque o cadastro diz que
- *   acabou a água — quando tem água no depósito e o cliente está na frente —
- *   é como se ensina a operadora a lançar por fora. Estoque negativo é um
- *   problema visível; venda fora do sistema é um problema invisível.
- * - **Não movimenta estoque do galão vazio.** O comodato é rastreado por
- *   `vasilhame_saldos`, que o módulo de vasilhame mantém por trigger. Lançar o
- *   galão nas duas contabilidades faria as duas discordarem na primeira
- *   correção.
+ * **Não movimenta estoque do vasilhame vazio.** O comodato é rastreado por
+ * `vasilhame_saldos`, que o módulo de vasilhame mantém por trigger. Lançar o
+ * vasilhame nas duas contabilidades faria as duas discordarem na primeira
+ * correção.
  */
 
 function erroDeValidacao(erro: z.ZodError, tentativa: number): EstadoVenda {
@@ -205,6 +203,54 @@ export async function fecharVenda(
         return { ...item, unitario, total: unitario * item.quantidade }
       })
 
+      /* --------------------------------------------------- o estoque disponível
+       *
+       * Relido aqui, dentro da mesma transação que vai gravar a baixa — não no
+       * saldo que o PDV mostrou quando a tela abriu. Entre o carrinho ser
+       * montado e a venda fechar, outro caixa pode ter vendido o que sobrava;
+       * reler agora, e travar a venda com o número de verdade, é o que garante
+       * que o estoque nunca fica negativo por uma corrida entre dois PDVs.
+       *
+       * A consulta já traz `custoMedio` junto porque a baixa de estoque, mais
+       * abaixo, precisa exatamente do mesmo dado — ler `estoque_saldos` duas
+       * vezes na mesma transação seria a mesma pergunta feita duas vezes.
+       */
+      const idsControlados = [
+        ...new Set(linhas.filter((l) => porId.get(l.produtoId)!.controlaEstoque).map((l) => l.produtoId)),
+      ]
+      const saldoPorProduto = new Map<string, { quantidade: number; custoMedio: number }>()
+      if (idsControlados.length > 0) {
+        const saldos = await tx
+          .select({
+            produtoId: estoqueSaldos.produtoId,
+            quantidade: estoqueSaldos.quantidade,
+            custoMedio: estoqueSaldos.custoMedio,
+          })
+          .from(estoqueSaldos)
+          .where(inArray(estoqueSaldos.produtoId, idsControlados))
+        for (const s of saldos) {
+          saldoPorProduto.set(s.produtoId, {
+            quantidade: Number(s.quantidade),
+            custoMedio: Number(s.custoMedio),
+          })
+        }
+
+        for (const l of linhas) {
+          const produto = porId.get(l.produtoId)!
+          if (!produto.controlaEstoque) continue
+          const disponivel = saldoPorProduto.get(l.produtoId)?.quantidade ?? 0
+          if (l.quantidade > disponivel) {
+            return {
+              erro:
+                disponivel > 0
+                  ? `${produto.nome}: só há ${disponivel} em estoque, e a venda pede ${l.quantidade}.`
+                  : `${produto.nome} está sem estoque.`,
+              tentativa,
+            }
+          }
+        }
+      }
+
       const subtotal = linhas.reduce((soma, l) => soma + l.total, 0)
       const desconto = centavos(dados.desconto)
 
@@ -305,18 +351,14 @@ export async function fecharVenda(
 
       const controlados = linhas.filter((l) => porId.get(l.produtoId)!.controlaEstoque)
       if (controlados.length > 0) {
-        // O custo da saída é o custo médio vigente, não o preço de venda: é ele
-        // que vira CMV no DRE. Sem saldo ainda (primeira venda do produto),
-        // cai para o custo do cadastro.
-        const saldos = await tx
-          .select({ produtoId: estoqueSaldos.produtoId, custoMedio: estoqueSaldos.custoMedio })
-          .from(estoqueSaldos)
-          .where(inArray(estoqueSaldos.produtoId, controlados.map((l) => l.produtoId)))
-        const custoPorProduto = new Map(saldos.map((s) => [s.produtoId, Number(s.custoMedio)]))
-
         await tx.insert(estoqueMovimentos).values(
           controlados.map((l) => {
-            const medio = custoPorProduto.get(l.produtoId) ?? 0
+            // O custo da saída é o custo médio vigente, não o preço de venda: é
+            // ele que vira CMV no DRE. Sem saldo ainda (primeira venda do
+            // produto), cai para o custo do cadastro. Mesmo `saldoPorProduto`
+            // lido acima para travar a venda — reler de novo seria a mesma
+            // pergunta duas vezes na mesma transação.
+            const medio = saldoPorProduto.get(l.produtoId)?.custoMedio ?? 0
             const custo = medio > 0 ? medio : Number(porId.get(l.produtoId)!.custo)
             return {
               id: uuidv7(),
@@ -338,7 +380,7 @@ export async function fecharVenda(
        *
        * Venda avulsa não gera comodato, e isso é uma decisão e não uma falha:
        * `entregue` é uma dívida, e dívida precisa de devedor. Sem cliente
-       * identificado não há a quem cobrar o galão — e um saldo pendurado em
+       * identificado não há a quem cobrar o vasilhame — e um saldo pendurado em
        * ninguém é exatamente o número que ninguém consegue explicar depois.
        */
 
@@ -347,26 +389,26 @@ export async function fecharVenda(
 
       if (cliente) {
         const movimentos: (typeof vasilhameMovimentos.$inferInsert)[] = []
-        const galoes = [
+        const vasilhames = [
           ...new Set(
             linhas
               .map((l) => porId.get(l.produtoId)!.vasilhameId)
               .filter((v): v is string => Boolean(v)),
           ),
         ]
-        const custoGalao = new Map<string, string>()
-        if (galoes.length > 0) {
-          const linhasGalao = await tx
+        const custoVasilhame = new Map<string, string>()
+        if (vasilhames.length > 0) {
+          const linhasVasilhame = await tx
             .select({ id: produtos.id, custo: produtos.custo })
             .from(produtos)
-            .where(inArray(produtos.id, galoes))
-          for (const g of linhasGalao) custoGalao.set(g.id, g.custo)
+            .where(inArray(produtos.id, vasilhames))
+          for (const g of linhasVasilhame) custoVasilhame.set(g.id, g.custo)
         }
 
         for (const l of linhas) {
           const produto = porId.get(l.produtoId)!
           if (!produto.retornavel || !produto.vasilhameId) continue
-          const custo = custoGalao.get(produto.vasilhameId) ?? '0'
+          const custo = custoVasilhame.get(produto.vasilhameId) ?? '0'
 
           movimentos.push({
             id: uuidv7(),
@@ -389,7 +431,7 @@ export async function fecharVenda(
               clienteId: cliente.id,
               produtoId: produto.vasilhameId,
               // O sinal é do motivo, nunca do que a tela digitou. `devolvido`
-              // é entrada: o galão voltou.
+              // é entrada: o vasilhame voltou.
               quantidade: -l.vasilhameDevolvido,
               motivo: 'devolvido',
               origem: 'venda',

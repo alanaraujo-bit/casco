@@ -68,7 +68,7 @@ export async function criarProduto(
       })
 
       /**
-       * O galão que já está na prateleira quando o cadastro nasce.
+       * O vasilhame que já está na prateleira quando o cadastro nasce.
        *
        * Vira um `ajuste` — o mesmo tipo que "Ajuste de inventário" lança em
        * `/estoque/entradas/nova` — e não um `producao` ou `compra`: não foi

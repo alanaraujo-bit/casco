@@ -28,7 +28,7 @@ export function BuscaAjuda() {
           type="search"
           value={consulta}
           onChange={(e) => setConsulta(e.target.value)}
-          placeholder="Digite o que você precisa fazer — ex.: “galão quebrado”"
+          placeholder="Digite o que você precisa fazer — ex.: “vasilhame quebrado”"
           aria-label="Buscar na Central de Ajuda"
           className="h-12 pl-11 text-base md:h-11 md:text-sm"
         />

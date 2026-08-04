@@ -76,14 +76,14 @@ export function resumoPainel(): Promise<ResumoPainel> {
     const [v] = await tx
       .select({
         comClientes: sql<number>`coalesce(sum(${vasilhameSaldos.quantidade}), 0)::int`,
-        // Quantos clientes estão devendo galão — a pergunta do balcão.
+        // Quantos clientes estão devendo vasilhame — a pergunta do balcão.
         clientesDevendo: sql<number>`count(distinct ${vasilhameSaldos.clienteId}) filter (where ${vasilhameSaldos.quantidade} > 0)::int`,
       })
       .from(vasilhameSaldos)
 
     // Perda do mês corrente, lida dos movimentos com o custo congelado na linha.
     // É custo não-caixa: não passa por `caixa_movimentos` de propósito — quando
-    // um galão quebra, nenhum dinheiro sai da gaveta.
+    // um vasilhame quebra, nenhum dinheiro sai da gaveta.
     const [p] = await tx
       .select({
         perdasMes: sql<number>`coalesce(sum(-${vasilhameMovimentos.quantidade}), 0)::int`,

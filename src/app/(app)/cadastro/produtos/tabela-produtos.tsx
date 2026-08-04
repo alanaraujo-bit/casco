@@ -1,11 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { PackagePlus, TriangleAlert } from 'lucide-react'
+import { Container, PackagePlus, TriangleAlert } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { BotaoExcluirCadastro } from '@/components/ui/botao-excluir-cadastro'
 import { Button } from '@/components/ui/button'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
+import { alternarAtivoProduto } from '@/modules/produtos/acoes'
 import { ROTULO_UNIDADE, type Unidade } from '@/modules/produtos/esquema'
 import type { ProdutoLista } from '@/modules/produtos/consultas'
 
@@ -32,11 +34,6 @@ const colunas: Coluna<ProdutoLista>[] = [
         {p.retornavel && (
           <Badge variant="info" className="shrink-0">
             retornável
-          </Badge>
-        )}
-        {!p.ativo && (
-          <Badge variant="neutro" className="shrink-0">
-            inativo
           </Badge>
         )}
       </span>
@@ -100,6 +97,17 @@ const colunas: Coluna<ProdutoLista>[] = [
       )
     },
   },
+  {
+    chave: 'acoes',
+    cabecalho: 'Ações',
+    texto: () => '',
+    celula: (p) => (
+      <BotaoExcluirCadastro aoExcluir={() => alternarAtivoProduto(p.id, false)} />
+    ),
+    ordenavel: false,
+    alinhamento: 'direita',
+    larguraMin: '8rem',
+  },
 ]
 
 export function TabelaProdutos({ linhas }: { linhas: ProdutoLista[] }) {
@@ -114,24 +122,40 @@ export function TabelaProdutos({ linhas }: { linhas: ProdutoLista[] }) {
       buscaPlaceholder="Buscar por nome, SKU, categoria…"
       nomeExportacao="produtos"
       acoesTopo={
-        <Button asChild variant="primario">
-          <Link href="/cadastro/produtos/novo">
-            <PackagePlus aria-hidden />
-            Novo produto
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="secundario">
+            <Link href="/cadastro/produtos/novo-vasilhame">
+              <Container aria-hidden className="size-4" />
+              Novo vasilhame
+            </Link>
+          </Button>
+          <Button asChild variant="primario">
+            <Link href="/cadastro/produtos/novo">
+              <PackagePlus aria-hidden className="size-4" />
+              Novo produto
+            </Link>
+          </Button>
+        </div>
       }
       vazio={{
         titulo: 'Nenhum produto cadastrado',
         descricao:
           'Cadastre o primeiro produto para começar a lançar vendas e controlar estoque.',
         acao: (
-          <Button asChild variant="primario">
-            <Link href="/cadastro/produtos/novo">
-              <PackagePlus aria-hidden />
-              Cadastrar primeiro produto
-            </Link>
-          </Button>
+          <div className="flex items-center justify-center gap-2">
+            <Button asChild variant="secundario">
+              <Link href="/cadastro/produtos/novo-vasilhame">
+                <Container aria-hidden className="size-4" />
+                Cadastrar vasilhame
+              </Link>
+            </Button>
+            <Button asChild variant="primario">
+              <Link href="/cadastro/produtos/novo">
+                <PackagePlus aria-hidden className="size-4" />
+                Cadastrar primeiro produto
+              </Link>
+            </Button>
+          </div>
         ),
       }}
     />

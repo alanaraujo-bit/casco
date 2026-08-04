@@ -30,7 +30,7 @@ export default async function PaginaBaixa() {
     <div className="space-y-5">
       <CabecalhoPagina
         titulo="Baixa de Vasilhame"
-        descricao="Entrada, devolução e perda de galão — sem passar por venda"
+        descricao="Entrada, devolução e perda de vasilhame — sem passar por venda"
         acoes={
           <Button asChild variant="secundario">
             <Link href="/vasilhame/movimentos">

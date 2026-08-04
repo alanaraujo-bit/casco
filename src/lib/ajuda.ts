@@ -98,7 +98,7 @@ export const ARTIGOS_AJUDA: ArtigoAjuda[] = [
     slug: 'baixa-vasilhame',
     grupoSlug: 'vasilhame',
     titulo: 'Baixa de Vasilhame',
-    resumo: 'Como lançar entrega, devolução, quebra e perda de galão — sem virar venda',
+    resumo: 'Como lançar entrega, devolução, quebra e perda de vasilhame — sem virar venda',
     palavrasChave: ['baixa', 'quebrado', 'trincado', 'perdido', 'comodato', 'motivo', 'devolução'],
     Componente: ArtigoBaixaVasilhame,
   },

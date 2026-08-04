@@ -171,7 +171,7 @@ export function TabelaMovimentos({ linhas }: { linhas: MovimentoLista[] }) {
       vazio={{
         titulo: 'Nenhum movimento lançado',
         descricao:
-          'Cada entrega, devolução e perda de galão aparece aqui, com o motivo e quem lançou.',
+          'Cada entrega, devolução e perda de vasilhame aparece aqui, com o motivo e quem lançou.',
         acao: (
           <Button asChild variant="primario">
             <Link href="/vasilhame/baixa">

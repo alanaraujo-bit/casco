@@ -229,7 +229,7 @@ export default async function PainelGerencial() {
           {/* -------------------------------------------- faixa do vasilhame */}
           {/* Só aparece quando há movimento de vasilhame. É o diferencial do
               produto, mas anunciar "R$ 0,00 de perda" antes de existir um único
-              galão lançado é ruído, não argumento. */}
+              vasilhame lançado é ruído, não argumento. */}
           {(r.vasilhame.comClientes > 0 || r.vasilhame.perdasMes > 0) && (
             <Card className="border-acento-suave-borda">
               <div className="flex flex-col gap-4 rounded-lg bg-acento-suave/40 p-4 lg:flex-row lg:items-center">
@@ -243,8 +243,8 @@ export default async function PainelGerencial() {
                       <Badge variant="acento">só no Casco</Badge>
                     </div>
                     <p className="mt-0.5 max-w-[54ch] text-xs text-texto-suave">
-                      Galão quebrado é custo de estoque, nunca receita. A perda aparece
-                      no DRE e não toca o fluxo de caixa — porque quando um galão
+                      Vasilhame quebrado é custo de estoque, nunca receita. A perda aparece
+                      no DRE e não toca o fluxo de caixa — porque quando um vasilhame
                       quebra, nenhum dinheiro sai da gaveta.
                     </p>
                   </div>

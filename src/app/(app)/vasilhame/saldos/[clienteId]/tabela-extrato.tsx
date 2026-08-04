@@ -9,7 +9,7 @@ import { REGRA } from '@/modules/vasilhame/esquema'
 import type { LinhaExtrato } from '@/modules/vasilhame/consultas'
 
 /**
- * O extrato auditável, galão a galão.
+ * O extrato auditável, vasilhame a vasilhame.
  *
  * A coluna que justifica a tela é `saldoApos`: sem ela o cliente vê uma lista
  * de eventos e tem que somar de cabeça para conferir o número que está sendo
@@ -117,7 +117,7 @@ export function TabelaExtrato({ linhas }: { linhas: LinhaExtrato[] }) {
       vazio={{
         titulo: 'Nenhum movimento',
         descricao:
-          'Este cliente ainda não tem lançamento de vasilhame. Assim que houver entrega ou devolução, cada galão aparece aqui.',
+          'Este cliente ainda não tem lançamento de vasilhame. Assim que houver entrega ou devolução, cada vasilhame aparece aqui.',
       }}
     />
   )

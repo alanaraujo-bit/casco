@@ -2,11 +2,12 @@
 
 import Link from 'next/link'
 import { PhoneOff, UserPlus } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import { BotaoExcluirCadastro } from '@/components/ui/botao-excluir-cadastro'
 import { Button } from '@/components/ui/button'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
 import { formatarDocumento, formatarTelefone } from '@/lib/formatos'
+import { alternarAtivoFornecedor } from '@/modules/fornecedores/acoes'
 import type { FornecedorLista } from '@/modules/fornecedores/consultas'
 
 const colunas: Coluna<FornecedorLista>[] = [
@@ -25,11 +26,6 @@ const colunas: Coluna<FornecedorLista>[] = [
     celula: (f) => (
       <span className="flex items-center gap-2">
         <span className="truncate">{f.nome}</span>
-        {!f.ativo && (
-          <Badge variant="neutro" className="shrink-0">
-            inativo
-          </Badge>
-        )}
       </span>
     ),
     fixa: true,
@@ -70,6 +66,17 @@ const colunas: Coluna<FornecedorLista>[] = [
     chave: 'uf',
     cabecalho: 'UF',
     texto: (f) => f.uf || '—',
+  },
+  {
+    chave: 'acoes',
+    cabecalho: 'Ações',
+    texto: () => '',
+    celula: (f) => (
+      <BotaoExcluirCadastro aoExcluir={() => alternarAtivoFornecedor(f.id, false)} />
+    ),
+    ordenavel: false,
+    alinhamento: 'direita',
+    larguraMin: '8rem',
   },
 ]
 

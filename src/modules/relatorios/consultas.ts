@@ -22,7 +22,7 @@ import type { Mes } from './periodo'
  *   O DRE é por *competência* — o resultado do mês em que o fato aconteceu.
  *   A venda entra no dia em que foi feita, mesmo que o cliente pague em três
  *   parcelas; a mercadoria vira custo no dia em que saiu, não no dia em que foi
- *   comprada; o galão quebrado é custo e nenhum real saiu da gaveta.
+ *   comprada; o vasilhame quebrado é custo e nenhum real saiu da gaveta.
  *
  *   O Fluxo de Caixa é por *caixa* — o dinheiro que entrou e saiu de fato.
  *
@@ -199,7 +199,7 @@ export function despesasPorCategoria(mes: Mes): Promise<DespesaCategoria[]> {
 /**
  * As perdas de vasilhame do mês, por motivo.
  *
- * A linha que é o argumento inteiro do produto: galão quebrado é prejuízo, não
+ * A linha que é o argumento inteiro do produto: vasilhame quebrado é prejuízo, não
  * venda de centavos. Aqui ele desce o resultado, com o nome do que aconteceu.
  */
 export interface PerdaMotivo {
@@ -333,7 +333,7 @@ export function resultadoPorMes(meses = 12): Promise<ResultadoMes[]> {
  *
  * Aqui é o outro regime: **só dinheiro que entrou ou saiu de fato.**
  *
- * A ausência mais importante destas duas telas é a perda de vasilhame. Galão
+ * A ausência mais importante destas duas telas é a perda de vasilhame. Vasilhame
  * quebrado é custo e aparece no DRE, mas nenhum real sai da gaveta quando ele
  * quebra — então não tem linha aqui, e não é esquecimento. `caixa_movimentos`
  * nunca recebe perda, por decisão registrada desde a migration 0005.

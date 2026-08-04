@@ -33,7 +33,7 @@ export interface ProdutoVenda {
   nome: string
   unidade: string
   precoPadrao: string
-  /** Produto que gera comodato (Água 20L), não o galão em si. */
+  /** Produto que gera comodato (Água 20L), não o vasilhame em si. */
   retornavel: boolean
   vasilhameId: string | null
   controlaEstoque: boolean

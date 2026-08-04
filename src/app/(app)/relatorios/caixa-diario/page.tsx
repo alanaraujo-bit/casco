@@ -23,7 +23,7 @@ export const metadata: Metadata = { title: 'Fluxo de Caixa Diário' }
  * pergunta é quanto há em caixa em cada dia — e para respondê-la o acumulado
  * começa do saldo que existia antes do mês virar, não de zero.
  *
- * **Perda de vasilhame não aparece aqui, e é de propósito.** Galão quebrado é
+ * **Perda de vasilhame não aparece aqui, e é de propósito.** Vasilhame quebrado é
  * custo e desce o DRE, mas nenhum real sai da gaveta quando ele quebra.
  */
 export default async function PaginaCaixaDiario({

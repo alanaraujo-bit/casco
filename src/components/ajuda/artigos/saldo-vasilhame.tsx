@@ -48,7 +48,7 @@ export function ArtigoSaldoVasilhame() {
           <Passo numero={3} titulo="Abra o extrato de um cliente">
             <p>
               Clique no nome, na tabela abaixo. O extrato separa o saldo por tipo de vasilhame —
-              devolver um galão de 10L não abate a dívida de um de 20L, e a tela mostra os dois
+              devolver um vasilhame de 10L não abate a dívida de um de 20L, e a tela mostra os dois
               lados sem misturar.
             </p>
           </Passo>
@@ -68,7 +68,7 @@ export function ArtigoSaldoVasilhame() {
       <SecaoArtigo titulo="Perguntas frequentes">
         <ListaFaq>
           <Faq pergunta="Por que o total do cliente é separado por tipo de vasilhame?">
-            Porque um galão de 10L e um de 20L são dívidas diferentes. Somar tudo num número só
+            Porque um vasilhame de 10L e um de 20L são dívidas diferentes. Somar tudo num número só
             esconderia justamente o que evita discussão no balcão: quantos de cada tipo ele tem.
           </Faq>
           <Faq pergunta="Este saldo é atualizado na hora?">

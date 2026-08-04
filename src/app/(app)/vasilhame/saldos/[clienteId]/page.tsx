@@ -72,7 +72,7 @@ export default async function PaginaExtrato({ params }: Props) {
       {/*
         O saldo por vasilhame vem antes do histórico, e separado por tipo.
         Um total único esconderia justamente a confusão que gera a discussão no
-        balcão: devolver um galão de 10L não abate um de 20L, e o cliente que vê
+        balcão: devolver um vasilhame de 10L não abate um de 20L, e o cliente que vê
         só "deve 12" não tem como conferir.
       */}
       <Card className="p-4 md:p-5">

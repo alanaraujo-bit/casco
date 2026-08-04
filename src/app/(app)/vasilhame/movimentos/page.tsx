@@ -49,7 +49,7 @@ export default async function PaginaMovimentos() {
     <div className="space-y-5">
       <CabecalhoPagina
         titulo="Movimentos de Vasilhame"
-        descricao="Todo galão que entrou, saiu ou se perdeu — com motivo e responsável"
+        descricao="Todo vasilhame que entrou, saiu ou se perdeu — com motivo e responsável"
       />
 
       {meses.length > 0 && (
@@ -59,8 +59,8 @@ export default async function PaginaMovimentos() {
             <div>
               <h2 className="text-sm font-semibold text-texto">Perda de vasilhame</h2>
               {/*
-                A frase fica na tela, não só na documentação: galão perdido é
-                prejuízo, e lançá-lo como venda inflaria o faturamento com um
+                A frase fica na tela, não só na documentação: vasilhame perdido
+                é prejuízo, e lançá-lo como venda inflaria o faturamento com um
                 custo. O aviso existe para que ninguém leia este bloco como
                 receita.
               */}
@@ -85,12 +85,12 @@ export default async function PaginaMovimentos() {
                 <p className="text-lg font-semibold tabular-nums text-perigo">
                   {moeda(dados.custo)}
                 </p>
-                {/* O total de galões só aparece quando há mais de um motivo:
-                    com um só, "3 galões · 3 quebrados" diz o mesmo número duas
-                    vezes. */}
+                {/* O total de vasilhames só aparece quando há mais de um motivo:
+                    com um só, "3 vasilhames · 3 quebrados" diz o mesmo número
+                    duas vezes. */}
                 <p className="text-xs text-texto-fraco">
                   {dados.motivos.length > 1 &&
-                    `${dados.unidades} ${dados.unidades === 1 ? 'galão' : 'galões'} · `}
+                    `${dados.unidades} ${dados.unidades === 1 ? 'vasilhame' : 'vasilhames'} · `}
                   {dados.motivos.join(' · ')}
                 </p>
               </li>

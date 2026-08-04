@@ -1,43 +1,24 @@
 import type { Metadata } from 'next'
-import { Boxes, CircleSlash, TriangleAlert, Wallet } from 'lucide-react'
+import { Boxes, Droplet, Flame, Wallet } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
-import { Chip } from '@/components/painel/pecas'
-import { Card } from '@/components/ui/card'
+import { CartaoKpi } from '@/components/painel/pecas'
 import { moeda } from '@/lib/utils'
-import { listarSaldos, metricasEstoque } from '@/modules/estoque/consultas'
+import { listarSaldos, metricasEstoque, metricasEstoquePorTipo } from '@/modules/estoque/consultas'
 import { TabelaSaldo } from './tabela-saldo'
 
 export const metadata: Metadata = { title: 'Saldo em Estoque' }
 
-export default async function PaginaSaldoEstoque() {
-  const [linhas, metricas] = await Promise.all([listarSaldos(), metricasEstoque()])
+function detalheMinimo(abaixoDoMinimo: number) {
+  if (abaixoDoMinimo === 0) return 'nenhum abaixo do mínimo'
+  return <span className="text-perigo">{abaixoDoMinimo} abaixo do mínimo</span>
+}
 
-  const cartoes = [
-    {
-      rotulo: 'Itens controlados',
-      valor: metricas.itens.toLocaleString('pt-BR'),
-      Icone: Boxes,
-      tom: 'cat-1' as const,
-    },
-    {
-      rotulo: 'Abaixo do mínimo',
-      valor: metricas.abaixoDoMinimo.toLocaleString('pt-BR'),
-      Icone: TriangleAlert,
-      tom: metricas.abaixoDoMinimo > 0 ? ('alerta' as const) : ('cat-3' as const),
-    },
-    {
-      rotulo: 'Sem estoque',
-      valor: metricas.semEstoque.toLocaleString('pt-BR'),
-      Icone: CircleSlash,
-      tom: metricas.semEstoque > 0 ? ('perigo' as const) : ('cat-3' as const),
-    },
-    {
-      rotulo: 'Valor em estoque',
-      valor: moeda(metricas.valorTotal),
-      Icone: Wallet,
-      tom: 'cat-4' as const,
-    },
-  ]
+export default async function PaginaSaldoEstoque() {
+  const [linhas, metricas, porTipo] = await Promise.all([
+    listarSaldos(),
+    metricasEstoque(),
+    metricasEstoquePorTipo(),
+  ])
 
   return (
     <div className="space-y-5">
@@ -47,15 +28,33 @@ export default async function PaginaSaldoEstoque() {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {cartoes.map((m) => (
-          <Card key={m.rotulo} className="flex items-center gap-3 p-3">
-            <Chip Icone={m.Icone} tom={m.tom} tamanho="sm" />
-            <div className="min-w-0">
-              <p className="truncate text-xs text-texto-suave">{m.rotulo}</p>
-              <p className="text-lg font-semibold tabular-nums text-texto">{m.valor}</p>
-            </div>
-          </Card>
-        ))}
+        <CartaoKpi
+          rotulo="Água em estoque"
+          valor={porTipo.agua.quantidade.toLocaleString('pt-BR')}
+          Icone={Droplet}
+          tom={porTipo.agua.abaixoDoMinimo > 0 ? 'perigo' : 'cat-4'}
+          detalhe={detalheMinimo(porTipo.agua.abaixoDoMinimo)}
+        />
+        <CartaoKpi
+          rotulo="Vasilhame em estoque"
+          valor={porTipo.vasilhame.quantidade.toLocaleString('pt-BR')}
+          Icone={Boxes}
+          tom={porTipo.vasilhame.abaixoDoMinimo > 0 ? 'perigo' : 'cat-3'}
+          detalhe={detalheMinimo(porTipo.vasilhame.abaixoDoMinimo)}
+        />
+        <CartaoKpi
+          rotulo="Gás em estoque"
+          valor={porTipo.gas.quantidade.toLocaleString('pt-BR')}
+          Icone={Flame}
+          tom={porTipo.gas.abaixoDoMinimo > 0 ? 'perigo' : 'cat-1'}
+          detalhe={detalheMinimo(porTipo.gas.abaixoDoMinimo)}
+        />
+        <CartaoKpi
+          rotulo="Valor em estoque"
+          valor={moeda(metricas.valorTotal)}
+          Icone={Wallet}
+          tom="cat-2"
+        />
       </div>
 
       <TabelaSaldo linhas={linhas} />

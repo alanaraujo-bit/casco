@@ -1,5 +1,5 @@
 /**
- * A marca do Casco é o próprio vasilhame: o corpo do galão/botijão com um
+ * A marca do Casco é o próprio vasilhame: o corpo do vasilhame/botijão com um
  * entalhe do lado direito. Esse entalhe é a alça de carregar o vasilhame E,
  * ao mesmo tempo, a abertura da letra "C" — as duas leituras são verdadeiras
  * de propósito, não um acaso.

@@ -10,12 +10,12 @@ import { formatarData, formatarTelefone } from '@/lib/formatos'
 import type { SaldoLista } from '@/modules/vasilhame/consultas'
 
 /**
- * Quem está devendo galão.
+ * Quem está devendo vasilhame.
  *
  * A coluna de quantidade é a razão da tela e por isso é a que ordena por
  * padrão, do maior para o menor — quem já vem ordenado pelo banco. Saldo
  * negativo aparece em âmbar e não em vermelho: não é erro, é o cliente que
- * devolveu mais do que levou (comum na migração, quando ele já tinha galão
+ * devolveu mais do que levou (comum na migração, quando ele já tinha vasilhame
  * nosso antes do sistema existir). Vermelho ali ensinaria a ignorar vermelho.
  */
 const colunas: Coluna<SaldoLista>[] = [
@@ -109,7 +109,7 @@ export function TabelaSaldos({ linhas }: { linhas: SaldoLista[] }) {
         </Button>
       }
       vazio={{
-        titulo: 'Nenhum galão na rua',
+        titulo: 'Nenhum vasilhame na rua',
         descricao:
           'Ninguém está devendo vasilhame no momento. Assim que uma entrega for lançada, o saldo do cliente aparece aqui.',
         acao: (

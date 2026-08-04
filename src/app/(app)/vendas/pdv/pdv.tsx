@@ -67,7 +67,7 @@ interface RascunhoVenda {
  *
  * **O carrinho é uma lista, não um formulário.** A operadora clica no produto e
  * ele entra; clicar de novo soma um. Não existe "adicionar item" com quantidade,
- * preço e botão confirmar — esse é o desenho que faz uma venda de três galões
+ * preço e botão confirmar — esse é o desenho que faz uma venda de três vasilhames
  * levar nove cliques.
  *
  * **O preço aparece, mas quem decide é o servidor.** A tela resolve a tabela do
@@ -76,7 +76,7 @@ interface RascunhoVenda {
  * chega a existir, porque as duas leem a mesma tabela de preço.
  *
  * **Vasilhame vive dentro do item.** Ao vender um produto retornável, aparece
- * na linha um contador de "galões que ele trouxe". É o momento em que a pergunta
+ * na linha um contador de "vasilhames que ele trouxe". É o momento em que a pergunta
  * é feita de verdade no balcão — e é a única forma de o comodato não depender de
  * alguém lembrar de abrir outra tela depois que o cliente já foi embora.
  */
@@ -228,14 +228,28 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
 
   /* --------------------------------------------------------------- carrinho */
 
+  /**
+   * Teto de quantidade: o saldo em estoque, para quem controla estoque; sem
+   * teto para quem não controla (serviço, item que não passa por depósito).
+   * `fecharVenda` confere de novo contra o saldo de verdade dentro da
+   * transação — este teto aqui é só o que evita a operadora catar no carrinho
+   * o que o servidor ia recusar de qualquer jeito.
+   */
+  function maximoDoProduto(produtoId: string): number {
+    const p = porId.get(produtoId)
+    if (!p || !p.controlaEstoque) return 9999
+    return Math.max(0, Math.min(9999, p.emEstoque))
+  }
+
   function adicionar(produtoId: string) {
+    const maximo = maximoDoProduto(produtoId)
+    if (maximo <= 0) return
     setCarrinho((atual) => {
       const existente = atual.find((l) => l.produtoId === produtoId)
       if (existente) {
+        if (existente.quantidade >= maximo) return atual
         return atual.map((l) =>
-          l.produtoId === produtoId
-            ? { ...l, quantidade: Math.min(9999, l.quantidade + 1) }
-            : l,
+          l.produtoId === produtoId ? { ...l, quantidade: Math.min(maximo, l.quantidade + 1) } : l,
         )
       }
       return [...atual, { produtoId, quantidade: 1, vasilhameDevolvido: 0 }]
@@ -243,6 +257,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
   }
 
   function mudarQuantidade(produtoId: string, delta: number) {
+    const maximo = maximoDoProduto(produtoId)
     setCarrinho((atual) =>
       atual.flatMap((l) => {
         if (l.produtoId !== produtoId) return [l]
@@ -250,12 +265,13 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
         // Chegar a zero remove a linha. Manter um item com quantidade 0 no
         // carrinho é um estado que só serve para ir parar na venda.
         if (nova < 1) return []
+        const limitada = Math.min(maximo, nova)
         return [
           {
             ...l,
-            quantidade: Math.min(9999, nova),
-            // O cliente não pode devolver mais galões do que está levando.
-            vasilhameDevolvido: Math.min(l.vasilhameDevolvido, Math.min(9999, nova)),
+            quantidade: limitada,
+            // O cliente não pode devolver mais vasilhames do que está levando.
+            vasilhameDevolvido: Math.min(l.vasilhameDevolvido, limitada),
           },
         ]
       }),
@@ -297,7 +313,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
   const recebidoCent = centavos(paraNumero(valorRecebido) || 0)
   const troco = forma?.tipo === 'dinheiro' && recebidoCent > total ? recebidoCent - total : 0
 
-  const galoesNaVenda = carrinho.reduce(
+  const vasilhamesNaVenda = carrinho.reduce(
     (soma, l) => (porId.get(l.produtoId)?.retornavel ? soma + l.quantidade : soma),
     0,
   )
@@ -453,14 +469,23 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                 {filtrados.map((p) => {
                   const preco = precoDe(p.id)
                   const noCarrinho = carrinho.find((l) => l.produtoId === p.id)
+                  // Sem saldo nenhum, ou o carrinho já está no teto do que há
+                  // no depósito: o clique não adicionaria nada mesmo, então o
+                  // botão já nasce travado em vez de parecer que aceitou.
+                  const travado =
+                    p.controlaEstoque &&
+                    (p.emEstoque <= 0 || (noCarrinho?.quantidade ?? 0) >= p.emEstoque)
                   return (
                     <button
                       key={p.id}
                       type="button"
                       onClick={() => adicionar(p.id)}
+                      disabled={travado}
+                      aria-disabled={travado}
                       className={cn(
                         'flex min-h-[4.5rem] flex-col items-start gap-1 rounded-md border px-3 py-2.5 text-left transition-colors',
                         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foco',
+                        'disabled:cursor-not-allowed disabled:opacity-60',
                         noCarrinho
                           ? 'border-acento-suave-borda bg-acento-suave'
                           : 'border-borda-controle bg-superficie hover:bg-superficie-hover hover:border-borda-forte',
@@ -490,7 +515,8 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                           </span>
                         )}
                         {p.controlaEstoque && (
-                          // O saldo informa, não trava. Ver a nota em `acoes.ts`.
+                          // O saldo é o teto: ver `maximoDoProduto`, acima, e a
+                          // conferência de novo em `acoes.ts`.
                           <span
                             className={cn('tabular-nums', p.emEstoque <= 0 && 'text-perigo')}
                           >
@@ -561,6 +587,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                             variant="secundario"
                             size="icone"
                             onClick={() => mudarQuantidade(l.produtoId, 1)}
+                            disabled={l.quantidade >= maximoDoProduto(l.produtoId)}
                             aria-label={`Aumentar ${p.nome}`}
                           >
                             <Plus aria-hidden />
@@ -591,7 +618,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                         <div className="mt-2 flex items-center gap-2 rounded-md bg-superficie-afundada px-3 py-2">
                           <Truck className="size-4 shrink-0 text-texto-suave" aria-hidden />
                           <span className="flex-1 text-xs text-texto-suave">
-                            Galões vazios que ele trouxe agora
+                            Vasilhames vazios que ele trouxe agora
                           </span>
                           <Button
                             type="button"
@@ -653,9 +680,9 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
 
               {/* Sem cliente, o comodato não tem devedor — e a operadora precisa
                   saber disso antes de fechar, não depois. */}
-              {!clienteId && galoesNaVenda > 0 && (
+              {!clienteId && vasilhamesNaVenda > 0 && (
                 <p className="text-xs text-alerta">
-                  {galoesNaVenda} galão(ões) retornável(is) nesta venda. Sem cliente
+                  {vasilhamesNaVenda} vasilhame(ns) retornável(is) nesta venda. Sem cliente
                   identificado, o comodato não será registrado.
                 </p>
               )}
@@ -663,7 +690,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
               {cliente && (
                 <div className="space-y-0.5 text-xs text-texto-suave tabular-nums">
                   {cliente.vasilhameNaRua > 0 && (
-                    <p>{cliente.nome} está com {cliente.vasilhameNaRua} galão(ões) hoje.</p>
+                    <p>{cliente.nome} está com {cliente.vasilhameNaRua} vasilhame(ns) hoje.</p>
                   )}
                   {Number(cliente.emAberto) > 0 && (
                     <p className="text-alerta">
@@ -930,7 +957,7 @@ function Recibo({ recibo }: { recibo: NonNullable<EstadoVenda['recibo']> }) {
 
           {recibo.vasilhameEntregue > 0 && (
             <p className="tabular-nums">
-              {recibo.vasilhameEntregue} galão(ões) entregue(s)
+              {recibo.vasilhameEntregue} vasilhame(ns) entregue(s)
               {recibo.vasilhameDevolvido > 0 && `, ${recibo.vasilhameDevolvido} devolvido(s)`}
               {recibo.saldoVasilhame !== null &&
                 ` — ${recibo.cliente} fica com ${recibo.saldoVasilhame}.`}

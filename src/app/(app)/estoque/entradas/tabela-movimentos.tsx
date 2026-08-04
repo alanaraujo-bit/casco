@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { PackagePlus, Undo2 } from 'lucide-react'
+import { PackagePlus, Trash2, Undo2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
@@ -11,6 +11,7 @@ import { moeda, quantidade as fmtQtd } from '@/lib/utils'
 import { REGRA } from '@/modules/estoque/esquema'
 import type { MovimentoLista } from '@/modules/estoque/consultas'
 import { BotaoEstornar } from './botao-estornar'
+import { BotaoExcluir } from './botao-excluir'
 
 /**
  * O razão completo do estoque.
@@ -40,6 +41,12 @@ const colunas: Coluna<MovimentoLista>[] = [
           <Badge variant="neutro" className="shrink-0">
             <Undo2 className="size-3" aria-hidden />
             estorno
+          </Badge>
+        )}
+        {m.excluidoEm && (
+          <Badge variant="neutro" className="shrink-0">
+            <Trash2 className="size-3" aria-hidden />
+            excluído
           </Badge>
         )}
       </span>
@@ -73,52 +80,65 @@ const colunas: Coluna<MovimentoLista>[] = [
     numerica: true,
     larguraMin: '8rem',
     papelMobile: 'destaque',
-    celula: (m) => (
-      <span className={m.quantidade > 0 ? 'text-sucesso' : 'text-texto'}>
-        {m.quantidade > 0 ? '+' : '−'}
-        {fmtQtd(Math.abs(m.quantidade))}
-      </span>
-    ),
+    celula: (m) =>
+      m.excluidoEm ? (
+        <span className="text-texto-fraco">—</span>
+      ) : (
+        <span className={m.quantidade > 0 ? 'text-sucesso' : 'text-texto'}>
+          {m.quantidade > 0 ? '+' : '−'}
+          {fmtQtd(Math.abs(m.quantidade))}
+        </span>
+      ),
   },
   {
     chave: 'custoUnitario',
     cabecalho: 'Custo Unit.',
-    texto: (m) => moeda(m.custoUnitario),
+    texto: (m) => (m.excluidoEm ? '—' : moeda(m.custoUnitario)),
     valor: (m) => m.custoUnitario,
     numerica: true,
     larguraMin: '7rem',
+    celula: (m) => (m.excluidoEm ? <span className="text-texto-fraco">—</span> : moeda(m.custoUnitario)),
   },
   {
     chave: 'valor',
     cabecalho: 'Valor',
-    texto: (m) => moeda(m.valor),
+    texto: (m) => (m.excluidoEm ? '—' : moeda(m.valor)),
     valor: (m) => m.valor,
     numerica: true,
     larguraMin: '7rem',
+    celula: (m) => (m.excluidoEm ? <span className="text-texto-fraco">—</span> : moeda(m.valor)),
   },
   {
     chave: 'fornecedor',
     cabecalho: 'Fornecedor',
     // Vazio aqui não é dado faltando — é movimento interno, e a tabela precisa
     // dizer isso em vez de mostrar um traço que parece cadastro incompleto.
-    texto: (m) => m.fornecedor ?? 'Interno',
+    texto: (m) => (m.excluidoEm ? '—' : m.fornecedor ?? 'Interno'),
     celula: (m) =>
-      m.fornecedor ? m.fornecedor : <span className="text-texto-fraco">Interno</span>,
+      m.excluidoEm ? (
+        <span className="text-texto-fraco">—</span>
+      ) : m.fornecedor ? (
+        m.fornecedor
+      ) : (
+        <span className="text-texto-fraco">Interno</span>
+      ),
     larguraMin: '11rem',
   },
   {
     chave: 'documento',
     cabecalho: 'Nota',
-    texto: (m) => m.documento || '—',
+    texto: (m) => (m.excluidoEm ? '—' : m.documento || '—'),
     ocultaPorPadrao: true,
     papelMobile: 'oculto',
   },
   {
     chave: 'observacao',
     cabecalho: 'Observação',
-    texto: (m) => m.observacao || '—',
+    texto: (m) => (m.excluidoEm ? '—' : m.observacao || '—'),
     celula: (m) =>
-      m.observacao ? (
+      m.excluidoEm ? (
+        <span className="text-texto-fraco">—</span>
+      ) : m.observacao ? (
         <span className="block max-w-[28rem] truncate" title={m.observacao}>
           {m.observacao}
         </span>
@@ -132,8 +152,8 @@ const colunas: Coluna<MovimentoLista>[] = [
     chave: 'usuario',
     cabecalho: 'Usuário',
     texto: (m) => m.usuario || '—',
-    ocultaPorPadrao: true,
-    papelMobile: 'oculto',
+    larguraMin: '9rem',
+    papelMobile: 'campo',
   },
   {
     chave: 'acoes',
@@ -141,16 +161,25 @@ const colunas: Coluna<MovimentoLista>[] = [
     texto: () => '',
     // O estorno da baixa de venda não é oferecido: desfazer uma venda é
     // cancelar a venda, e não devolver a mercadoria ao estoque por fora — isso
-    // deixaria o faturamento afirmando uma coisa e o estoque outra.
+    // deixaria o faturamento afirmando uma coisa e o estoque outra. Estorno
+    // não se exclui pela mesma razão que não se estorna: é a correção de outro
+    // lançamento, e sumir com ele deixaria o original parecendo intocado.
     celula: (m) =>
-      m.estornoDe || !REGRA[m.tipo].lancavelNaMao ? (
+      m.excluidoEm ? (
+        <span className="text-xs text-texto-fraco">
+          {m.excluidoPor ?? 'alguém'} · {formatarDataHora(m.excluidoEm)}
+        </span>
+      ) : m.estornoDe || !REGRA[m.tipo].lancavelNaMao ? (
         <span className="text-xs text-texto-fraco">—</span>
       ) : (
-        <BotaoEstornar id={m.id} estornado={m.estornado} />
+        <span className="flex items-center justify-end gap-1">
+          <BotaoEstornar id={m.id} estornado={m.estornado} />
+          <BotaoExcluir id={m.id} />
+        </span>
       ),
     ordenavel: false,
     alinhamento: 'direita',
-    larguraMin: '10rem',
+    larguraMin: '12rem',
   },
 ]
 
@@ -158,7 +187,7 @@ export function TabelaMovimentos({ linhas }: { linhas: MovimentoLista[] }) {
   return (
     <TabelaDados
       id="estoque-movimentos"
-      legenda="Movimentos de estoque"
+      legenda="Movimentações de estoque"
       colunas={colunas}
       linhas={linhas}
       chaveLinha={(m) => m.id}

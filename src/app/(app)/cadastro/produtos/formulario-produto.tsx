@@ -27,6 +27,7 @@ type Props = {
   produtosVasilhame: { id: string; nome: string }[]
   /** As categorias já em uso. Alimentam o seletor, que sempre aceita uma nova. */
   categorias: string[]
+  tipo?: 'produto' | 'vasilhame'
 }
 
 function Secao({
@@ -73,7 +74,7 @@ function Campo({
   )
 }
 
-function BotaoSalvar({ novo }: { novo: boolean }) {
+function BotaoSalvar({ novo, tipo = 'produto' }: { novo: boolean; tipo?: 'produto' | 'vasilhame' }) {
   const { pending } = useFormStatus()
   return (
     <Button type="submit" variant="primario" disabled={pending} aria-disabled={pending}>
@@ -82,14 +83,14 @@ function BotaoSalvar({ novo }: { novo: boolean }) {
       ) : (
         <>
           <Save aria-hidden />
-          {novo ? 'Cadastrar produto' : 'Salvar alterações'}
+          {novo ? (tipo === 'vasilhame' ? 'Cadastrar vasilhame' : 'Cadastrar produto') : 'Salvar alterações'}
         </>
       )}
     </Button>
   )
 }
 
-export function FormularioProduto({ acao, produto, produtosVasilhame, categorias }: Props) {
+export function FormularioProduto({ acao, produto, produtosVasilhame, categorias, tipo = 'produto' }: Props) {
   const [estado, enviar] = useActionState<EstadoFormularioProduto, FormData>(acao, {})
   const novo = !produto
   const erroDe = (campo: keyof NonNullable<EstadoFormularioProduto['campos']>) =>
@@ -158,7 +159,7 @@ export function FormularioProduto({ acao, produto, produtosVasilhame, categorias
           <SeletorCategoria
             id="categoria"
             categorias={categorias}
-            defaultValue={valor('categoria', produto?.categoria ?? '')}
+            defaultValue={valor('categoria', produto?.categoria ?? (tipo === 'vasilhame' ? 'Vasilhame' : ''))}
             erro={erroDe('categoria')}
             placeholder="Água mineral"
           />
@@ -285,7 +286,7 @@ export function FormularioProduto({ acao, produto, produtosVasilhame, categorias
               número aqui por cima seria um ajuste sem aparecer no extrato,
               o exato problema que o "ajuste" nunca apagar existe para evitar.
               Quem precisa corrigir o saldo de um produto existente lança em
-              Estoque → Entradas, onde a correção fica registrada.
+              Estoque → Movimentações, onde a correção fica registrada.
             */}
             {novo && (
               <Campo
@@ -315,51 +316,60 @@ export function FormularioProduto({ acao, produto, produtosVasilhame, categorias
         )}
       </Secao>
 
-      <Secao
-        titulo="Vasilhame"
-        descricao="Produto que gera comodato — o cliente leva o galão e devolve depois."
-      >
-        <Campo span="sm:col-span-2" htmlFor="retornavel" rotulo="Retornável?">
-          <Select
-            id="retornavel"
-            name="retornavel"
-            defaultValue={valor('retornavel', produto?.retornavel ? 'true' : 'false')}
-            erro={erroDe('retornavel')}
-            onChange={(e) => setRetornavel(e.target.value === 'true')}
-          >
-            <option value="false">Não</option>
-            <option value="true">Sim</option>
-          </Select>
-        </Campo>
-
-        {retornavelAtual && (
-          <Campo span="sm:col-span-4" htmlFor="vasilhameId" rotulo="Produto do vasilhame" opcional>
+      {tipo !== 'vasilhame' && (
+        <Secao
+          titulo="Vasilhame"
+          descricao="Produto que gera comodato — o cliente leva o vasilhame e devolve depois."
+        >
+          <Campo span="sm:col-span-2" htmlFor="retornavel" rotulo="Retornável?">
             <Select
-              id="vasilhameId"
-              name="vasilhameId"
-              defaultValue={valor('vasilhameId', produto?.vasilhameId ?? '')}
-              erro={erroDe('vasilhameId')}
+              id="retornavel"
+              name="retornavel"
+              defaultValue={valor('retornavel', produto?.retornavel ? 'true' : 'false')}
+              erro={erroDe('retornavel')}
+              onChange={(e) => setRetornavel(e.target.value === 'true')}
             >
-              <option value="">—</option>
-              {produtosVasilhame
-                .filter((p) => p.id !== produto?.id)
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nome}
-                  </option>
-                ))}
+              <option value="false">Não</option>
+              <option value="true">Sim</option>
             </Select>
           </Campo>
-        )}
 
-        {!retornavelAtual && <input type="hidden" name="vasilhameId" value="" />}
-      </Secao>
+          {retornavelAtual && (
+            <Campo span="sm:col-span-4" htmlFor="vasilhameId" rotulo="Produto do vasilhame" opcional>
+              <Select
+                id="vasilhameId"
+                name="vasilhameId"
+                defaultValue={valor('vasilhameId', produto?.vasilhameId ?? '')}
+                erro={erroDe('vasilhameId')}
+              >
+                <option value="">—</option>
+                {produtosVasilhame
+                  .filter((p) => p.id !== produto?.id)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome}
+                    </option>
+                  ))}
+              </Select>
+            </Campo>
+          )}
+
+          {!retornavelAtual && <input type="hidden" name="vasilhameId" value="" />}
+        </Secao>
+      )}
+
+      {tipo === 'vasilhame' && (
+        <>
+          <input type="hidden" name="retornavel" value="false" />
+          <input type="hidden" name="vasilhameId" value="" />
+        </>
+      )}
 
       <div className="sticky bottom-0 -mx-3 flex items-center justify-end gap-2 border-t border-borda bg-fundo/95 px-3 py-3 backdrop-blur md:-mx-5 md:px-5">
         <Button asChild variant="secundario">
           <Link href="/cadastro/produtos">Cancelar</Link>
         </Button>
-        <BotaoSalvar novo={novo} />
+        <BotaoSalvar novo={novo} tipo={tipo} />
       </div>
     </form>
   )

@@ -29,6 +29,10 @@ export function listarFornecedores() {
         ativo: fornecedores.ativo,
       })
       .from(fornecedores)
+      // Só ativos: fornecedor excluído (inativado pela lixeira da lista) some
+      // daqui. Reativar é decisão da ficha, que continua acessível por link
+      // direto mesmo sem o fornecedor aparecer nesta lista.
+      .where(eq(fornecedores.ativo, true))
       .orderBy(asc(fornecedores.nome)),
   ) as Promise<FornecedorLista[]>
 }

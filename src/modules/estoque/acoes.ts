@@ -260,3 +260,58 @@ export async function estornarMovimento(id: string): Promise<ResultadoEstorno> {
     return { ok: false, erro: descreverFalha(err) }
   }
 }
+
+export interface ResultadoExclusao {
+  ok: boolean
+  erro?: Falha | string
+}
+
+/**
+ * Marca o lançamento como excluído — a linha não sai do banco.
+ *
+ * O trigger `estoque_mov_imutavel` (ver a 0015) só deixa passar essa mudança
+ * pontual, e o trigger `estoque_mov_saldo_exclusao` refaz o saldo do produto
+ * do zero a partir do que sobrou. A aba Movimentações continua mostrando a linha —
+ * é o histórico da exclusão — mas sem o detalhe financeiro, que deixa de
+ * valer no minuto em que isto roda.
+ *
+ * Mesmas duas travas do estorno, e pelo mesmo motivo: baixa de venda se desfaz
+ * cancelando a venda, e um estorno não se exclui — ele é a explicação de outro
+ * lançamento, e sumir com ele deixaria o original parecendo nunca corrigido.
+ */
+export async function excluirMovimento(id: string): Promise<ResultadoExclusao> {
+  try {
+    return await comTenant(async (tx, sessao) => {
+      const [original] = await tx
+        .select()
+        .from(estoqueMovimentos)
+        .where(eq(estoqueMovimentos.id, id))
+        .limit(1)
+
+      if (!original) return { ok: false, erro: 'Movimento não encontrado.' }
+      if (original.excluidoEm) return { ok: false, erro: 'Este movimento já foi excluído.' }
+      if (original.estornoDe) {
+        return {
+          ok: false,
+          erro: 'Não se exclui um estorno — ele já é a correção de outro lançamento.',
+        }
+      }
+      if (!REGRA[original.tipo as TipoEstoque]?.lancavelNaMao) {
+        return {
+          ok: false,
+          erro: 'Baixa de venda se desfaz cancelando a venda, não excluindo o estoque.',
+        }
+      }
+
+      await tx
+        .update(estoqueMovimentos)
+        .set({ excluidoEm: new Date(), excluidoPor: autorDoLancamento(sessao) })
+        .where(eq(estoqueMovimentos.id, id))
+
+      revalidarTudo()
+      return { ok: true }
+    })
+  } catch (err) {
+    return { ok: false, erro: descreverFalha(err) }
+  }
+}

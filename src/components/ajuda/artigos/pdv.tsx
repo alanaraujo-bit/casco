@@ -85,7 +85,7 @@ export function ArtigoPdv() {
       <SecaoArtigo titulo="Erros comuns">
         <Atencao titulo="Vendeu vasilhame sem escolher cliente?">
           A tela avisa em laranja, mas deixa fechar a venda. Sem cliente identificado, não existe
-          quem cobrar depois — o comodato daquele galão simplesmente não é registrado. Volte e
+          quem cobrar depois — o comodato daquele vasilhame simplesmente não é registrado. Volte e
           escolha o cliente antes de fechar, sempre que o produto for retornável.
         </Atencao>
         <Dica titulo="O preço muda sozinho ao escolher o cliente?">

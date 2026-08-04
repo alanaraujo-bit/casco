@@ -3,10 +3,12 @@
 import Link from 'next/link'
 import { PhoneOff, UserPlus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { BotaoExcluirCadastro } from '@/components/ui/botao-excluir-cadastro'
 import { Button } from '@/components/ui/button'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
 import { formatarDocumento, formatarTelefone } from '@/lib/formatos'
+import { alternarAtivoCliente } from '@/modules/clientes/acoes'
 import { ROTULO_TIPO } from '@/modules/clientes/esquema'
 import type { ClienteLista } from '@/modules/clientes/consultas'
 
@@ -64,11 +66,6 @@ const colunas: Coluna<ClienteLista>[] = [
       <span className="flex items-center gap-2">
         <Avatar nome={c.nome} />
         <span className="truncate">{c.nome}</span>
-        {!c.ativo && (
-          <Badge variant="neutro" className="shrink-0">
-            inativo
-          </Badge>
-        )}
       </span>
     ),
     fixa: true,
@@ -134,6 +131,17 @@ const colunas: Coluna<ClienteLista>[] = [
       ) : (
         <span className="text-texto-fraco">—</span>
       ),
+  },
+  {
+    chave: 'acoes',
+    cabecalho: 'Ações',
+    texto: () => '',
+    celula: (c) => (
+      <BotaoExcluirCadastro aoExcluir={() => alternarAtivoCliente(c.id, false)} />
+    ),
+    ordenavel: false,
+    alinhamento: 'direita',
+    larguraMin: '8rem',
   },
 ]
 
