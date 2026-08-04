@@ -1,17 +1,18 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Trash2 } from 'lucide-react'
+import { RotateCcw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 /**
  * Lixeira de cadastro, em dois toques — mesmo gesto do estorno de estoque.
  *
- * "Excluir" aqui inativa: o cadastro some desta lista — que só traz ativos —
- * e das telas de lançamento, mas continua explicando as vendas, contas e
- * movimentos que já apontam para ele. Reativar é decisão da ficha, não da
- * lista: sem o cadastro aparecendo aqui, quem precisa desfazer abre a ficha
- * dele direto.
+ * "Excluir" aqui inativa: o cadastro some da lista de ativos — que é o padrão
+ * — e das telas de lançamento, mas continua explicando as vendas, contas e
+ * movimentos que já apontam para ele. Para reativar, o filtro "Mostrar
+ * inativos" da lista traz o cadastro de volta com `BotaoReativarCadastro`
+ * no lugar deste; a ficha (`/cadastro/produtos/[id]`) também continua
+ * oferecendo o mesmo toggle.
  *
  * `relative` nos dois estados não é enfeite: a coluna Título destas tabelas
  * vira uma âncora que se estica pela linha inteira via `::after` (ver
@@ -67,5 +68,30 @@ export function BotaoExcluirCadastro({ aoExcluir }: { aoExcluir: () => Promise<v
         Cancelar
       </Button>
     </span>
+  )
+}
+
+/**
+ * O oposto do de cima, só que sem confirmação em dois toques: reativar não
+ * tira nada de vista, é seguro por natureza — o pior caso é o cadastro voltar
+ * a aparecer na lista, o que é exatamente o que se pediu.
+ */
+export function BotaoReativarCadastro({ aoReativar }: { aoReativar: () => Promise<void> }) {
+  const [pendente, iniciar] = useTransition()
+
+  return (
+    <Button
+      variant="secundario"
+      size="sm"
+      className="relative"
+      onClick={(e) => {
+        e.stopPropagation()
+        iniciar(aoReativar)
+      }}
+      disabled={pendente}
+    >
+      <RotateCcw aria-hidden />
+      {pendente ? 'Reativando…' : 'Reativar'}
+    </Button>
   )
 }

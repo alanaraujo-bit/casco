@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { Boxes, Droplet, Flame, Tag } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Chip } from '@/components/painel/pecas'
@@ -8,8 +9,16 @@ import { TabelaProdutos } from './tabela-produtos'
 
 export const metadata: Metadata = { title: 'Produtos' }
 
-export default async function PaginaProdutos() {
-  const [linhas, metricas] = await Promise.all([listarProdutos(), metricasProdutos()])
+export default async function PaginaProdutos({
+  searchParams,
+}: {
+  searchParams: Promise<{ inativos?: string }>
+}) {
+  const incluirInativos = (await searchParams).inativos === '1'
+  const [linhas, metricas] = await Promise.all([
+    listarProdutos({ incluirInativos }),
+    metricasProdutos(),
+  ])
 
   const cartoes = [
     {
@@ -57,7 +66,7 @@ export default async function PaginaProdutos() {
         ))}
       </div>
 
-      <TabelaProdutos linhas={linhas} />
+      <TabelaProdutos linhas={linhas} incluirInativos={incluirInativos} />
     </div>
   )
 }

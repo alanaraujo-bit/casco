@@ -88,6 +88,7 @@ export async function criarProduto(
           custoUnitario: String(dados.custo),
           origem: 'balcao',
           usuarioId: autorDoLancamento(sessao),
+          adminId: sessao.adminId ?? null,
           observacao: 'Estoque inicial, lançado no cadastro do produto',
         })
       }

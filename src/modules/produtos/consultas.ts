@@ -28,15 +28,20 @@ export interface ProdutoLista {
   estoque: number
 }
 
-export function listarProdutos() {
+/**
+ * `incluirInativos` existe só para o filtro "Mostrar inativos" da lista — é a
+ * única forma de achar e reativar um produto, já que a lista some com ele por
+ * padrão (ver a nota em `botao-excluir-cadastro.tsx`).
+ */
+export function listarProdutos(opcoes: { incluirInativos?: boolean } = {}) {
   const saldo = sql<number>`coalesce((
     select ${estoqueSaldos.quantidade}::numeric
       from ${estoqueSaldos}
      where ${estoqueSaldos.produtoId} = ${produtos.id}
   ), 0)`
 
-  return comTenant(async (tx) =>
-    tx
+  return comTenant(async (tx) => {
+    const query = tx
       .select({
         id: produtos.id,
         codigo: produtos.codigo,
@@ -55,9 +60,10 @@ export function listarProdutos() {
         estoque: saldo,
       })
       .from(produtos)
-      .where(eq(produtos.ativo, true))
-      .orderBy(asc(produtos.nome)),
-  ) as Promise<ProdutoLista[]>
+      .orderBy(asc(produtos.nome))
+
+    return opcoes.incluirInativos ? query : query.where(eq(produtos.ativo, true))
+  }) as Promise<ProdutoLista[]>
 }
 
 export function metricasProdutos() {
@@ -72,6 +78,9 @@ export function metricasProdutos() {
       })
       .from(produtos)
       .leftJoin(estoqueSaldos, eq(estoqueSaldos.produtoId, produtos.id))
+      // Produto inativo some da lista (ver listarProdutos) — some daqui também,
+      // senão o card mostraria estoque de um produto que a tela não exibe mais.
+      .where(eq(produtos.ativo, true))
 
     return linha
   })

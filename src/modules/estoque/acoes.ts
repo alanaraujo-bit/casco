@@ -129,6 +129,9 @@ export async function lancarMovimento(
         documento: dados.documento,
         origem: 'balcao',
         usuarioId: autorDoLancamento(sessao),
+        // Sessão de suporte Aionix não tem linha em `users` — `adminId` é o
+        // par que preserva o autor mesmo assim. Ver 0016.
+        adminId: sessao.adminId ?? null,
         observacao: dados.observacao,
       })
 
@@ -246,6 +249,7 @@ export async function estornarMovimento(id: string): Promise<ResultadoEstorno> {
         origem: 'ajuste',
         origemId: original.id,
         usuarioId: autorDoLancamento(sessao),
+        adminId: sessao.adminId ?? null,
         // Fuso explícito: esta frase fica gravada no banco e é lida meses
         // depois. A hora do servidor da Vercel (UTC) apontaria para um momento
         // em que a loja estava fechada.
@@ -305,7 +309,11 @@ export async function excluirMovimento(id: string): Promise<ResultadoExclusao> {
 
       await tx
         .update(estoqueMovimentos)
-        .set({ excluidoEm: new Date(), excluidoPor: autorDoLancamento(sessao) })
+        .set({
+          excluidoEm: new Date(),
+          excluidoPor: autorDoLancamento(sessao),
+          excluidoPorAdminId: sessao.adminId ?? null,
+        })
         .where(eq(estoqueMovimentos.id, id))
 
       revalidarTudo()

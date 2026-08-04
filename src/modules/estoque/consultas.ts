@@ -101,7 +101,10 @@ export function metricasEstoque() {
       })
       .from(produtos)
       .leftJoin(estoqueSaldos, eq(estoqueSaldos.produtoId, produtos.id))
-      .where(eq(produtos.controlaEstoque, true))
+      // Produto inativo some da lista de Saldo em Estoque — some do resumo
+      // também, senão "Valor em estoque" contaria um produto que a tabela
+      // abaixo não mostra mais.
+      .where(and(eq(produtos.controlaEstoque, true), eq(produtos.ativo, true)))
 
     return linha
   }) as Promise<MetricasEstoque>
@@ -150,7 +153,9 @@ export function metricasEstoquePorTipo() {
       })
       .from(produtos)
       .leftJoin(estoqueSaldos, eq(estoqueSaldos.produtoId, produtos.id))
-      .where(eq(produtos.controlaEstoque, true))
+      // Produto inativo não soma aqui: o card é "quanto tem pra vender", e um
+      // produto inativo não é oferecido em lugar nenhum.
+      .where(and(eq(produtos.controlaEstoque, true), eq(produtos.ativo, true)))
 
     return {
       agua: { quantidade: Number(linha.aguaQuantidade), abaixoDoMinimo: Number(linha.aguaAbaixo) },
@@ -203,8 +208,8 @@ export function listarMovimentos() {
   )`
   const usuariosExclusao = alias(users, 'usuarios_exclusao')
 
-  return comTenant((tx) =>
-    tx
+  return comTenant(async (tx) => {
+    const linhas = await tx
       .select({
         id: estoqueMovimentos.id,
         criadoEm: estoqueMovimentos.criadoEm,
@@ -219,18 +224,47 @@ export function listarMovimentos() {
         documento: estoqueMovimentos.documento,
         observacao: estoqueMovimentos.observacao,
         usuario: users.nome,
+        adminId: estoqueMovimentos.adminId,
         estornoDe: estoqueMovimentos.estornoDe,
         estornado,
         excluidoEm: estoqueMovimentos.excluidoEm,
         excluidoPor: usuariosExclusao.nome,
+        excluidoPorAdminId: estoqueMovimentos.excluidoPorAdminId,
       })
       .from(estoqueMovimentos)
       .innerJoin(produtos, eq(produtos.id, estoqueMovimentos.produtoId))
       .leftJoin(fornecedores, eq(fornecedores.id, estoqueMovimentos.fornecedorId))
       .leftJoin(users, eq(users.id, estoqueMovimentos.usuarioId))
       .leftJoin(usuariosExclusao, eq(usuariosExclusao.id, estoqueMovimentos.excluidoPor))
-      .orderBy(desc(estoqueMovimentos.criadoEm), desc(estoqueMovimentos.id)),
-  ) as Promise<MovimentoLista[]>
+      .orderBy(desc(estoqueMovimentos.criadoEm), desc(estoqueMovimentos.id))
+
+    /**
+     * `usuario_id` fica nulo quando quem lançou foi suporte Aionix (sessão sem
+     * linha em `users` — ver `autorDoLancamento`). `plataforma_admins` não tem
+     * grant para `casco_app` (0008): a única leitura válida é a função
+     * `admin_nomes`, em lote, para não fazer uma consulta por linha.
+     */
+    const idsAdmin = [
+      ...new Set(
+        linhas.flatMap((l) => [l.adminId, l.excluidoPorAdminId]).filter((id): id is string => !!id),
+      ),
+    ]
+    const nomePorAdmin = new Map<string, string>()
+    if (idsAdmin.length > 0) {
+      const admins = await tx.execute<{ id: string; nome: string }>(
+        sql`select id, nome from admin_nomes(${idsAdmin}::uuid[])`,
+      )
+      for (const a of admins) nomePorAdmin.set(a.id, a.nome)
+    }
+
+    return linhas.map((l) => ({
+      ...l,
+      usuario: l.usuario ?? (l.adminId ? (nomePorAdmin.get(l.adminId) ?? null) : null),
+      excluidoPor:
+        l.excluidoPor ??
+        (l.excluidoPorAdminId ? (nomePorAdmin.get(l.excluidoPorAdminId) ?? null) : null),
+    }))
+  }) as Promise<MovimentoLista[]>
 }
 
 /* --------------------------------------------------- listas do formulário */

@@ -11,6 +11,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 import { clientes, fornecedores, produtos } from './cadastros'
+import { plataformaAdmins } from './plataforma'
 import { companies, users } from './tenancy'
 
 /**
@@ -297,6 +298,13 @@ export const estoqueMovimentos = pgTable(
     /** Nulo enquanto o lançamento vale. Preenchido pela exclusão da tela — a linha não some do banco. */
     excluidoEm: timestamp('excluido_em', { withTimezone: true }),
     excluidoPor: uuid('excluido_por').references(() => users.id),
+    /**
+     * Paralelo a `usuarioId`/`excluidoPor`, para sessão de suporte Aionix (sem
+     * linha em `users`). Nunca preenchido junto com o par de `users` — ver a
+     * nota em `autorDoLancamento`, `src/lib/sessao.ts`.
+     */
+    adminId: uuid('admin_id').references(() => plataformaAdmins.id),
+    excluidoPorAdminId: uuid('excluido_por_admin_id').references(() => plataformaAdmins.id),
   },
   (t) => [
     index('estoque_mov_company_idx').on(t.companyId, t.criadoEm),

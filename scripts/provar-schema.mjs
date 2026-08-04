@@ -570,9 +570,14 @@ try {
 
   const naoLidosA = await app`select patch_notes_contar_nao_lidos(${A}, ${uA}) as n`
   const naoLidosB = await app`select patch_notes_contar_nao_lidos(${B}, ${uB}) as n`
-  check('quem leu não conta como não lido', Number(naoLidosA[0].n) === 0, `veio ${naoLidosA[0].n}`)
+  // Contagem é sobre TODAS as notas publicadas, não só a de prova — este banco
+  // já tem changelog de verdade. `depoisDePublicar.length` é quantas existem no
+  // total; uA leu exatamente uma, então o resto tem que sobrar como não lido.
+  const totalPublicadas = depoisDePublicar.length
+  check('quem leu não conta como não lido',
+        Number(naoLidosA[0].n) === totalPublicadas - 1, `veio ${naoLidosA[0].n}`)
   check('quem não leu continua contando (isolado por empresa)',
-        Number(naoLidosB[0].n) >= 1, `veio ${naoLidosB[0].n}`)
+        Number(naoLidosB[0].n) === totalPublicadas, `veio ${naoLidosB[0].n}`)
 
   await deveFalhar(
     'gravar reação com company_id alheio é rejeitado',

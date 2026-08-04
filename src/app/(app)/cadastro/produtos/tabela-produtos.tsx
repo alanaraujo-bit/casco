@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { Container, PackagePlus, TriangleAlert } from 'lucide-react'
+import { Container, Eye, EyeOff, PackagePlus, TriangleAlert } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { BotaoExcluirCadastro } from '@/components/ui/botao-excluir-cadastro'
+import { BotaoExcluirCadastro, BotaoReativarCadastro } from '@/components/ui/botao-excluir-cadastro'
 import { Button } from '@/components/ui/button'
 import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
@@ -34,6 +34,11 @@ const colunas: Coluna<ProdutoLista>[] = [
         {p.retornavel && (
           <Badge variant="info" className="shrink-0">
             retornável
+          </Badge>
+        )}
+        {!p.ativo && (
+          <Badge variant="neutro" className="shrink-0">
+            inativo
           </Badge>
         )}
       </span>
@@ -101,16 +106,25 @@ const colunas: Coluna<ProdutoLista>[] = [
     chave: 'acoes',
     cabecalho: 'Ações',
     texto: () => '',
-    celula: (p) => (
-      <BotaoExcluirCadastro aoExcluir={() => alternarAtivoProduto(p.id, false)} />
-    ),
+    celula: (p) =>
+      p.ativo ? (
+        <BotaoExcluirCadastro aoExcluir={() => alternarAtivoProduto(p.id, false)} />
+      ) : (
+        <BotaoReativarCadastro aoReativar={() => alternarAtivoProduto(p.id, true)} />
+      ),
     ordenavel: false,
     alinhamento: 'direita',
     larguraMin: '8rem',
   },
 ]
 
-export function TabelaProdutos({ linhas }: { linhas: ProdutoLista[] }) {
+export function TabelaProdutos({
+  linhas,
+  incluirInativos,
+}: {
+  linhas: ProdutoLista[]
+  incluirInativos: boolean
+}) {
   return (
     <TabelaDados
       id="produtos"
@@ -123,6 +137,21 @@ export function TabelaProdutos({ linhas }: { linhas: ProdutoLista[] }) {
       nomeExportacao="produtos"
       acoesTopo={
         <div className="flex items-center gap-2">
+          <Button asChild variant="fantasma">
+            <Link href={incluirInativos ? '/cadastro/produtos' : '/cadastro/produtos?inativos=1'}>
+              {incluirInativos ? (
+                <>
+                  <EyeOff aria-hidden className="size-4" />
+                  Só ativos
+                </>
+              ) : (
+                <>
+                  <Eye aria-hidden className="size-4" />
+                  Mostrar inativos
+                </>
+              )}
+            </Link>
+          </Button>
           <Button asChild variant="secundario">
             <Link href="/cadastro/produtos/novo-vasilhame">
               <Container aria-hidden className="size-4" />
