@@ -14,7 +14,8 @@
     "admin:criar": "node --env-file-if-exists=.env.local scripts/criar-admin.mjs",
     "fluxo": "node --env-file-if-exists=.env.local scripts/fluxo.mjs",
     "empresa:renomear": "node --env-file-if-exists=.env.local scripts/renomear-empresa.mjs",
-    "ajuda:capturar": "node --env-file-if-exists=.env.local scripts/capturar-ajuda.mjs"
+    "ajuda:capturar": "node --env-file-if-exists=.env.local scripts/capturar-ajuda.mjs",
+    "patch-note": "node --env-file-if-exists=.env.local scripts/patch-note.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "1.1.23",

@@ -59,6 +59,18 @@ em `src/components/ajuda/`, com exemplo completo no grupo Vasilhame. Vídeo real
 via `node scripts/capturar-ajuda.mjs`, quando o caminho não for óbvio só de ler — a Central
 existe para o cliente resolver dúvida sozinho, sem ligar para ninguém.
 
+**Todo commit relevante é uma pergunta para o Patch Notes.** Antes de subir uma
+mudança que muda o que o cliente vê ou faz, pergunte: isso merece uma entrada na
+Central de Atualizações (`/atualizacoes`)? Refatoração, ajuste de config, comentário
+— não. Funcionalidade nova, correção perceptível, mudança de fluxo — sim. Se sim,
+escreva e publique com `npm run patch-note -- --titulo "..." --resumo "..." --categoria
+<novo|melhoria|correcao|desempenho|seguranca|interface> --corpo "..." --admin-email
+<seu-email> --publicar` antes ou junto do push. Não espere o Alan pedir, pelo mesmo
+motivo da Central de Ajuda: é a equipe do produto escrevendo para quem usa, não um
+`git log`. A mesma regra de "não invente" vale aqui — o texto descreve só o que a
+mudança sustenta, sem benefício ou número que não exista. Sem `--publicar`, a nota
+nasce como rascunho em `/admin/patch-notes` para revisar antes de ir ao ar.
+
 **Nada no repositório compara o Casco com outro sistema.** Nem em tela, nem em
 artigo de ajuda, nem em mensagem de erro — e **nem em comentário de código.**
 Nada de "no sistema antigo", "no sistema deles", "diferente do que você usava",
