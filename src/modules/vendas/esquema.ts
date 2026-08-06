@@ -70,6 +70,7 @@ export type ItemCarrinho = z.infer<typeof esquemaItem>
 export const CAMPOS_VENDA = [
   'itens',
   'clienteId',
+  'entregadorId',
   'formaId',
   'desconto',
   'parcelas',
@@ -97,6 +98,13 @@ export const esquemaVenda = z.object({
     .string()
     .trim()
     .refine((v) => v === '' || z.string().uuid().safeParse(v).success, 'Cliente inválido')
+    .transform((v) => v || null),
+
+  /** Vazio = venda sem entregador marcado — nem toda venda tem entrega. */
+  entregadorId: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || z.string().uuid().safeParse(v).success, 'Entregador inválido')
     .transform((v) => v || null),
 
   formaId: uuid,
@@ -150,6 +158,8 @@ export interface ReciboVenda {
   empresaTelefone: string | null
   /** Quem fechou a venda — o nome de quem está logado, para constar no cupom. */
   vendedor: string
+  /** Quem entregou o produto. `null` quando a venda não marcou entregador. */
+  entregador: string | null
   /** Data e hora do fechamento, já formatada no fuso da loja — ver `formatarDataHora`. */
   emitidoEm: string
   itens: number

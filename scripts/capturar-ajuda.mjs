@@ -69,6 +69,7 @@ const SAIDA = path.resolve('public/ajuda')
 const JANELA_PADRAO = { width: 1360, height: 720 }
 const JANELA_POR_ARTIGO = {
   'baixa-vasilhame': { width: 1120, height: 720 },
+  'cadastro-produtos': { width: 1120, height: 900 },
 }
 
 /** ~12 quadros por segundo: fluido para o olho e metade do peso de 24. */
@@ -499,6 +500,7 @@ const ROTA = {
   'movimentos-vasilhame': '/vasilhame/movimentos',
   pdv: '/vendas/pdv',
   'vendas-produtos': '/vendas/produtos',
+  'cadastro-produtos': '/cadastro/produtos/novo',
 }
 
 const OBSERVACAO_DEMO = '[ajuda] gravação da Central de Ajuda'
@@ -777,12 +779,93 @@ async function sequenciaVendasProdutos() {
   return pararGravacao()
 }
 
+/**
+ * Cadastro de Produtos, do formulário vazio ao produto salvo: identificação
+ * com categoria nova, ícone, preço e custo, estoque (com o inicial, só
+ * visível no cadastro novo) e o vasilhame que o produto usa. É o mesmo
+ * fluxo descrito nos seis passos do artigo, na mesma ordem do formulário.
+ *
+ * O produto de demonstração é inativado ao fim da captura — mesmo padrão de
+ * `estornarUltimoLancamento`, para não deixar lixo na listagem da conta de
+ * teste. Diferente de vasilhame, produto não tem exclusão de verdade, só
+ * inativação; é isso que este script desfaz aqui.
+ */
+async function sequenciaCadastroProdutos() {
+  await irPara(ROTA['cadastro-produtos'])
+  await iniciarGravacao()
+  await pausar(900) // o formulário vazio, para orientar por onde ele começa
+
+  // 1. Identificação: nome, SKU e uma categoria nova.
+  await digitar('nome', 'Água 20L Demonstração')
+  await pausar(400)
+  await digitar('sku', 'AGU-DEMO')
+  await pausar(400)
+  await escolher('categoria', '__nova__')
+  await pausar(300)
+  await digitar('categoria', 'Água mineral')
+  await pausar(700)
+
+  // 2. O ícone.
+  await clicarSeletorComPonteiro('button[title="Água"]')
+  await pausar(700)
+
+  // 3. Preço de venda e custo.
+  await digitar('precoPadrao', '15,00')
+  await pausar(400)
+  await digitar('custo', '8,50')
+  await pausar(700)
+
+  // 4. Estoque: os limites e o inicial (só existe no cadastro novo).
+  await digitar('estoqueMinimo', '10')
+  await pausar(300)
+  await digitar('estoqueMaximo', '200')
+  await pausar(300)
+  await digitar('estoqueInicial', '50')
+  await pausar(700)
+
+  // 5. Retornável, e o vasilhame que ele usa.
+  await escolher('retornavel', 'true')
+  await pausar(500)
+  const temVasilhame = await js(`return !!document.querySelector('[name="vasilhameId"]')`)
+  if (temVasilhame) {
+    await escolher('vasilhameId', 1)
+    await pausar(900)
+  }
+
+  // 6. Salva e lê a listagem com o produto novo dentro.
+  await clicarComPonteiro('Cadastrar produto', 'button')
+  await esperarPor(
+    () => js(`return location.pathname === '/cadastro/produtos'`),
+    'voltar para a listagem de produtos',
+  )
+  const idNovo = await js(`return new URLSearchParams(location.search).get('novo')`)
+  await espera(500)
+  await injetarPonteiro()
+  await pausar(2800) // a listagem com o produto novo dentro dela
+
+  const quadros = await pararGravacao()
+
+  if (idNovo) {
+    await irPara(`/cadastro/produtos/${idNovo}`)
+    await js(`
+      ${seletorPorTexto('Inativar', 'button')}
+      el?.click()
+    `)
+    await espera(400)
+  } else {
+    console.warn('  (não achei o id do produto de demonstração para inativar)')
+  }
+
+  return quadros
+}
+
 const SEQUENCIAS = {
   'baixa-vasilhame': sequenciaBaixaVasilhame,
   'saldo-vasilhame': sequenciaSaldoVasilhame,
   'movimentos-vasilhame': sequenciaMovimentosVasilhame,
   pdv: sequenciaPdv,
   'vendas-produtos': sequenciaVendasProdutos,
+  'cadastro-produtos': sequenciaCadastroProdutos,
 }
 
 /* -------------------------------------------------------------- encoding

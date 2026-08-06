@@ -1,5 +1,6 @@
 import type { Falha } from '@/lib/erros'
 import { z } from 'zod'
+import { CHAVES_ICONE_PRODUTO } from './icones'
 
 /**
  * O que vale como produto.
@@ -56,6 +57,13 @@ export const esquemaProduto = z.object({
 
   categoria: textoOpcional(60),
 
+  icone: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || (CHAVES_ICONE_PRODUTO as string[]).includes(v), 'Ícone inválido')
+    .transform((v) => v || null)
+    .nullable(),
+
   unidade: z.enum(UNIDADES, { message: 'Escolha a unidade' }),
 
   precoPadrao: monetario,
@@ -107,6 +115,7 @@ export const CAMPOS_PRODUTO = [
   'nome',
   'sku',
   'categoria',
+  'icone',
   'unidade',
   'precoPadrao',
   'custo',

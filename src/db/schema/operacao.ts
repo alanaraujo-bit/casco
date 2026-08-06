@@ -10,7 +10,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core'
-import { clientes, fornecedores, produtos } from './cadastros'
+import { clientes, entregadores, fornecedores, produtos } from './cadastros'
 import { plataformaAdmins } from './plataforma'
 import { companies, users } from './tenancy'
 
@@ -88,6 +88,8 @@ export const vendas = pgTable(
     /** `null` = venda avulsa de balcao. Exigir cadastro aqui e atrito que mata a adocao. */
     clienteId: uuid('cliente_id').references(() => clientes.id),
     vendedorId: uuid('vendedor_id').references(() => users.id),
+    /** Quem levou o produto. Opcional e independente de `vendedorId` — no balcão nem sempre é a mesma pessoa. */
+    entregadorId: uuid('entregador_id').references(() => entregadores.id),
     status: text('status', { enum: STATUS_VENDA }).notNull().default('confirmada'),
     subtotal: numeric('subtotal', { precision: 12, scale: 2 }).notNull().default('0'),
     desconto: numeric('desconto', { precision: 12, scale: 2 }).notNull().default('0'),
@@ -248,6 +250,32 @@ export const caixaMovimentos = pgTable(
   (t) => [index('caixa_company_idx').on(t.companyId, t.data)],
 )
 
+/**
+ * O que a operadora contou ao abrir o turno. Não trava o PDV — é registro, não
+ * um portão: uma abertura esquecida não pode impedir a primeira venda do dia.
+ *
+ * `fundoTroco` é sempre um recorte de `valorAbertura` (trava `check` no banco):
+ * não existe reservar para troco mais dinheiro do que se tem na gaveta.
+ */
+export const caixaAberturas = pgTable(
+  'caixa_aberturas',
+  {
+    id: uuid('id').primaryKey(),
+    companyId: uuid('company_id')
+      .notNull()
+      .references(() => companies.id),
+    contaId: uuid('conta_id')
+      .notNull()
+      .references(() => contasBancarias.id),
+    valorAbertura: numeric('valor_abertura', { precision: 12, scale: 2 }).notNull().default('0'),
+    fundoTroco: numeric('fundo_troco', { precision: 12, scale: 2 }).notNull().default('0'),
+    observacao: text('observacao'),
+    usuarioId: uuid('usuario_id').references(() => users.id),
+    abertaEm: timestamp('aberta_em', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('caixa_aberturas_company_idx').on(t.companyId, t.abertaEm)],
+)
+
 /* -------------------------------------------------------------------- estoque */
 
 /**
@@ -340,5 +368,7 @@ export type ContaReceber = typeof contasReceber.$inferSelect
 export type NovaContaReceber = typeof contasReceber.$inferInsert
 export type ContaPagar = typeof contasPagar.$inferSelect
 export type CaixaMovimento = typeof caixaMovimentos.$inferSelect
+export type CaixaAbertura = typeof caixaAberturas.$inferSelect
+export type NovaCaixaAbertura = typeof caixaAberturas.$inferInsert
 export type EstoqueMovimento = typeof estoqueMovimentos.$inferSelect
 export type EstoqueSaldo = typeof estoqueSaldos.$inferSelect

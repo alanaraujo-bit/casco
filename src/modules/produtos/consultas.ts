@@ -16,6 +16,7 @@ export interface ProdutoLista {
   nome: string
   sku: string | null
   categoria: string | null
+  icone: string | null
   unidade: string
   precoPadrao: string
   custo: string
@@ -48,6 +49,7 @@ export function listarProdutos(opcoes: { incluirInativos?: boolean } = {}) {
         nome: produtos.nome,
         sku: produtos.sku,
         categoria: produtos.categoria,
+        icone: produtos.icone,
         unidade: produtos.unidade,
         precoPadrao: produtos.precoPadrao,
         custo: produtos.custo,

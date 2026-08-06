@@ -4,6 +4,7 @@ import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import {
   clientes,
   contasReceber,
+  entregadores,
   estoqueSaldos,
   precos,
   produtos,
@@ -33,6 +34,7 @@ export interface ProdutoVenda {
   nome: string
   unidade: string
   precoPadrao: string
+  icone: string | null
   /** Produto que gera comodato (Água 20L), não o vasilhame em si. */
   retornavel: boolean
   vasilhameId: string | null
@@ -50,6 +52,7 @@ export function listarProdutosParaVenda() {
         nome: produtos.nome,
         unidade: produtos.unidade,
         precoPadrao: produtos.precoPadrao,
+        icone: produtos.icone,
         retornavel: produtos.retornavel,
         vasilhameId: produtos.vasilhameId,
         controlaEstoque: produtos.controlaEstoque,
@@ -125,6 +128,21 @@ export function listarClientesParaVenda() {
       .where(eq(clientes.ativo, true))
       .orderBy(asc(clientes.nome)),
   ) as Promise<ClienteVenda[]>
+}
+
+export interface EntregadorVenda {
+  id: string
+  nome: string
+}
+
+export function listarEntregadoresParaVenda() {
+  return comTenant(async (tx) =>
+    tx
+      .select({ id: entregadores.id, nome: entregadores.nome })
+      .from(entregadores)
+      .where(eq(entregadores.ativo, true))
+      .orderBy(asc(entregadores.nome)),
+  ) as Promise<EntregadorVenda[]>
 }
 
 /** A tabela usada quando o cliente não tem uma, e na venda avulsa de balcão. */

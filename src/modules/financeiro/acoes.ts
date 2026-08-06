@@ -5,6 +5,7 @@ import { and, eq, isNotNull, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { uuidv7 } from 'uuidv7'
 import {
+  caixaAberturas,
   caixaMovimentos,
   clientes,
   contasBancarias,
@@ -19,21 +20,25 @@ import { autorDoLancamento } from '@/lib/sessao'
 import { dataNaLoja } from '@/lib/formatos'
 import { centavos, deCentavos } from '@/modules/vendas/esquema'
 import {
+  CAMPOS_ABERTURA_CAIXA,
   CAMPOS_BAIXA,
   CAMPOS_CONTA,
   CAMPOS_FORMA,
   CAMPOS_PAGAR,
   CAMPOS_QUITAR,
+  esquemaAberturaCaixa,
   esquemaBaixa,
   esquemaConta,
   esquemaForma,
   esquemaPagar,
   esquemaQuitar,
+  type CampoAberturaCaixa,
   type CampoBaixa,
   type CampoConta,
   type CampoForma,
   type CampoPagar,
   type CampoQuitar,
+  type EstadoAberturaCaixa,
   type EstadoBaixa,
   type EstadoConta,
   type EstadoForma,
@@ -564,6 +569,76 @@ export async function desfazerPagamento(contaPagarId: string): Promise<Resultado
     })
   } catch (err) {
     return { ok: false, erro: descreverFalha(err) }
+  }
+}
+
+/* -------------------------------------------------------- abertura de caixa
+ *
+ * O registro do que a operadora contou na gaveta ao abrir o turno. O PDV, que
+ * abre em aba própria (ver `src/app/(pdv)`), exige essa abertura antes de
+ * liberar a venda — é o portão que garante que todo turno começa com um
+ * número contado, não presumido.
+ */
+
+function revalidarAbertura() {
+  revalidatePath('/financeiro/caixa')
+  revalidatePath('/financeiro/caixa/abertura')
+}
+
+export async function abrirCaixa(
+  anterior: EstadoAberturaCaixa,
+  form: FormData,
+): Promise<EstadoAberturaCaixa> {
+  const tentativa = (anterior.tentativa ?? 0) + 1
+  const valores = Object.fromEntries(
+    CAMPOS_ABERTURA_CAIXA.map((campo) => [campo, String(form.get(campo) ?? '')]),
+  ) as Record<CampoAberturaCaixa, string>
+
+  const analise = esquemaAberturaCaixa.safeParse(valores)
+  if (!analise.success) {
+    const porCampo = z.flattenError(analise.error).fieldErrors as Record<
+      string,
+      string[] | undefined
+    >
+    const campos: Partial<Record<CampoAberturaCaixa, string>> = {}
+    for (const campo of CAMPOS_ABERTURA_CAIXA) {
+      const msg = porCampo[campo]?.[0]
+      if (msg) campos[campo] = msg
+    }
+    const geral = z.flattenError(analise.error).formErrors[0]
+    return { campos, valores, tentativa, erro: Object.keys(campos).length ? undefined : geral }
+  }
+
+  const dados = analise.data
+
+  try {
+    return await comTenant(async (tx, sessao) => {
+      const [conta] = await tx
+        .select({ id: contasBancarias.id, nome: contasBancarias.nome })
+        .from(contasBancarias)
+        .where(and(eq(contasBancarias.id, dados.contaId), eq(contasBancarias.ativo, true)))
+        .limit(1)
+      if (!conta) return { campos: { contaId: 'Conta não encontrada' }, valores, tentativa }
+
+      await tx.insert(caixaAberturas).values({
+        id: uuidv7(),
+        companyId: sessao.companyId,
+        contaId: conta.id,
+        valorAbertura: dados.valorAbertura.toFixed(2),
+        fundoTroco: dados.fundoTroco.toFixed(2),
+        observacao: dados.observacao,
+        usuarioId: autorDoLancamento(sessao),
+      })
+
+      revalidarAbertura()
+
+      return {
+        tentativa,
+        sucesso: { conta: conta.nome, valorAbertura: dados.valorAbertura, fundoTroco: dados.fundoTroco },
+      }
+    })
+  } catch (err) {
+    return { erro: descreverFalha(err), valores, tentativa }
   }
 }
 

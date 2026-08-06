@@ -9,6 +9,7 @@ import {
   clientes,
   companies,
   contasReceber,
+  entregadores,
   estoqueMovimentos,
   estoqueSaldos,
   formasPagamento,
@@ -139,6 +140,19 @@ export async function fecharVenda(
         // possa esquecer de escrever na próxima tela.
         if (!linha) return { erro: 'Cliente não encontrado.', tentativa }
         cliente = linha
+      }
+
+      /* ------------------------------------------------------ quem entrega */
+
+      let entregador: { id: string; nome: string } | null = null
+      if (dados.entregadorId) {
+        const [linha] = await tx
+          .select({ id: entregadores.id, nome: entregadores.nome })
+          .from(entregadores)
+          .where(and(eq(entregadores.id, dados.entregadorId), eq(entregadores.ativo, true)))
+          .limit(1)
+        if (!linha) return { erro: 'Entregador não encontrado.', tentativa }
+        entregador = linha
       }
 
       /* ------------------------------------------------ o que está sendo vendido */
@@ -318,6 +332,7 @@ export async function fecharVenda(
           origem: 'pdv',
           clienteId: cliente?.id ?? null,
           vendedorId: autorDoLancamento(sessao),
+          entregadorId: entregador?.id ?? null,
           status: 'confirmada',
           subtotal: deCentavos(subtotal).toFixed(2),
           desconto: deCentavos(desconto).toFixed(2),
@@ -556,6 +571,7 @@ export async function fecharVenda(
           empresaDocumento: dadosEmpresa?.documento ? formatarDocumento(dadosEmpresa.documento) : null,
           empresaTelefone: dadosEmpresa?.telefone ? formatarTelefone(dadosEmpresa.telefone) : null,
           vendedor: sessao.nome,
+          entregador: entregador?.nome ?? null,
           emitidoEm: formatarDataHora(new Date()),
           itens: linhas.length,
           itensDetalhe: linhas.map((l) => ({

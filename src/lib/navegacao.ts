@@ -25,6 +25,9 @@ import {
 export type ItemNav = {
   rotulo: string
   href: string
+  /** Abre numa aba própria em vez de navegar a sidebar para longe do resto
+      do sistema. Hoje só o PDV — ver `src/app/(pdv)`. */
+  novaAba?: boolean
 }
 
 export type GrupoNav = {
@@ -67,7 +70,11 @@ export const NAVEGACAO: GrupoNav[] = [
     rotulo: 'Vendas',
     Icone: ShoppingCart,
     itens: [
-      { rotulo: 'PDV', href: '/vendas/pdv' },
+      // Abre em aba própria: o PDV é feito para ficar num monitor à parte,
+      // sem sidebar — ver `src/app/(pdv)`. Navegar para lá dentro da mesma
+      // aba faria a operadora perder Contas a Receber ou Estoque abertos
+      // atrás dele.
+      { rotulo: 'PDV', href: '/vendas/pdv', novaAba: true },
       { rotulo: 'Vendas de Produtos', href: '/vendas/produtos' },
     ],
   },
@@ -96,6 +103,7 @@ export const NAVEGACAO: GrupoNav[] = [
       { rotulo: 'Clientes', href: '/cadastro/clientes' },
       { rotulo: 'Produtos', href: '/cadastro/produtos' },
       { rotulo: 'Fornecedores', href: '/cadastro/fornecedores' },
+      { rotulo: 'Entregadores', href: '/cadastro/entregadores' },
       { rotulo: 'Tabelas de Preço', href: '/cadastro/tabelas-preco' },
     ],
   },

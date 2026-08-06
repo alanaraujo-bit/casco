@@ -2,6 +2,7 @@ import 'server-only'
 
 import { asc, desc, eq, sql } from 'drizzle-orm'
 import {
+  caixaAberturas,
   caixaMovimentos,
   clientes,
   contasBancarias,
@@ -326,6 +327,97 @@ export function metricasCaixa() {
 
     return linha
   })
+}
+
+/* -------------------------------------------------------- abertura de caixa */
+
+export interface ContaCaixaOpcao {
+  id: string
+  nome: string
+}
+
+/** Só as contas do tipo `caixa` — abertura é sobre a gaveta, não sobre banco. */
+export function listarContasCaixa() {
+  return comTenant(async (tx) =>
+    tx
+      .select({ id: contasBancarias.id, nome: contasBancarias.nome })
+      .from(contasBancarias)
+      .where(sql`${contasBancarias.ativo} and ${contasBancarias.tipo} = 'caixa'`)
+      .orderBy(asc(contasBancarias.nome)),
+  ) as Promise<ContaCaixaOpcao[]>
+}
+
+export interface CaixaAbertoHoje {
+  aberturaId: string
+  contaId: string
+  contaNome: string
+  valorAbertura: string
+  fundoTroco: string
+  usuario: string | null
+  abertaEm: Date
+}
+
+/**
+ * A abertura de caixa de hoje, se existir — a mais recente, quando mais de
+ * uma operadora abriu turno na mesma conta no mesmo dia.
+ *
+ * "Hoje" é o dia **na loja** (`America/Belem`), não em UTC: sem isso, uma
+ * abertura feita às 21h de Tucumã contaria como "de amanhã" no servidor e o
+ * PDV pediria abertura de novo a cada venda depois daquele horário.
+ */
+export function caixaAbertoHoje() {
+  return comTenant(async (tx) => {
+    const [linha] = await tx
+      .select({
+        aberturaId: caixaAberturas.id,
+        contaId: caixaAberturas.contaId,
+        contaNome: contasBancarias.nome,
+        valorAbertura: caixaAberturas.valorAbertura,
+        fundoTroco: caixaAberturas.fundoTroco,
+        usuario: users.nome,
+        abertaEm: caixaAberturas.abertaEm,
+      })
+      .from(caixaAberturas)
+      .innerJoin(contasBancarias, eq(contasBancarias.id, caixaAberturas.contaId))
+      .leftJoin(users, eq(users.id, caixaAberturas.usuarioId))
+      .where(
+        sql`(${caixaAberturas.abertaEm} at time zone 'America/Belem')::date
+            = (now() at time zone 'America/Belem')::date`,
+      )
+      .orderBy(desc(caixaAberturas.abertaEm))
+      .limit(1)
+    return (linha ?? null) as CaixaAbertoHoje | null
+  })
+}
+
+export interface AberturaCaixaLista {
+  id: string
+  conta: string
+  valorAbertura: string
+  fundoTroco: string
+  observacao: string | null
+  usuario: string | null
+  abertaEm: Date
+}
+
+export function listarAberturasCaixa(limite = 30) {
+  return comTenant(async (tx) =>
+    tx
+      .select({
+        id: caixaAberturas.id,
+        conta: contasBancarias.nome,
+        valorAbertura: caixaAberturas.valorAbertura,
+        fundoTroco: caixaAberturas.fundoTroco,
+        observacao: caixaAberturas.observacao,
+        usuario: users.nome,
+        abertaEm: caixaAberturas.abertaEm,
+      })
+      .from(caixaAberturas)
+      .innerJoin(contasBancarias, eq(contasBancarias.id, caixaAberturas.contaId))
+      .leftJoin(users, eq(users.id, caixaAberturas.usuarioId))
+      .orderBy(desc(caixaAberturas.abertaEm))
+      .limit(limite),
+  ) as Promise<AberturaCaixaLista[]>
 }
 
 /* --------------------------------------------------------- contas a pagar

@@ -74,6 +74,8 @@ export const produtos = pgTable(
     estoqueMinimo: numeric('estoque_minimo', { precision: 12, scale: 3 }).notNull().default('0'),
     estoqueMaximo: numeric('estoque_maximo', { precision: 12, scale: 3 }).notNull().default('0'),
     ncm: text('ncm'),
+    /** Chave da biblioteca fixa de ícones (ver src/modules/produtos/icones.ts). */
+    icone: text('icone'),
     ativo: boolean('ativo').notNull().default(true),
     criadoEm: timestamp('criado_em', { withTimezone: true }).notNull().defaultNow(),
     atualizadoEm: timestamp('atualizado_em', { withTimezone: true }).notNull().defaultNow(),
@@ -173,6 +175,31 @@ export const fornecedores = pgTable(
   ],
 )
 
+/**
+ * Cadastro simples, sem login: quem entrega hoje e o nome que o dono passa no
+ * balcao. `users.papel = 'entregador'` (tenancy.ts) e outra coisa — o login do
+ * futuro app de campo, Etapa 7, adiada.
+ */
+export const entregadores = pgTable(
+  'entregadores',
+  {
+    id: uuid('id').primaryKey(),
+    companyId: uuid('company_id')
+      .notNull()
+      .references(() => companies.id),
+    codigo: bigint('codigo', { mode: 'number' }),
+    nome: text('nome').notNull(),
+    telefone: text('telefone'),
+    ativo: boolean('ativo').notNull().default(true),
+    criadoEm: timestamp('criado_em', { withTimezone: true }).notNull().defaultNow(),
+    atualizadoEm: timestamp('atualizado_em', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('entregadores_company_idx').on(t.companyId, t.nome),
+    uniqueIndex('entregadores_codigo_unico').on(t.companyId, t.codigo),
+  ],
+)
+
 export type TabelaPreco = typeof tabelasPreco.$inferSelect
 export type Produto = typeof produtos.$inferSelect
 export type NovoProduto = typeof produtos.$inferInsert
@@ -181,3 +208,5 @@ export type Cliente = typeof clientes.$inferSelect
 export type NovoCliente = typeof clientes.$inferInsert
 export type Fornecedor = typeof fornecedores.$inferSelect
 export type NovoFornecedor = typeof fornecedores.$inferInsert
+export type Entregador = typeof entregadores.$inferSelect
+export type NovoEntregador = typeof entregadores.$inferInsert

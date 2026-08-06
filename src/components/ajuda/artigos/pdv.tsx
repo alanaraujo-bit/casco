@@ -23,9 +23,26 @@ export function ArtigoPdv() {
 
       <SecaoArtigo titulo="Onde encontrar">
         <p>
-          Menu <strong>Vendas → PDV</strong>. É a primeira tela do grupo, e a que abre sozinha
-          quando você clica em <strong>Nova venda</strong> em qualquer lugar do sistema.
+          Menu <strong>Vendas → PDV</strong>. O clique abre uma <strong>aba nova</strong> do
+          navegador, sem o menu lateral do resto do sistema — é a tela feita para ficar sozinha
+          num monitor de balcão, ou em tela cheia num só monitor. As outras telas continuam
+          abertas na aba de origem, do jeito que estavam.
         </p>
+      </SecaoArtigo>
+
+      <SecaoArtigo titulo="Antes de vender: abrir o caixa">
+        <p>
+          A primeira vez que o PDV abre no dia, ele pede para contar o dinheiro que está na
+          gaveta antes de liberar qualquer venda — é a abertura de turno. Digite o valor contado
+          e, se separar parte dele só para dar troco, o quanto é fundo de troco. Depois de aberto
+          uma vez, o caixa fica valendo o dia inteiro: fechar a aba e abrir o PDV de novo não pede
+          a contagem outra vez.
+        </p>
+        <Dica titulo="Contando errado?">
+          A abertura é um registro, não um lacre — ela aparece depois em{' '}
+          <Link href="/ajuda/financeiro/abertura-caixa">Financeiro → Abertura de Caixa</Link>{' '}
+          para conferência no fechamento do dia.
+        </Dica>
       </SecaoArtigo>
 
       <SecaoArtigo titulo="Como fechar uma venda">
@@ -61,7 +78,17 @@ export function ArtigoPdv() {
             </p>
           </Passo>
 
-          <Passo numero={4} titulo="Escolha a forma de pagamento">
+          <Passo numero={4} titulo="Escolha o entregador, se houver um">
+            <p>
+              Também opcional, e independente de quem está atendendo no balcão. Aparece só quando
+              existe pelo menos um entregador ativo em{' '}
+              <Link href="/cadastro/entregadores">Cadastro → Entregadores</Link>. O nome escolhido
+              fica gravado na venda e sai também no cupom impresso, para o cliente saber quem
+              levou.
+            </p>
+          </Passo>
+
+          <Passo numero={5} titulo="Escolha a forma de pagamento">
             <p>
               Dinheiro mostra o campo de valor recebido e calcula o troco. Cartão informa a taxa
               da maquininha, que é descontada do que entra no caixa. A prazo pede o número de
@@ -70,16 +97,31 @@ export function ArtigoPdv() {
             </p>
           </Passo>
 
-          <Passo numero={5} titulo="Feche e confira o comprovante">
+          <Passo numero={6} titulo="Feche e confira o comprovante">
             <p>
               O comprovante fica na tela com o total, o troco (se houver) e o saldo de vasilhame
               do cliente depois da venda. Repita esses números para ele antes que saia do balcão.
               Clicando em <strong>Ver cupom</strong>, abre o cupom completo — nome e endereço do
-              cliente, cada item vendido e a distribuidora — pronto para <strong>Imprimir
-              cupom</strong> e entregar junto com a mercadoria.
+              cliente, cada item vendido, o entregador (quando escolhido) e a distribuidora —
+              pronto para <strong>Imprimir cupom</strong> e entregar junto com a mercadoria.
             </p>
           </Passo>
         </Passos>
+
+        <Dica titulo="Dá para vender sem tirar a mão do teclado">
+          Com o cursor fora de um campo de texto, as teclas <kbd className="rounded border border-borda bg-superficie-afundada px-1 py-0.5 text-2xs">1</kbd> a{' '}
+          <kbd className="rounded border border-borda bg-superficie-afundada px-1 py-0.5 text-2xs">9</kbd> adicionam
+          um dos nove primeiros produtos da grade — a busca reordena a grade, então buscar e
+          apertar o número funciona igual num produto qualquer. A tecla{' '}
+          <kbd className="rounded border border-borda bg-superficie-afundada px-1 py-0.5 text-2xs">0</kbd> fecha a
+          venda. O número de cada atalho aparece no canto do próprio produto, e no botão{' '}
+          <strong>Fechar venda</strong>.
+        </Dica>
+        <Dica titulo="O troco já vem separado em cédulas e moedas">
+          Assim que o valor recebido é maior que o total, a tela mostra não só o troco em reais,
+          mas também quantas notas e moedas de cada uma separar — a mesma conta que a operadora
+          faria de cabeça, só que sem risco de errar contando rápido.
+        </Dica>
       </SecaoArtigo>
 
       <SecaoArtigo titulo="Erros comuns">
@@ -118,6 +160,11 @@ export function ArtigoPdv() {
             valor cobrado, ajuste diretamente em <strong>Contas a Receber</strong>, no menu
             Financeiro.
           </Faq>
+          <Faq pergunta="Não aparece o campo Entregador na venda. Por quê?">
+            O campo só aparece quando existe ao menos um entregador ativo. Cadastre em{' '}
+            <Link href="/cadastro/entregadores">Cadastro → Entregadores</Link> — é só nome e,
+            opcionalmente, telefone, sem precisar de login no sistema.
+          </Faq>
           <Faq pergunta="Onde vejo as vendas depois de fechadas?">
             Em <Link href="/ajuda/vendas/vendas-produtos">Vendas de Produtos</Link>, com data,
             cliente, valor e o que ainda está a receber.
@@ -132,6 +179,15 @@ export function ArtigoPdv() {
             <strong>Ver cupom</strong>. Ele mostra o nome e endereço do cliente (quando
             cadastrados), cada item vendido e a distribuidora. O botão{' '}
             <strong>Imprimir cupom</strong> abre a impressão só dele, sem o resto da tela.
+          </Faq>
+          <Faq pergunta="Para que serve o botão no canto do cabeçalho do PDV?">
+            É o de tela cheia — some a barra do navegador para sobrar mais espaço para produto e
+            carrinho. Útil em quem usa um monitor só; em dois monitores, dá para deixar o PDV
+            estático no segundo sem precisar dele.
+          </Faq>
+          <Faq pergunta="Fechei a aba do PDV sem querer. Perdi a abertura de caixa?">
+            Não. Clique em <strong>PDV</strong> de novo no menu — como o caixa já foi aberto hoje,
+            a tela de venda aparece direto, sem pedir a contagem outra vez.
           </Faq>
           <Faq pergunta="Saí da tela no meio de uma venda. Perdi tudo?">
             Não. O carrinho, o cliente, a forma de pagamento e o desconto ficam salvos neste

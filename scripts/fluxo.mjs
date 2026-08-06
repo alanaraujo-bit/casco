@@ -286,6 +286,14 @@ async function faxina() {
      where s.nome = 'contas_pagar'
   `
 
+  // A abertura de caixa que o teste do PDV registra na conta real da
+  // distribuidora ("Caixa Loja", sem prefixo — é a única que a semente de
+  // empresa cria). Sem isto, o `usuario_id` aponta para o dono descartável e
+  // o `delete from users` no `finally` esbarra na FK `restrict`.
+  await banco`delete from caixa_aberturas where usuario_id in (
+    select id from users where email = ${EMAIL_DONO_TESTE}
+  )`
+
   // O admin descartável da perna de administração. Domínio `.invalid` (RFC
   // 2606) para que nenhum admin de verdade caia nesta cláusula por acidente.
   await banco`delete from plataforma_admins where email = ${EMAIL_ADMIN_TESTE}`
@@ -378,6 +386,18 @@ async function semearVasilhame() {
   await banco`
     insert into produtos (id, company_id, nome, unidade, preco_padrao, retornavel, vasilhame_id)
     values (${agua}, ${dono.company_id}, ${PREFIXO + ' Água 20L'}, 'gl', 12, true, ${galao})
+  `
+  /**
+   * `controla_estoque` nasce `true` por padrão (ver `cadastros.ts`), e o PDV
+   * trava o clique em produto sem saldo — ver `maximoDoProduto` em `pdv.tsx`.
+   * Sem uma linha aqui, o roteiro chegaria ao carrinho com o botão desabilitado
+   * e "não achei nada clicável" três telas depois de onde o saldo deveria ter
+   * sido dado. 200 é folga confortável para as oito vendas que o roteiro faz
+   * com este produto no resto da rodada.
+   */
+  await banco`
+    insert into estoque_saldos (company_id, produto_id, quantidade, custo_medio)
+    values (${dono.company_id}, ${agua}, 200, 8)
   `
   return { companyId: dono.company_id, galao, agua }
 }
@@ -880,8 +900,8 @@ try {
   const navegador = await conectar(urlDepurador)
   ws = navegador
 
-  const { targetId } = await comando(ws, 'Target.createTarget', { url: 'about:blank' })
-  const attach = await comando(ws, 'Target.attachToTarget', { targetId, flatten: true })
+  const { targetId: targetIdPrincipal } = await comando(ws, 'Target.createTarget', { url: 'about:blank' })
+  const attach = await comando(ws, 'Target.attachToTarget', { targetId: targetIdPrincipal, flatten: true })
   sessao = attach.sessionId
 
   await comando(ws, 'Page.enable', {}, sessao)
@@ -985,96 +1005,21 @@ try {
   )
 
   /*
-   * --- sidebar retrátil
+   * --- sidebar sempre expandida
    *
-   * O que este bloco prova, e nenhum outro prova: o botão de verdade muda o
-   * `data-sidebar` do `<html>` (que é o que a CSS lê para encolher a
-   * largura) e grava a escolha, para o `scriptSidebar` reencontrar no
-   * próximo carregamento — sem isso, a sidebar nasceria sempre expandida e
-   * só encolheria depois do React hidratar, com o salto de largura que todo
-   * este mecanismo existe para evitar.
+   * O botão de retrair foi removido do desktop (ver `scriptSidebar` em
+   * `sidebar.tsx`) — o `<html>` sempre nasce com `data-sidebar="expandida"`,
+   * de propósito, para não haver salto de largura entre o script inline e a
+   * hidratação do React.
    */
   const estadoInicial = await js(
     `return document.documentElement.getAttribute('data-sidebar')`,
   )
   check(
-    'a sidebar nasce com um estado definido (nunca null)',
-    estadoInicial === 'retraida' || estadoInicial === 'expandida',
+    'a sidebar nasce sempre expandida (sem botão de retrair no desktop)',
+    estadoInicial === 'expandida',
     `veio "${estadoInicial}"`,
   )
-
-  await clicar('', 15_000, '[aria-label$="Retrair menu"], [aria-label$="Expandir menu"]')
-  await esperarPor(
-    async () =>
-      (await js(`return document.documentElement.getAttribute('data-sidebar')`)) !==
-      estadoInicial,
-    'o atributo data-sidebar trocar ao clicar no botão',
-  )
-  const depoisDoClique = await js(
-    `return document.documentElement.getAttribute('data-sidebar')`,
-  )
-  check('o botão alterna o estado da sidebar', depoisDoClique !== estadoInicial)
-
-  const salvo = await js(`return localStorage.getItem('casco-sidebar')`)
-  check(
-    'a escolha fica salva para o próximo carregamento',
-    salvo === depoisDoClique,
-    `salvo="${salvo}" atributo="${depoisDoClique}"`,
-  )
-
-  const larguraRotulo = await js(`
-    const a = [...document.querySelectorAll('a')].find((e) => e.textContent.includes('Painel Gerencial'))
-    const span = a ? a.querySelector('span:last-child') : null
-    return span ? span.getBoundingClientRect().width : -1
-  `)
-  // A largura da CAIXA, não só do rótulo de dentro — é a checagem que faltou
-  // da primeira vez. O rótulo ia a zero por um `retraida:` que se aplicava
-  // certo aos filhos da sidebar; a caixa em si tentou usar o mesmo
-  // `retraida:` sobre a própria `.sidebar-desktop`, e um elemento não é
-  // descendente dele mesmo — a regra nunca tinha como casar. Resultado:
-  // rótulo sumia, caixa continuava com 15rem, sobrava um vão em branco do
-  // tamanho do texto que deveria ter encolhido. Só testar o rótulo não
-  // pegava isso. `.sidebar-desktop > div` é a caixa que de fato muda de
-  // largura — `.sidebar-desktop` em si é só o marcador, sem largura própria.
-  //
-  // A espera é a `transition: width .2s` — sem ela, `getBoundingClientRect`
-  // mede a largura no meio da animação, não no fim dela, e qualquer valor
-  // intermediário reprova uma sidebar que está funcionando perfeitamente.
-  await espera(300)
-  const larguraCaixa = await js(`
-    return document.querySelector('.sidebar-desktop > div')?.getBoundingClientRect().width ?? -1
-  `)
-  if (depoisDoClique === 'retraida') {
-    check(
-      'retraída, o rótulo do item encolhe a largura zero',
-      larguraRotulo === 0,
-      `largura medida: ${larguraRotulo}px`,
-    )
-    check(
-      'retraída, a CAIXA da sidebar encolhe (não só o texto de dentro)',
-      larguraCaixa > 0 && larguraCaixa < 100,
-      `largura da caixa: ${larguraCaixa}px (esperado perto de 72px)`,
-    )
-    await foto('sidebar-retraida')
-  } else {
-    check('expandida de novo, o rótulo do item volta a ter largura', larguraRotulo > 0)
-    check(
-      'expandida de novo, a caixa da sidebar volta à largura cheia',
-      larguraCaixa > 200,
-      `largura da caixa: ${larguraCaixa}px (esperado perto de 240px)`,
-    )
-  }
-
-  // Devolve ao estado em que a rodada começou — o resto do roteiro não deveria
-  // se importar, mas não há razão para deixar a preferência alterada.
-  await clicar('', 15_000, '[aria-label$="Retrair menu"], [aria-label$="Expandir menu"]')
-  await esperarPor(
-    async () =>
-      (await js(`return document.documentElement.getAttribute('data-sidebar')`)) ===
-      estadoInicial,
-    'a sidebar voltar ao estado original',
-  )
-  check('clicar de novo devolve a sidebar ao estado original', true)
 
   /*
    * --- menu em acordeão: um grupo aberto por vez
@@ -1115,12 +1060,29 @@ try {
   // o clique de fato acontece.
   await espera(300)
 
-  // Navega para dentro do grupo recém-aberto pelo próprio link do menu, e
-  // confirma que ele continua aberto — a sincronização com a rota não pode
-  // fechar à toa o grupo que a operadora acabou de abrir para usar.
+  // O PDV abre numa aba própria (ver `AGENTS.md`/`src/app/(pdv)`) — clicar no
+  // link não navega esta aba, cria uma nova. A prova mora em `Target.getTargets`:
+  // a aba principal continua onde estava, e uma segunda aba nasce apontando
+  // para `/vendas/pdv`. Fechada logo em seguida — o roteiro continua na
+  // principal, e não há razão para carregar duas abas de Chrome até o fim.
+  const caminhoAntesDoClique = await caminho()
   await clicar('PDV', 15_000, 'a')
-  await esperarCaminho((p) => p === '/vendas/pdv', 'entrar no PDV pelo menu')
-  check('depois de navegar, o grupo da tela atual continua aberto', (await grupoAberto('VENDAS')) === 'true')
+  let abaPdv = null
+  const limiteAbaPdv = Date.now() + 15_000
+  while (Date.now() < limiteAbaPdv && !abaPdv) {
+    const { targetInfos } = await comando(ws, 'Target.getTargets')
+    abaPdv = targetInfos.find((t) => t.targetId !== targetIdPrincipal && t.url.includes('/vendas/pdv'))
+    if (!abaPdv) await espera(150)
+  }
+  check('o link do PDV abre uma aba nova, em vez de navegar a atual', Boolean(abaPdv))
+  check(
+    'a aba original não sai do lugar quando o PDV abre em outra',
+    (await caminho()) === caminhoAntesDoClique,
+  )
+  if (abaPdv) {
+    await comando(ws, 'Target.closeTarget', { targetId: abaPdv.targetId })
+  }
+  check('depois de clicar, o grupo da tela atual continua aberto', (await grupoAberto('VENDAS')) === 'true')
 
   /* ------------------------------------------------------------ senha errada */
   await irPara('/painel')
@@ -1401,7 +1363,29 @@ try {
    */
   if (semente) {
     await irPara('/vendas/pdv')
-    const pdv = await texto()
+
+    /*
+     * --- portão de abertura de caixa
+     *
+     * O que este bloco prova: sem uma abertura registrada hoje, o PDV mostra
+     * o portão em vez do catálogo, e preenchê-lo libera a venda na mesma aba,
+     * sem recarregar a página. A checagem é condicional porque a rodada pode
+     * estar reaproveitando uma distribuidora onde o caixa já foi aberto hoje
+     * — pelo próprio dono descartável numa rodada anterior no mesmo dia, ou
+     * por quem usa o sistema de verdade quando o roteiro roda com `--email`.
+     */
+    let pdv = await texto()
+    if (pdv.includes('Abrir o caixa')) {
+      check('sem abertura registrada hoje, o PDV pede para abrir o caixa antes de vender', true)
+      await preencher({ valorAbertura: '200' })
+      await clicar('Abrir caixa e começar a vender')
+      await esperarPor(
+        async () => (await texto()).includes('Água 20L'),
+        'o PDV liberar a venda depois de abrir o caixa',
+      )
+      check('abrir o caixa troca para a tela de venda sem recarregar a página', true)
+      pdv = await texto()
+    }
     check('o PDV lista os produtos com preço', pdv.includes('Água 20L') && pdv.includes('12,00'))
 
     /*
@@ -1500,8 +1484,8 @@ try {
     const recibo = await texto()
     check('a venda fecha e o recibo mostra o troco', recibo.includes('14,00'))
     check(
-      'o recibo diz quantos galões o cliente ficou devendo',
-      /gal(ã|a)o\(ões\) entregue/i.test(recibo),
+      'o recibo diz quantos vasilhames o cliente ficou devendo',
+      /vasilhame\(ns\) entregue/i.test(recibo),
       recibo.slice(0, 400),
     )
     await foto('pdv-recibo')

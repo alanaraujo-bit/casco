@@ -64,8 +64,9 @@ async function limpar() {
   for (const t of [
     'estoque_movimentos', 'estoque_saldos', 'vasilhame_movimentos', 'vasilhame_saldos',
     'pagamentos', 'venda_itens', 'vendas', 'contas_receber', 'contas_pagar',
-    'caixa_movimentos', 'precos', 'produtos', 'clientes', 'fornecedores',
-    'tabelas_preco', 'formas_pagamento', 'contas_bancarias', 'sequencias', 'feedbacks',
+    'caixa_aberturas', 'caixa_movimentos', 'entregadores', 'precos', 'produtos', 'clientes',
+    'fornecedores', 'tabelas_preco', 'formas_pagamento', 'contas_bancarias', 'sequencias',
+    'feedbacks',
     'patch_notes_reacoes', 'patch_notes_leituras', 'users',
   ]) {
     await dono.unsafe(`delete from ${t} where company_id in ('${A}','${B}')`)
@@ -614,6 +615,44 @@ try {
   } finally {
     await dono`update plataforma_config set discord_webhook_feedback = ${original?.discord_webhook_feedback ?? null}`
   }
+
+  // ---------------------------------------------------- entregadores (0017)
+  const entregA = randomUUID()
+  await comTenant(A, (tx) =>
+    tx`insert into entregadores (id, company_id, nome) values (${entregA}, ${A}, 'Zeca Entregas')`,
+  )
+  const vistosEntreg = await comTenant(B, (tx) => tx`select id from entregadores`)
+  check('tenant B não enxerga entregador de A', vistosEntreg.length === 0, `viu ${vistosEntreg.length}`)
+
+  await deveFalhar(
+    'gravar entregador com company_id alheio é rejeitado',
+    () => comTenant(A, (tx) =>
+      tx`insert into entregadores (id, company_id, nome) values (${randomUUID()}, ${B}, 'Invasor')`),
+    'row-level security',
+  )
+
+  // ------------------------------------------------- abertura de caixa (0017)
+  const caixaA = randomUUID()
+  await comTenant(A, (tx) =>
+    tx`insert into contas_bancarias (id, company_id, nome, tipo) values (${caixaA}, ${A}, 'Caixa Loja', 'caixa')`,
+  )
+
+  await comTenant(A, (tx) =>
+    tx`insert into caixa_aberturas (id, company_id, conta_id, valor_abertura, fundo_troco)
+       values (${randomUUID()}, ${A}, ${caixaA}, 200, 50)`,
+  )
+  check('abertura com fundo de troco dentro do valor é aceita', true)
+
+  await deveFalhar(
+    'fundo de troco maior que o valor da abertura é rejeitado',
+    () => comTenant(A, (tx) =>
+      tx`insert into caixa_aberturas (id, company_id, conta_id, valor_abertura, fundo_troco)
+         values (${randomUUID()}, ${A}, ${caixaA}, 100, 150)`),
+    'caixa_aberturas_troco_no_limite',
+  )
+
+  const vistasAbertura = await comTenant(B, (tx) => tx`select id from caixa_aberturas`)
+  check('tenant B não enxerga abertura de caixa de A', vistasAbertura.length === 0, `viu ${vistasAbertura.length}`)
 
   // `admin_listar_empresas` roda como dono e por isso enxerga as duas empresas
   // de teste — é justamente o poder que o painel precisa e que a RLS negaria.

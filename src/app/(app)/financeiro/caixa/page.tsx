@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
-import { ArrowDownLeft, ArrowUpRight, Landmark, Scale } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowDownLeft, ArrowUpRight, Landmark, Scale, Wallet } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Chip } from '@/components/painel/pecas'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { moeda } from '@/lib/utils'
 import { listarCaixa, metricasCaixa, saldosPorConta } from '@/modules/financeiro/consultas'
@@ -57,6 +59,14 @@ export default async function PaginaCaixa() {
       <CabecalhoPagina
         titulo="Caixa"
         descricao="Só o dinheiro que entrou e saiu de fato — a taxa da maquininha já descontada"
+        acoes={
+          <Button asChild variant="secundario">
+            <Link href="/financeiro/caixa/abertura">
+              <Wallet aria-hidden />
+              Abertura de Caixa
+            </Link>
+          </Button>
+        }
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

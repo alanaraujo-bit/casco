@@ -251,8 +251,17 @@ export function listarMovimentos() {
     ]
     const nomePorAdmin = new Map<string, string>()
     if (idsAdmin.length > 0) {
+      // `${idsAdmin}::uuid[]` não funciona: o `sql` do Drizzle liga o array
+      // inteiro como um parâmetro opaco, e o driver não sabe serializá-lo como
+      // array do Postgres — o cast falha em runtime, só em produção, porque
+      // nenhum teste passou por aqui como o app passa. `array[...]` com cada
+      // id ligado (e convertido) individualmente é o jeito que funciona em
+      // qualquer driver, porque não depende de nenhuma serialização especial.
       const admins = await tx.execute<{ id: string; nome: string }>(
-        sql`select id, nome from admin_nomes(${idsAdmin}::uuid[])`,
+        sql`select id, nome from admin_nomes(array[${sql.join(
+          idsAdmin.map((id) => sql`${id}::uuid`),
+          sql.raw(', '),
+        )}])`,
       )
       for (const a of admins) nomePorAdmin.set(a.id, a.nome)
     }

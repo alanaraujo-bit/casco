@@ -291,6 +291,55 @@ export const esquemaQuitar = z.object({
   formaId: uuid,
 })
 
+/* --------------------------------------------------------- abertura de caixa
+ *
+ * Só o que a operadora contou na gaveta ao abrir o turno — não trava o PDV,
+ * é registro para conferir no fechamento do dia.
+ *
+ * **`fundoTroco` é sempre um recorte de `valorAbertura`, nunca um valor à
+ * parte.** Não existe reservar para dar troco mais dinheiro do que se tem na
+ * mão — é o `caixa_aberturas_troco_no_limite` da migration 0017, e a tela
+ * obedece antes de o banco precisar recusar.
+ */
+
+export const CAMPOS_ABERTURA_CAIXA = ['contaId', 'valorAbertura', 'fundoTroco', 'observacao'] as const
+export type CampoAberturaCaixa = (typeof CAMPOS_ABERTURA_CAIXA)[number]
+
+export const esquemaAberturaCaixa = z
+  .object({
+    contaId: uuid,
+
+    valorAbertura: z
+      .string()
+      .transform(paraNumero)
+      .refine((v) => Number.isFinite(v), 'Valor inválido')
+      .refine((v) => v >= 0, 'Não pode ser negativo'),
+
+    fundoTroco: z
+      .string()
+      .transform((v) => (v.trim() === '' ? 0 : paraNumero(v)))
+      .refine((v) => Number.isFinite(v), 'Valor inválido')
+      .refine((v) => v >= 0, 'Não pode ser negativo'),
+
+    observacao: z
+      .string()
+      .trim()
+      .max(300, 'Máximo de 300 caracteres')
+      .transform((v) => v || null),
+  })
+  .refine((d) => d.fundoTroco <= d.valorAbertura, {
+    message: 'O fundo de troco não pode ser maior que o dinheiro contado na abertura',
+    path: ['fundoTroco'],
+  })
+
+export interface EstadoAberturaCaixa {
+  erro?: Falha | string
+  campos?: Partial<Record<CampoAberturaCaixa, string>>
+  valores?: Partial<Record<CampoAberturaCaixa, string>>
+  tentativa?: number
+  sucesso?: { conta: string; valorAbertura: number; fundoTroco: number }
+}
+
 export interface EstadoQuitar {
   erro?: Falha | string
   campos?: Partial<Record<CampoQuitar, string>>

@@ -5,8 +5,10 @@ import { ArtigoBaixaVasilhame } from '@/components/ajuda/artigos/baixa-vasilhame
 import { ArtigoSaldoVasilhame } from '@/components/ajuda/artigos/saldo-vasilhame'
 import { ArtigoMovimentosVasilhame } from '@/components/ajuda/artigos/movimentos-vasilhame'
 import { ArtigoPdv } from '@/components/ajuda/artigos/pdv'
+import { ArtigoAberturaCaixa } from '@/components/ajuda/artigos/abertura-caixa'
 import { ArtigoVendasProdutos } from '@/components/ajuda/artigos/vendas-produtos'
 import { ArtigoAtualizacoes } from '@/components/ajuda/artigos/atualizacoes'
+import { ArtigoCadastroProdutos } from '@/components/ajuda/artigos/cadastro-produtos'
 
 /**
  * O índice da Central de Ajuda — espelha o papel de `NAVEGACAO` em
@@ -83,7 +85,7 @@ export const ARTIGOS_AJUDA: ArtigoAjuda[] = [
     grupoSlug: 'vendas',
     titulo: 'PDV',
     resumo: 'Fechar uma venda de balcão — dinheiro, cartão ou a prazo, com o vasilhame junto',
-    palavrasChave: ['pdv', 'balcão', 'venda', 'caixa', 'troco', 'desconto', 'carrinho', 'forma de pagamento'],
+    palavrasChave: ['pdv', 'balcão', 'venda', 'caixa', 'troco', 'desconto', 'carrinho', 'forma de pagamento', 'entregador', 'entrega'],
     Componente: ArtigoPdv,
   },
   {
@@ -93,6 +95,14 @@ export const ARTIGOS_AJUDA: ArtigoAjuda[] = [
     resumo: 'Tudo que foi vendido — o que entrou no caixa, o que ficou a receber e a taxa da maquininha',
     palavrasChave: ['vendas', 'listagem', 'vendido', 'ticket médio', 'taxas', 'a receber'],
     Componente: ArtigoVendasProdutos,
+  },
+  {
+    slug: 'cadastro-produtos',
+    grupoSlug: 'cadastro',
+    titulo: 'Cadastro de Produtos',
+    resumo: 'Nome, preço, custo, estoque, ícone e vasilhame de cada produto que a distribuidora vende',
+    palavrasChave: ['produto', 'sku', 'código', 'categoria', 'ícone', 'preço', 'custo', 'estoque mínimo', 'estoque máximo', 'estoque inicial', 'retornável', 'vasilhame', 'ncm'],
+    Componente: ArtigoCadastroProdutos,
   },
   {
     slug: 'baixa-vasilhame',
@@ -117,6 +127,14 @@ export const ARTIGOS_AJUDA: ArtigoAjuda[] = [
     resumo: 'O razão completo de vasilhame, a perda do mês, e como corrigir um lançamento errado',
     palavrasChave: ['movimentos', 'estorno', 'estornar', 'perda', 'extrato', 'histórico'],
     Componente: ArtigoMovimentosVasilhame,
+  },
+  {
+    slug: 'abertura-caixa',
+    grupoSlug: 'financeiro',
+    titulo: 'Abertura de Caixa',
+    resumo: 'Quanto tem na gaveta ao abrir o turno, e quanto disso é fundo de troco',
+    palavrasChave: ['abertura', 'caixa', 'troco', 'fundo de troco', 'turno', 'gaveta'],
+    Componente: ArtigoAberturaCaixa,
   },
   {
     slug: 'central-de-atualizacoes',

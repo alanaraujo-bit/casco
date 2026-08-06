@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, ExternalLink } from 'lucide-react'
 import { ICONES_ITEM, NAVEGACAO } from '@/lib/navegacao'
 import { GlifoCasco } from '@/components/marca/glifo-casco'
 import { BadgeContador } from '@/components/ui/badge-contador'
@@ -151,7 +151,10 @@ export function ConteudoSidebar({
                   className="space-y-0.5 overflow-hidden"
                 >
                 {grupo.itens.map((item) => {
-                  const ativo = caminho === item.href
+                  // Item de nova aba nunca é "a página atual" nesta aba —
+                  // marcá-lo ativo confundiria quem olha para ver onde está,
+                  // já que o PDV nunca troca o conteúdo desta janela.
+                  const ativo = !item.novaAba && caminho === item.href
                   // Cada item com o próprio ícone, e não só o do grupo: numa
                   // lista de quatro rótulos parecidos ("Contas a Receber",
                   // "Contas a Pagar", "Caixa", "Contas e Formas"), o ícone é o
@@ -164,6 +167,8 @@ export function ConteudoSidebar({
                       <Link
                         href={item.href}
                         onClick={aoNavegar}
+                        target={item.novaAba ? '_blank' : undefined}
+                        rel={item.novaAba ? 'noopener' : undefined}
                         // `aria-current` é o que informa o leitor de tela sobre
                         // a página atual. Cor sozinha não comunica isso.
                         aria-current={ativo ? 'page' : undefined}
@@ -200,6 +205,9 @@ export function ConteudoSidebar({
                           <span className="truncate">{item.rotulo}</span>
                           {item.href === '/atualizacoes' && (
                             <BadgeContador valor={naoLidosAtualizacoes} />
+                          )}
+                          {item.novaAba && (
+                            <ExternalLink className="size-3 shrink-0 text-texto-fraco" aria-hidden />
                           )}
                         </span>
                       </Link>

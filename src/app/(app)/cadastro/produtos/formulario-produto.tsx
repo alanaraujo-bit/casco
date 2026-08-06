@@ -16,6 +16,7 @@ import {
   UNIDADES,
   type EstadoFormularioProduto,
 } from '@/modules/produtos/esquema'
+import { ICONES_PRODUTO } from '@/modules/produtos/icones'
 import type { Produto } from '@/db/schema'
 
 type Props = {
@@ -74,6 +75,49 @@ function Campo({
   )
 }
 
+function SeletorIcone({
+  id,
+  valorAtual,
+  aoEscolher,
+}: {
+  id: string
+  valorAtual: string
+  aoEscolher: (chave: string) => void
+}) {
+  return (
+    <div role="radiogroup" aria-labelledby={`${id}-rotulo`} className="flex flex-wrap gap-2">
+      <input type="hidden" id={id} name="icone" value={valorAtual} />
+      {ICONES_PRODUTO.map((icone) => {
+        const selecionado = valorAtual === icone.chave
+        return (
+          <button
+            key={icone.chave}
+            type="button"
+            role="radio"
+            aria-checked={selecionado}
+            title={icone.rotulo}
+            onClick={() => aoEscolher(selecionado ? '' : icone.chave)}
+            className={`flex size-12 items-center justify-center rounded-lg border-2 p-1.5 transition-colors ${
+              selecionado
+                ? 'border-primario bg-primario/10'
+                : 'border-borda hover:border-texto-fraco'
+            }`}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/icones-produto/${icone.chave}.png`}
+              alt={icone.rotulo}
+              width={32}
+              height={32}
+              className="size-8"
+            />
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function BotaoSalvar({ novo, tipo = 'produto' }: { novo: boolean; tipo?: 'produto' | 'vasilhame' }) {
   const { pending } = useFormStatus()
   return (
@@ -115,6 +159,7 @@ export function FormularioProduto({ acao, produto, produtosVasilhame, categorias
   const [controlaEstoqueAtual, setControlaEstoque] = useState(
     valor('controlaEstoque', produto?.controlaEstoque !== false ? 'true' : 'false') === 'true',
   )
+  const [iconeAtual, setIcone] = useState(valor('icone', produto?.icone ?? ''))
 
   return (
     <form
@@ -190,6 +235,10 @@ export function FormularioProduto({ acao, produto, produtosVasilhame, categorias
             maxLength={10}
             placeholder="22011000"
           />
+        </Campo>
+
+        <Campo span="sm:col-span-6" htmlFor="icone" rotulo="Ícone" opcional>
+          <SeletorIcone id="icone" valorAtual={iconeAtual} aoEscolher={setIcone} />
         </Campo>
       </Secao>
 

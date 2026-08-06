@@ -27,15 +27,24 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { cn, moeda } from '@/lib/utils'
+import { avisarMudanca } from '@/lib/sincronizar'
 import { centavos, deCentavos, paraNumero, type EstadoVenda } from '@/modules/vendas/esquema'
+import { caminhoIconeProduto } from '@/modules/produtos/icones'
+import { caminhoIconeDinheiro } from '@/modules/financeiro/icones-dinheiro'
 import type { FormaPagamentoOpcao } from '@/modules/financeiro/consultas'
-import type { ClienteVenda, PrecoTabela, ProdutoVenda } from '@/modules/vendas/consultas'
+import type {
+  ClienteVenda,
+  EntregadorVenda,
+  PrecoTabela,
+  ProdutoVenda,
+} from '@/modules/vendas/consultas'
 
 type Props = {
   acao: (anterior: EstadoVenda, form: FormData) => Promise<EstadoVenda>
   produtos: ProdutoVenda[]
   precos: PrecoTabela[]
   clientes: ClienteVenda[]
+  entregadores: EntregadorVenda[]
   formas: FormaPagamentoOpcao[]
   tabelaPadraoId: string | null
   /** Escopa o rascunho salvo no navegador — ver a nota em `chaveRascunho`. */
@@ -48,10 +57,81 @@ interface LinhaCarrinho {
   vasilhameDevolvido: number
 }
 
+/** Cédulas e moedas do Real que `quebrarTroco` conhece, da maior para a menor. */
+const VALORES_TROCO = [20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50, 25, 10, 5] as const
+
+/**
+ * Quebra um valor em centavos nas cédulas e moedas do Real, maior para menor
+ * — a mesma conta que a operadora faz de cabeça ao separar o troco na
+ * gaveta, só que sem a chance de errar por contar rápido demais.
+ */
+function quebrarTroco(centavosTotal: number) {
+  let resto = Math.round(centavosTotal)
+  const partes: { centavos: number; quantidade: number }[] = []
+  for (const valor of VALORES_TROCO) {
+    const quantidade = Math.floor(resto / valor)
+    if (quantidade > 0) {
+      partes.push({ centavos: valor, quantidade })
+      resto -= quantidade * valor
+    }
+  }
+  return partes
+}
+
+/**
+ * O troco em cédulas e moedas — não só o número.
+ *
+ * Existe porque "R$ 14,00 de troco" ainda deixa a operadora contando na
+ * cabeça quais notas separar. Aqui a conta já vem feita: a imagem de cada
+ * cédula/moeda aparece uma vez, com a quantidade necessária no canto — a
+ * mesma biblioteca de ícones prontos do cadastro de produto (ver
+ * `caminhoIconeDinheiro`), não uma cor ou um texto tentando parecer dinheiro.
+ */
+function QuebraDeTroco({ centavos }: { centavos: number }) {
+  const partes = useMemo(() => quebrarTroco(centavos), [centavos])
+  if (partes.length === 0) return null
+  return (
+    <div className="mt-2 flex flex-wrap gap-2" aria-label="Cédulas e moedas para o troco">
+      {partes.map((p) => (
+        <div key={p.centavos} className="relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={caminhoIconeDinheiro(p.centavos)!}
+            alt={moeda(deCentavos(p.centavos))}
+            width={56}
+            height={56}
+            className="size-14 shrink-0 drop-shadow-sm"
+          />
+          <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-zinc-900 text-2xs font-bold text-white shadow-sm">
+            {p.quantidade}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * As teclas dos nove primeiros produtos da grade, na ordem em que aparecem.
+ *
+ * `F1`–`F12` foi a primeira tentativa e não sobreviveu ao Chrome: metade
+ * delas é atalho do próprio navegador antes de chegar à página —
+ * `F5`/`F6` recarregam ou saltam para a barra de endereço, `F11` alterna a
+ * tela cheia do SISTEMA (não a nossa, que é outro botão), `F12` abre as
+ * ferramentas de desenvolvedor — e `preventDefault()` não segura nenhuma
+ * delas, porque são tratadas antes do JavaScript da página rodar. O teclado
+ * numérico não tem esse problema: nenhum navegador reserva `1`–`9` sozinhos
+ * (só combinados com Ctrl, que o atalho abaixo ignora de propósito).
+ */
+const ATALHOS_PRODUTO = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const
+/** Fecha a venda. Fora da faixa de produtos, para nunca disputar com um deles. */
+const ATALHO_FECHAR = '0'
+
 /** O que sobrevive a um recarregamento de página ou uma troca de aba. */
 interface RascunhoVenda {
   carrinho: LinhaCarrinho[]
   clienteId: string
+  entregadorId: string
   formaId: string
   desconto: string
   descontoModo: 'reais' | 'percentual'
@@ -80,7 +160,16 @@ interface RascunhoVenda {
  * é feita de verdade no balcão — e é a única forma de o comodato não depender de
  * alguém lembrar de abrir outra tela depois que o cliente já foi embora.
  */
-export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, companyId }: Props) {
+export function Pdv({
+  acao,
+  produtos,
+  precos,
+  clientes,
+  entregadores,
+  formas,
+  tabelaPadraoId,
+  companyId,
+}: Props) {
   const [estado, enviar] = useActionState<EstadoVenda, FormData>(acao, {})
 
   /**
@@ -95,6 +184,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
 
   const [carrinho, setCarrinho] = useState<LinhaCarrinho[]>([])
   const [clienteId, setClienteId] = useState('')
+  const [entregadorId, setEntregadorId] = useState('')
   const [formaId, setFormaId] = useState(
     formas.find((f) => f.tipo === 'dinheiro')?.id ?? formas[0]?.id ?? '',
   )
@@ -115,6 +205,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
   const [busca, setBusca] = useState('')
 
   const buscaRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
 
   /**
    * Só passa a gravar depois de ler — sem essa trava, o efeito de
@@ -144,6 +235,9 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
         if (rascunho.clienteId && clientes.some((c) => c.id === rascunho.clienteId)) {
           setClienteId(rascunho.clienteId)
         }
+        if (rascunho.entregadorId && entregadores.some((e) => e.id === rascunho.entregadorId)) {
+          setEntregadorId(rascunho.entregadorId)
+        }
         if (rascunho.formaId && formas.some((f) => f.id === rascunho.formaId)) {
           setFormaId(rascunho.formaId)
         }
@@ -170,6 +264,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
     const vazio =
       carrinho.length === 0 &&
       !clienteId &&
+      !entregadorId &&
       !desconto &&
       !valorRecebido &&
       !observacao &&
@@ -181,6 +276,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
     const rascunho: RascunhoVenda = {
       carrinho,
       clienteId,
+      entregadorId,
       formaId,
       desconto,
       descontoModo,
@@ -194,6 +290,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
     chaveRascunho,
     carrinho,
     clienteId,
+    entregadorId,
     formaId,
     desconto,
     descontoModo,
@@ -357,6 +454,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
     setUltimaFechada(estado.tentativa ?? 0)
     setCarrinho([])
     setClienteId('')
+    setEntregadorId('')
     setDesconto('')
     setDescontoModo('reais')
     setParcelas('1')
@@ -369,9 +467,20 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
     localStorage.removeItem(chaveRascunho)
   }
 
+  const avisadoRef = useRef(0)
   useEffect(() => {
-    if (estado.recibo) buscaRef.current?.focus()
-  }, [estado])
+    if (!estado.recibo) return
+    buscaRef.current?.focus()
+    // Guardado por `tentativa`, e não só por `estado.recibo` existir: sem
+    // isto, o StrictMode do React (que roda todo efeito duas vezes em
+    // desenvolvimento) avisaria a mesma venda duas vezes — inofensivo aqui
+    // (a outra aba só busca de novo um dado que já busca de novo mesmo), mas
+    // sem necessidade.
+    if (avisadoRef.current !== estado.tentativa) {
+      avisadoRef.current = estado.tentativa ?? 0
+      avisarMudanca(companyId, 'vendas')
+    }
+  }, [estado, companyId])
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()
@@ -382,6 +491,48 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
         String(p.codigo ?? '').padStart(4, '0').includes(termo),
     )
   }, [busca, produtos])
+
+  const podeFechar = carrinho.length > 0 && total > 0
+
+  /**
+   * Atalhos de teclado — `1` a `9` adicionam, `0` fecha a venda.
+   *
+   * Só valem com o foco **fora** de um campo de texto: dentro da busca, do
+   * desconto ou da observação, `1`–`9` são dígitos sendo digitados, não
+   * atalhos — sem essa trava, escrever o código "0002" na busca ou "150" no
+   * desconto dispararia produto atrás de produto. Fora de campo nenhum
+   * (depois de adicionar um item, o foco já não está em lugar algum), a
+   * tecla vale como atalho. A ordem segue a mesma da grade filtrada: buscar
+   * "10L" e apertar `1` bate sempre no primeiro resultado da busca, nunca
+   * num produto que saiu de vista.
+   */
+  useEffect(() => {
+    function aoTeclar(e: KeyboardEvent) {
+      if (e.altKey || e.ctrlKey || e.metaKey) return
+      const alvo = e.target
+      const emCampoDeTexto =
+        alvo instanceof HTMLElement &&
+        (alvo.tagName === 'INPUT' ||
+          alvo.tagName === 'TEXTAREA' ||
+          alvo.tagName === 'SELECT' ||
+          alvo.isContentEditable)
+      if (emCampoDeTexto) return
+      if (e.key === ATALHO_FECHAR) {
+        e.preventDefault()
+        if (podeFechar) formRef.current?.requestSubmit()
+        return
+      }
+      const indice = ATALHOS_PRODUTO.indexOf(e.key as (typeof ATALHOS_PRODUTO)[number])
+      if (indice === -1) return
+      const produto = filtrados[indice]
+      if (!produto) return
+      e.preventDefault()
+      adicionar(produto.id)
+    }
+    window.addEventListener('keydown', aoTeclar)
+    return () => window.removeEventListener('keydown', aoTeclar)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtrados, podeFechar])
 
   if (produtos.length === 0) {
     return (
@@ -417,7 +568,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
 
   return (
     <>
-    <form action={enviar} className="space-y-4 print:hidden" noValidate>
+    <form ref={formRef} action={enviar} className="space-y-4 print:hidden" noValidate>
       {/* O único campo escondido é o carrinho: ele é uma lista, e lista não tem
           controle de formulário. Todo o resto são campos de verdade, com
           `name`, e é isso que faz a venda ser enviada mesmo se o React ainda
@@ -456,18 +607,26 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                 placeholder="Buscar produto por nome ou código…"
                 aria-label="Buscar produto"
                 autoComplete="off"
-                className="pl-9"
+                className="h-12 pl-10 text-base"
               />
             </div>
+            <p className="mt-2 text-2xs text-texto-fraco">
+              Com o foco fora de um campo: 1–9 adicionam os produtos abaixo · 0 fecha a venda
+            </p>
 
             {filtrados.length === 0 ? (
               <p className="py-8 text-center text-sm text-texto-suave">
                 Nenhum produto encontrado para “{busca}”.
               </p>
             ) : (
-              <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                {filtrados.map((p) => {
+              // Grade grande de propósito: quanto maior o botão, menos preciso
+              // é o toque para acertá-lo — é a mesma lógica de um caixa de
+              // supermercado, onde o produto é uma tecla grande, não uma linha
+              // numa tabela.
+              <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
+                {filtrados.map((p, indice) => {
                   const preco = precoDe(p.id)
+                  const atalho = ATALHOS_PRODUTO[indice]
                   const noCarrinho = carrinho.find((l) => l.produtoId === p.id)
                   // Sem saldo nenhum, ou o carrinho já está no teto do que há
                   // no depósito: o clique não adicionaria nada mesmo, então o
@@ -483,48 +642,63 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                       disabled={travado}
                       aria-disabled={travado}
                       className={cn(
-                        'flex min-h-[4.5rem] flex-col items-start gap-1 rounded-md border px-3 py-2.5 text-left transition-colors',
+                        'relative flex min-h-[6.5rem] flex-col items-start justify-between gap-2 rounded-xl border-2 px-3.5 py-3 text-left transition-colors',
                         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foco',
-                        'disabled:cursor-not-allowed disabled:opacity-60',
+                        'disabled:cursor-not-allowed disabled:opacity-50',
                         noCarrinho
-                          ? 'border-acento-suave-borda bg-acento-suave'
-                          : 'border-borda-controle bg-superficie hover:bg-superficie-hover hover:border-borda-forte',
+                          ? 'border-acento bg-acento-suave'
+                          : 'border-borda-controle bg-superficie hover:bg-superficie-hover hover:border-borda-forte active:scale-[0.98]',
                       )}
                     >
-                      <span className="flex w-full items-start justify-between gap-2">
-                        <span className="text-sm font-medium text-texto">{p.nome}</span>
-                        {noCarrinho && (
-                          <Badge variant="info" className="shrink-0 tabular-nums">
-                            {noCarrinho.quantidade}
-                          </Badge>
+                      {noCarrinho && (
+                        <Badge
+                          variant="info"
+                          className="absolute -right-2 -top-2 grid size-7 place-items-center rounded-full p-0 text-sm tabular-nums shadow-sm"
+                        >
+                          {noCarrinho.quantidade}
+                        </Badge>
+                      )}
+                      {atalho && (
+                        <kbd className="absolute -left-2 -top-2 rounded border border-borda bg-superficie px-1 py-0.5 text-2xs font-semibold text-texto-fraco shadow-sm">
+                          {atalho}
+                        </kbd>
+                      )}
+                      <span className="flex items-center gap-1.5 text-base font-medium leading-tight text-texto">
+                        {caminhoIconeProduto(p.icone) && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={caminhoIconeProduto(p.icone)!}
+                            alt=""
+                            width={18}
+                            height={18}
+                            className="size-[1.125rem] shrink-0"
+                          />
                         )}
+                        {p.nome}
                       </span>
-                      <span className="text-sm font-semibold tabular-nums text-texto">
-                        {moeda(deCentavos(preco))}
-                        {preco === 0 && (
-                          <span className="ml-1.5 text-xs font-normal text-alerta">
-                            sem preço
-                          </span>
-                        )}
-                      </span>
-                      <span className="flex items-center gap-1.5 text-xs text-texto-fraco">
-                        {p.retornavel && (
-                          <span className="flex items-center gap-1">
-                            <Truck className="size-3" aria-hidden />
-                            retornável
-                          </span>
-                        )}
-                        {p.controlaEstoque && (
-                          // O saldo é o teto: ver `maximoDoProduto`, acima, e a
-                          // conferência de novo em `acoes.ts`.
-                          <span
-                            className={cn('tabular-nums', p.emEstoque <= 0 && 'text-perigo')}
-                          >
-                            {p.emEstoque <= 0
-                              ? 'sem estoque'
-                              : `${p.emEstoque.toLocaleString('pt-BR')} em estoque`}
-                          </span>
-                        )}
+                      <span className="flex w-full items-end justify-between gap-2">
+                        <span className="flex items-center gap-1.5 text-xs text-texto-fraco">
+                          {p.retornavel && <Truck className="size-3.5" aria-hidden />}
+                          {p.controlaEstoque && (
+                            // O saldo é o teto: ver `maximoDoProduto`, acima, e a
+                            // conferência de novo em `acoes.ts`.
+                            <span
+                              className={cn('tabular-nums', p.emEstoque <= 0 && 'text-perigo')}
+                            >
+                              {p.emEstoque <= 0
+                                ? 'sem estoque'
+                                : `${p.emEstoque.toLocaleString('pt-BR')} un.`}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-lg font-semibold tabular-nums text-texto">
+                          {moeda(deCentavos(preco))}
+                          {preco === 0 && (
+                            <span className="ml-1 text-2xs font-normal text-alerta">
+                              sem preço
+                            </span>
+                          )}
+                        </span>
                       </span>
                     </button>
                   )
@@ -573,7 +747,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                           <Button
                             type="button"
                             variant="secundario"
-                            size="icone"
+                            size="icone-toque"
                             onClick={() => mudarQuantidade(l.produtoId, -1)}
                             aria-label={`Diminuir ${p.nome}`}
                           >
@@ -585,7 +759,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                           <Button
                             type="button"
                             variant="secundario"
-                            size="icone"
+                            size="icone-toque"
                             onClick={() => mudarQuantidade(l.produtoId, 1)}
                             disabled={l.quantidade >= maximoDoProduto(l.produtoId)}
                             aria-label={`Aumentar ${p.nome}`}
@@ -601,7 +775,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                         <Button
                           type="button"
                           variant="fantasma"
-                          size="icone"
+                          size="icone-toque"
                           onClick={() => remover(l.produtoId)}
                           aria-label={`Remover ${p.nome}`}
                         >
@@ -618,12 +792,12 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                         <div className="mt-2 flex items-center gap-2 rounded-md bg-superficie-afundada px-3 py-2">
                           <Truck className="size-4 shrink-0 text-texto-suave" aria-hidden />
                           <span className="flex-1 text-xs text-texto-suave">
-                            Vasilhames vazios que ele trouxe agora
+                            Galões vazios que ele trouxe agora
                           </span>
                           <Button
                             type="button"
                             variant="secundario"
-                            size="icone"
+                            size="icone-toque"
                             onClick={() => mudarDevolvido(l.produtoId, -1)}
                             aria-label={`Menos vasilhame devolvido de ${p.nome}`}
                           >
@@ -635,7 +809,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                           <Button
                             type="button"
                             variant="secundario"
-                            size="icone"
+                            size="icone-toque"
                             onClick={() => mudarDevolvido(l.produtoId, 1)}
                             aria-label={`Mais vasilhame devolvido de ${p.nome}`}
                           >
@@ -703,6 +877,29 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                 </div>
               )}
             </div>
+
+            {entregadores.length > 0 && (
+              <div className="space-y-1.5">
+                <Label htmlFor="entregadorEscolha">
+                  Entregador
+                  <span className="ml-1 font-normal text-texto-fraco">(opcional)</span>
+                </Label>
+                <Select
+                  id="entregadorEscolha"
+                  name="entregadorId"
+                  value={entregadorId}
+                  onChange={(e) => setEntregadorId(e.target.value)}
+                  erro={estado.campos?.entregadorId}
+                >
+                  <option value="">Sem entregador definido</option>
+                  {entregadores.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.nome}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="formaEscolha">Forma de pagamento</Label>
@@ -851,8 +1048,8 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                 </div>
               )}
               <div className="flex items-baseline justify-between border-t border-borda pt-2 text-texto">
-                <dt className="font-semibold">Total</dt>
-                <dd className="text-2xl font-semibold tabular-nums">
+                <dt className="text-base font-semibold">Total</dt>
+                <dd className="text-3xl font-semibold tabular-nums">
                   {moeda(deCentavos(total))}
                 </dd>
               </div>
@@ -863,11 +1060,14 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
                 </div>
               )}
               {troco > 0 && (
-                <div className="flex items-baseline justify-between rounded-md bg-sucesso-bg px-3 py-2 text-sucesso">
-                  <dt className="font-medium">Troco</dt>
-                  <dd className="text-lg font-semibold tabular-nums">
-                    {moeda(deCentavos(troco))}
-                  </dd>
+                <div className="rounded-md bg-sucesso-bg px-3 py-2 text-sucesso">
+                  <div className="flex items-baseline justify-between">
+                    <dt className="font-medium">Troco</dt>
+                    <dd className="text-lg font-semibold tabular-nums">
+                      {moeda(deCentavos(troco))}
+                    </dd>
+                  </div>
+                  <QuebraDeTroco centavos={troco} />
                 </div>
               )}
               {aPrazo && (
@@ -878,7 +1078,7 @@ export function Pdv({ acao, produtos, precos, clientes, formas, tabelaPadraoId, 
               )}
             </dl>
 
-            <BotaoFechar habilitado={carrinho.length > 0 && total > 0} />
+            <BotaoFechar habilitado={podeFechar} />
           </Card>
         </div>
       </div>
@@ -897,7 +1097,7 @@ function BotaoFechar({ habilitado }: { habilitado: boolean }) {
       size="lg"
       disabled={pending || !habilitado}
       aria-disabled={pending || !habilitado}
-      className="mt-4 w-full"
+      className="mt-4 h-14 w-full text-base"
     >
       {pending ? (
         'Fechando…'
@@ -905,6 +1105,9 @@ function BotaoFechar({ habilitado }: { habilitado: boolean }) {
         <>
           <Check aria-hidden />
           Fechar venda
+          <kbd className="ml-1 rounded border border-current/30 px-1.5 py-0.5 text-2xs font-semibold opacity-80">
+            0
+          </kbd>
         </>
       )}
     </Button>
@@ -932,12 +1135,16 @@ function Recibo({ recibo }: { recibo: NonNullable<EstadoVenda['recibo']> }) {
             Venda {recibo.codigo ? `#${recibo.codigo}` : ''} fechada —{' '}
             <span className="tabular-nums">{moeda(recibo.total)}</span> em {recibo.forma}
             {recibo.cliente && ` · ${recibo.cliente}`}
+            {recibo.entregador && ` · entrega: ${recibo.entregador}`}
           </p>
 
           {recibo.troco !== null && recibo.troco > 0 && (
-            <p className="text-base font-semibold tabular-nums">
-              Troco: {moeda(recibo.troco)}
-            </p>
+            <div>
+              <p className="text-base font-semibold tabular-nums">
+                Troco: {moeda(recibo.troco)}
+              </p>
+              <QuebraDeTroco centavos={centavos(recibo.troco)} />
+            </div>
           )}
 
           {recibo.aPrazo && (
@@ -1094,6 +1301,12 @@ function ConteudoCupom({ recibo }: { recibo: NonNullable<EstadoVenda['recibo']> 
               {recibo.vasilhameEntregue} entregue(s)
               {recibo.vasilhameDevolvido > 0 && `, ${recibo.vasilhameDevolvido} devolvido(s)`}
             </span>
+          </div>
+        )}
+        {recibo.entregador && (
+          <div className="flex justify-between text-black/60">
+            <span>Entregador</span>
+            <span>{recibo.entregador}</span>
           </div>
         )}
         <div className="flex justify-between text-black/60">

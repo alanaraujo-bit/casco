@@ -9,6 +9,7 @@ import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
 import { alternarAtivoProduto } from '@/modules/produtos/acoes'
 import { ROTULO_UNIDADE, type Unidade } from '@/modules/produtos/esquema'
+import { caminhoIconeProduto } from '@/modules/produtos/icones'
 import type { ProdutoLista } from '@/modules/produtos/consultas'
 
 function formatarMoeda(valor: string | number): string {
@@ -30,6 +31,14 @@ const colunas: Coluna<ProdutoLista>[] = [
     texto: (p) => p.nome,
     celula: (p) => (
       <span className="flex items-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={caminhoIconeProduto(p.icone) ?? '/icones-produto/generico.png'}
+          alt=""
+          width={20}
+          height={20}
+          className="size-5 shrink-0"
+        />
         <span className="truncate">{p.nome}</span>
         {p.retornavel && (
           <Badge variant="info" className="shrink-0">
