@@ -106,12 +106,27 @@ export function intervaloDoPeriodo(periodo: Periodo): Intervalo {
 
 /* ------------------------------------------------------------- o ranking */
 
-/** O dia da venda **em Tucumã**, para agrupar e comparar. Ver a nota do topo. */
-const diaDaVenda = sql`(${vendas.criadoEm} at time zone ${FUSO}::text)::date`
+/**
+ * O dia da venda **no fuso da loja**, para agrupar e comparar. Ver a nota do topo.
+ *
+ * O fuso entra como literal no SQL, e não como parâmetro, porque esta expressão
+ * aparece ao mesmo tempo no `select` e no `group by` de `entregasPorDia`. Como
+ * parâmetro, cada ocorrência ganharia um número diferente (`$1` e `$4`), e o
+ * Postgres compara a expressão do `group by` com a do `select` pela árvore: dois
+ * parâmetros distintos não são a mesma coisa, e a consulta morre com "column
+ * vendas.criado_em must appear in the GROUP BY clause". `FUSO` é uma constante
+ * do próprio código, nunca entrada de usuário.
+ */
+const diaDaVenda = sql`(${vendas.criadoEm} at time zone ${sql.raw(`'${FUSO}'`)})::date`
 
 /** Venda confirmada, dentro do intervalo, no fuso da loja. */
 const noPeriodo = (de: string, ate: string) =>
-  and(eq(vendas.status, 'confirmada'), sql`${diaDaVenda} between ${de} and ${ate}`)
+  and(
+    eq(vendas.status, 'confirmada'),
+    // O `::date` é explícito: sem ele o parâmetro chega como `unknown` e a
+    // comparação depende do Postgres adivinhar o tipo certo.
+    sql`${diaDaVenda} between ${de}::date and ${ate}::date`,
+  )
 
 export interface LinhaDesempenho {
   /** `null` na linha das vendas que ninguém marcou. Ver a nota em `rankingEntregadores`. */
