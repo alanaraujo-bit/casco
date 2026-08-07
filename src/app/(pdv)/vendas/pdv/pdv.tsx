@@ -32,6 +32,7 @@ import { centavos, deCentavos, paraNumero, type EstadoVenda } from '@/modules/ve
 import { caminhoIconeProduto } from '@/modules/produtos/icones'
 import { caminhoIconeDinheiro } from '@/modules/financeiro/icones-dinheiro'
 import type { FormaPagamentoOpcao } from '@/modules/financeiro/consultas'
+import type { TipoPagamento } from '@/db/schema'
 import type {
   ClienteVenda,
   EntregadorVenda,
@@ -82,25 +83,28 @@ function quebrarTroco(centavosTotal: number) {
  * O troco em cédulas e moedas — não só o número.
  *
  * Existe porque "R$ 14,00 de troco" ainda deixa a operadora contando na
- * cabeça quais notas separar. Aqui a conta já vem feita: a imagem de cada
+ * cabeça quais notas separar. Aqui a conta já vem feita: a foto de cada
  * cédula/moeda aparece uma vez, com a quantidade necessária no canto — a
  * mesma biblioteca de ícones prontos do cadastro de produto (ver
  * `caminhoIconeDinheiro`), não uma cor ou um texto tentando parecer dinheiro.
+ *
+ * Só a altura é fixa (`h-14`): nota real é retangular (~2,1:1) e moeda é
+ * quadrada, e uma largura também fixa espremeria a nota numa caixa redonda
+ * que não é a forma dela. A largura acompanha a proporção de cada arquivo em
+ * `public/icones-dinheiro/`.
  */
 function QuebraDeTroco({ centavos }: { centavos: number }) {
   const partes = useMemo(() => quebrarTroco(centavos), [centavos])
   if (partes.length === 0) return null
   return (
-    <div className="mt-2 flex flex-wrap gap-2" aria-label="Cédulas e moedas para o troco">
+    <div className="mt-2 flex flex-wrap items-center gap-2" aria-label="Cédulas e moedas para o troco">
       {partes.map((p) => (
         <div key={p.centavos} className="relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={caminhoIconeDinheiro(p.centavos)!}
             alt={moeda(deCentavos(p.centavos))}
-            width={56}
-            height={56}
-            className="size-14 shrink-0 drop-shadow-sm"
+            className="h-14 w-auto shrink-0 drop-shadow-sm"
           />
           <span className="absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full bg-zinc-900 text-2xs font-bold text-white shadow-sm">
             {p.quantidade}
@@ -126,6 +130,16 @@ function QuebraDeTroco({ centavos }: { centavos: number }) {
 const ATALHOS_PRODUTO = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const
 /** Fecha a venda. Fora da faixa de produtos, para nunca disputar com um deles. */
 const ATALHO_FECHAR = '0'
+
+/**
+ * Troca a forma de pagamento sem tocar no mouse — só as duas que decidem
+ * sozinhas, sem exigir escolher máquina/bandeira: dinheiro e Pix são a
+ * decisão inteira do cliente falando "vou pagar em...", então valem o atalho
+ * de uma letra. Débito e crédito no balcão ainda dependem de qual forma
+ * cadastrada bate com a maquininha física, e isso a operadora escolhe olhando
+ * a lista — atalho ali adivinharia errado.
+ */
+const ATALHOS_FORMA: Partial<Record<TipoPagamento, string>> = { dinheiro: 'd', pix: 'p' }
 
 /** O que sobrevive a um recarregamento de página ou uma troca de aba. */
 interface RascunhoVenda {
@@ -522,6 +536,17 @@ export function Pdv({
         if (podeFechar) formRef.current?.requestSubmit()
         return
       }
+      const tipoAtalho = (Object.keys(ATALHOS_FORMA) as TipoPagamento[]).find(
+        (tipo) => ATALHOS_FORMA[tipo] === e.key.toLowerCase(),
+      )
+      if (tipoAtalho) {
+        const formaAlvo = formas.find((f) => f.tipo === tipoAtalho)
+        if (formaAlvo) {
+          e.preventDefault()
+          setFormaId(formaAlvo.id)
+        }
+        return
+      }
       const indice = ATALHOS_PRODUTO.indexOf(e.key as (typeof ATALHOS_PRODUTO)[number])
       if (indice === -1) return
       const produto = filtrados[indice]
@@ -532,7 +557,7 @@ export function Pdv({
     window.addEventListener('keydown', aoTeclar)
     return () => window.removeEventListener('keydown', aoTeclar)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtrados, podeFechar])
+  }, [filtrados, podeFechar, formas])
 
   if (produtos.length === 0) {
     return (
@@ -991,10 +1016,30 @@ export function Pdv({
 
             {forma?.tipo === 'dinheiro' && (
               <div className="space-y-1.5">
-                <Label htmlFor="recebidoCampo">
-                  Valor recebido
-                  <span className="ml-1 font-normal text-texto-fraco">(para o troco)</span>
-                </Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="recebidoCampo">
+                    Valor recebido
+                    <span className="ml-1 font-normal text-texto-fraco">(para o troco)</span>
+                  </Label>
+                  {/* A maioria das vendas de balcão é paga com o valor certo —
+                      exigir digitar de novo o que já está na tela só para o
+                      troco sair zerado é fricção que sobra em toda venda em
+                      dinheiro. */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setValorRecebido(
+                        deCentavos(total).toLocaleString('pt-BR', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }),
+                      )
+                    }
+                    className="shrink-0 text-2xs font-medium text-acento-texto hover:underline"
+                  >
+                    Valor exato
+                  </button>
+                </div>
                 <Input
                   id="recebidoCampo"
                   name="valorRecebido"

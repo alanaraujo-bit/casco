@@ -93,7 +93,9 @@ export function ArtigoPdv() {
               Dinheiro mostra o campo de valor recebido e calcula o troco. Cartão informa a taxa
               da maquininha, que é descontada do que entra no caixa. A prazo pede o número de
               parcelas e não gera nenhum valor em caixa — a venda inteira vira título em{' '}
-              <strong>Contas a Receber</strong>.
+              <strong>Contas a Receber</strong>. Em dinheiro, o botão <strong>Valor exato</strong>{' '}
+              ao lado do campo preenche o valor recebido igual ao total da venda, para quando o
+              cliente paga certinho e não há troco a calcular.
             </p>
           </Passo>
 
@@ -115,7 +117,11 @@ export function ArtigoPdv() {
           apertar o número funciona igual num produto qualquer. A tecla{' '}
           <kbd className="rounded border border-borda bg-superficie-afundada px-1 py-0.5 text-2xs">0</kbd> fecha a
           venda. O número de cada atalho aparece no canto do próprio produto, e no botão{' '}
-          <strong>Fechar venda</strong>.
+          <strong>Fechar venda</strong>. As teclas{' '}
+          <kbd className="rounded border border-borda bg-superficie-afundada px-1 py-0.5 text-2xs">D</kbd> e{' '}
+          <kbd className="rounded border border-borda bg-superficie-afundada px-1 py-0.5 text-2xs">P</kbd>{' '}
+          trocam a forma de pagamento direto para dinheiro ou Pix, quando a distribuidora tem uma
+          forma cadastrada de cada tipo.
         </Dica>
         <Dica titulo="O troco já vem separado em cédulas e moedas">
           Assim que o valor recebido é maior que o total, a tela mostra não só o troco em reais,

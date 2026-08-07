@@ -8,13 +8,14 @@ import { TabelaDados } from '@/components/ui/tabela/tabela-dados'
 import type { Coluna } from '@/components/ui/tabela/tipos'
 import { formatarDataHora } from '@/lib/formatos'
 import { moeda } from '@/lib/utils'
+import type { Papel } from '@/db/schema'
 import type { VendaLista } from '@/modules/vendas/consultas'
 import { BotaoCancelar } from './botao-cancelar'
 
 /**
  * A listagem de vendas, na ordem de colunas consagrada:
  * Operação · Código · Data · Cliente · Entregador · Água · Vendedor · Comissão ·
- * Tipo Venda · Parcelas · Valor · Recebido · Taxas · A Receber.
+ * Tipo Venda · Parcelas · Valor · Recebido · Taxas · A Receber · Itens.
  *
  * **Entregador e Água entram logo depois de Cliente**, e a posição é a decisão:
  * as três colunas respondem juntas a pergunta que a operadora faz olhando a
@@ -25,6 +26,12 @@ import { BotaoCancelar } from './botao-cancelar'
  * Comissão e Vendedor nascem ocultas: a JM não tem vendedor comissionado hoje,
  * e coluna que mostra zero em toda linha só ocupa a largura que falta para as
  * colunas que importam. Ficam no seletor, prontas para o dia em que houver.
+ *
+ * **Itens vem visível por padrão, ao contrário das outras colunas de
+ * detalhe.** É a única resposta a "quantos produtos essa venda teve" que
+ * conta qualquer produto — Água só conta o galão retornável, e mostra "—"
+ * numa venda só de gás ou de produto não retornável, o que parece a pergunta
+ * respondida sem ser.
  */
 
 const OPERACAO: Record<string, string> = {
@@ -34,7 +41,8 @@ const OPERACAO: Record<string, string> = {
   whatsapp: 'WhatsApp',
 }
 
-const colunas: Coluna<VendaLista>[] = [
+function criarColunas(podeCancelar: boolean): Coluna<VendaLista>[] {
+  return [
   {
     chave: 'operacao',
     cabecalho: 'Operação',
@@ -190,13 +198,16 @@ const colunas: Coluna<VendaLista>[] = [
       ),
   },
   {
+    // Visível por padrão, ao contrário das outras colunas de detalhe: é a
+    // resposta a "quantos produtos essa venda teve" — qualquer produto,
+    // retornável ou não — e "Água" não responde isso, porque só conta o
+    // galão retornável.
     chave: 'itens',
     cabecalho: 'Itens',
     texto: (v) => String(v.itens),
     valor: (v) => v.itens,
     numerica: true,
-    ocultaPorPadrao: true,
-    papelMobile: 'oculto',
+    papelMobile: 'campo',
   },
   {
     chave: 'status',
@@ -215,7 +226,7 @@ const colunas: Coluna<VendaLista>[] = [
     cabecalho: 'Ações',
     texto: () => '',
     celula: (v) =>
-      v.status === 'cancelada' ? (
+      v.status === 'cancelada' || !podeCancelar ? (
         <span className="text-xs text-texto-fraco">—</span>
       ) : (
         <span className="flex items-center justify-end gap-1">
@@ -226,9 +237,17 @@ const colunas: Coluna<VendaLista>[] = [
     alinhamento: 'direita',
     larguraMin: '8rem',
   },
-]
+  ]
+}
 
-export function TabelaVendas({ linhas }: { linhas: VendaLista[] }) {
+/**
+ * `operador` enxerga a listagem inteira — é o ponto do papel — mas a coluna
+ * Ações só monta o botão de cancelar para `dono`. Esconder aqui é conveniência
+ * de tela; quem decide de verdade é `cancelarVenda`, que recusa de novo do
+ * lado do servidor.
+ */
+export function TabelaVendas({ linhas, papel }: { linhas: VendaLista[]; papel: Papel }) {
+  const colunas = criarColunas(papel === 'dono')
   return (
     <TabelaDados
       id="vendas-listagem"

@@ -1,14 +1,15 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowRight, TriangleAlert, Users } from 'lucide-react'
+import { ArrowRight, Trash2, TriangleAlert, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { DialogConfirmarExclusao } from '@/components/ui/dialog-confirmar-exclusao'
 import { EstadoVazio } from '@/components/ui/estados'
 import { exigirAdminPronto } from '@/lib/dal'
 import { formatarData, formatarDocumento } from '@/lib/formatos'
 import { listarEmpresas } from '@/modules/admin/consultas'
-import { entrarNaEmpresa } from '@/modules/admin/acoes'
+import { alternarEmpresa, entrarNaEmpresa } from '@/modules/admin/acoes'
 
 export const metadata: Metadata = { title: 'Distribuidoras' }
 
@@ -101,6 +102,42 @@ export default async function PainelAdmin({ searchParams }: Props) {
                       <ArrowRight aria-hidden />
                     </Button>
                   </form>
+
+                  {e.ativo ? (
+                    <DialogConfirmarExclusao
+                      titulo={`Excluir ${e.nome}`}
+                      descricao="A distribuidora para de aparecer disponível para entrar. Vendas, contas e movimentos continuam guardados — nada é apagado."
+                      nomeConfirmacao={e.nome}
+                      rotuloConfirmacao="Excluir distribuidora"
+                      rotuloPendente="Excluindo…"
+                      action={alternarEmpresa}
+                      camposOcultos={{ empresaId: e.id, ativo: 'false' }}
+                      trigger={
+                        <Button
+                          type="button"
+                          variant="perigo"
+                          size="sm"
+                          className="w-full sm:w-auto"
+                        >
+                          <Trash2 aria-hidden />
+                          Excluir
+                        </Button>
+                      }
+                    />
+                  ) : (
+                    <form action={alternarEmpresa}>
+                      <input type="hidden" name="empresaId" value={e.id} />
+                      <input type="hidden" name="ativo" value="true" />
+                      <Button
+                        type="submit"
+                        variant="secundario"
+                        size="sm"
+                        className="w-full sm:w-auto"
+                      >
+                        Reativar
+                      </Button>
+                    </form>
+                  )}
                 </div>
               </Card>
             </li>

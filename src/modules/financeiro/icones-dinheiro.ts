@@ -1,9 +1,11 @@
 /**
- * Biblioteca fixa de ícones de cédula e moeda do Real — mesmo padrão de
- * `src/modules/produtos/icones.ts`: PNG pronto, gerado por
- * `scripts/gerar-icones-dinheiro.mjs`, versionado em
+ * Biblioteca fixa de ícones de cédula e moeda do Real, versionada em
  * `public/icones-dinheiro/`. A chave é o valor em centavos, o mesmo que
  * `quebrarTroco` (em `pdv.tsx`) já usa para decidir quantas de cada separar.
+ *
+ * As doze são foto real, recortada e mascarada por
+ * `scripts/processar-cedulas.mjs` a partir de fotos em `cedulas/` (fora do
+ * repositório, fora do controle de versão).
  */
 
 export const VALORES_DINHEIRO = [

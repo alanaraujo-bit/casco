@@ -75,7 +75,7 @@ export default async function PaginaVendas() {
         ))}
       </div>
 
-      <TabelaVendas linhas={linhas} />
+      <TabelaVendas linhas={linhas} papel={sessao.papel} />
     </div>
   )
 }

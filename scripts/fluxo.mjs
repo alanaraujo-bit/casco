@@ -2875,12 +2875,28 @@ try {
     )
     check('redefinir senha confirma na tela', true)
 
-    await clicarNaLinhaDoAcesso('Desativar')
+    // Excluir abre um diálogo estilo GitHub: o botão só libera depois de
+    // digitar o nome exato de quem vai perder o acesso.
+    await clicarNaLinhaDoAcesso('Excluir')
+    await esperarPor(async () => (await texto()).includes('Excluir acesso de'), 'o diálogo de exclusão abrir')
+    check('excluir acesso abre o diálogo de confirmação', true)
+
+    check(
+      'o botão de excluir começa desabilitado sem o nome digitado',
+      await js(`
+        const btn = [...document.querySelectorAll('button')]
+          .find((b) => (b.innerText || '').trim() === 'Excluir acesso')
+        return !!btn && btn.disabled
+      `),
+    )
+
+    await preencher({ confirmacaoExclusao: PREFIXO + ' Operador' })
+    await clicar('Excluir acesso')
     await esperarPor(
       async () => (await texto()).includes('Desativado'),
       'o selo de acesso desativado',
     )
-    check('desativar marca o acesso na lista', true)
+    check('excluir, com o nome confirmado, marca o acesso na lista', true)
     await foto('admin-acesso-desativado')
 
     await clicar('Sair')

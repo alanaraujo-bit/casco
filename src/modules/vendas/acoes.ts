@@ -106,79 +106,94 @@ export async function fecharVenda(
 
   try {
     return await comTenant(async (tx, sessao) => {
-      /* -------------------------------------------------- quem está comprando */
-
-      let cliente:
-        | {
-            id: string
-            nome: string
-            tabelaPrecoId: string | null
-            cep: string | null
-            logradouro: string | null
-            numero: string | null
-            complemento: string | null
-            bairro: string | null
-            cidade: string | null
-            uf: string | null
-          }
-        | null = null
-      if (dados.clienteId) {
-        const [linha] = await tx
-          .select({
-            id: clientes.id,
-            nome: clientes.nome,
-            tabelaPrecoId: clientes.tabelaPrecoId,
-            cep: clientes.cep,
-            logradouro: clientes.logradouro,
-            numero: clientes.numero,
-            complemento: clientes.complemento,
-            bairro: clientes.bairro,
-            cidade: clientes.cidade,
-            uf: clientes.uf,
-          })
-          .from(clientes)
-          .where(and(eq(clientes.id, dados.clienteId), eq(clientes.ativo, true)))
-          .limit(1)
-        // A RLS já garante que um id de outra distribuidora não é encontrado —
-        // a autorização sai de graça da consulta, sem uma checagem que alguém
-        // possa esquecer de escrever na próxima tela.
-        if (!linha) return { erro: 'Cliente não encontrado.', tentativa }
-        cliente = linha
-      }
-
-      /* ------------------------------------------------------ quem entrega */
-
-      let entregador: { id: string; nome: string } | null = null
-      if (dados.entregadorId) {
-        const [linha] = await tx
-          .select({ id: entregadores.id, nome: entregadores.nome })
-          .from(entregadores)
-          .where(and(eq(entregadores.id, dados.entregadorId), eq(entregadores.ativo, true)))
-          .limit(1)
-        if (!linha) return { erro: 'Entregador não encontrado.', tentativa }
-        entregador = linha
-      }
-
-      /* ------------------------------------------------ o que está sendo vendido */
+      /* ---------------------------------------------- quem, o quê e como paga
+       *
+       * Cinco leituras que não dependem uma da outra — cada uma resolve por um
+       * id que já veio pronto do formulário. Em série, são cinco idas e voltas
+       * ao banco só para *validar* o que a operadora já escolheu, antes de
+       * gravar a primeira linha. Em paralelo, é uma.
+       */
 
       const idsPedidos = [...new Set(dados.itens.map((i) => i.produtoId))]
-      const catalogo = await tx
-        .select({
-          id: produtos.id,
-          nome: produtos.nome,
-          precoPadrao: produtos.precoPadrao,
-          custo: produtos.custo,
-          retornavel: produtos.retornavel,
-          vasilhameId: produtos.vasilhameId,
-          controlaEstoque: produtos.controlaEstoque,
-        })
-        .from(produtos)
-        .where(and(inArray(produtos.id, idsPedidos), eq(produtos.ativo, true)))
+
+      const [linhaCliente, linhaEntregador, catalogo, linhaForma, linhaEmpresa] = await Promise.all([
+        dados.clienteId
+          ? tx
+              .select({
+                id: clientes.id,
+                nome: clientes.nome,
+                tabelaPrecoId: clientes.tabelaPrecoId,
+                cep: clientes.cep,
+                logradouro: clientes.logradouro,
+                numero: clientes.numero,
+                complemento: clientes.complemento,
+                bairro: clientes.bairro,
+                cidade: clientes.cidade,
+                uf: clientes.uf,
+              })
+              .from(clientes)
+              // A RLS já garante que um id de outra distribuidora não é
+              // encontrado — a autorização sai de graça da consulta, sem uma
+              // checagem que alguém possa esquecer de escrever na próxima tela.
+              .where(and(eq(clientes.id, dados.clienteId), eq(clientes.ativo, true)))
+              .limit(1)
+          : Promise.resolve([]),
+        dados.entregadorId
+          ? tx
+              .select({ id: entregadores.id, nome: entregadores.nome })
+              .from(entregadores)
+              .where(and(eq(entregadores.id, dados.entregadorId), eq(entregadores.ativo, true)))
+              .limit(1)
+          : Promise.resolve([]),
+        tx
+          .select({
+            id: produtos.id,
+            nome: produtos.nome,
+            precoPadrao: produtos.precoPadrao,
+            custo: produtos.custo,
+            retornavel: produtos.retornavel,
+            vasilhameId: produtos.vasilhameId,
+            controlaEstoque: produtos.controlaEstoque,
+          })
+          .from(produtos)
+          .where(and(inArray(produtos.id, idsPedidos), eq(produtos.ativo, true))),
+        tx
+          .select({
+            id: formasPagamento.id,
+            nome: formasPagamento.nome,
+            tipo: formasPagamento.tipo,
+            taxaPercentual: formasPagamento.taxaPercentual,
+            prazoDias: formasPagamento.prazoDias,
+            contaId: formasPagamento.contaId,
+          })
+          .from(formasPagamento)
+          .where(and(eq(formasPagamento.id, dados.formaId), eq(formasPagamento.ativo, true)))
+          .limit(1),
+        // CNPJ/CPF e telefone da distribuidora, para o cabeçalho do cupom — não
+        // dependem de nada gravado nesta venda, então sobem para o mesmo grupo
+        // em vez de esperar todos os inserts para serem lidos no fim.
+        tx
+          .select({ documento: companies.documento, telefone: companies.telefone })
+          .from(companies)
+          .where(eq(companies.id, sessao.companyId))
+          .limit(1),
+      ])
+
+      const cliente = linhaCliente[0] ?? null
+      if (dados.clienteId && !cliente) return { erro: 'Cliente não encontrado.', tentativa }
+
+      const entregador = linhaEntregador[0] ?? null
+      if (dados.entregadorId && !entregador) return { erro: 'Entregador não encontrado.', tentativa }
 
       if (catalogo.length !== idsPedidos.length) {
         return { erro: 'Um dos produtos do carrinho não está mais disponível.', tentativa }
       }
       const porId = new Map(catalogo.map((p) => [p.id, p]))
+
+      const forma = linhaForma[0]
+      if (!forma) return { campos: { formaId: 'Forma de pagamento não encontrada' }, tentativa }
+
+      const dadosEmpresa = linhaEmpresa[0]
 
       /* ------------------------------------------------------------- o preço
        *
@@ -287,21 +302,6 @@ export async function fecharVenda(
       }
 
       /* --------------------------------------------------- como está pagando */
-
-      const [forma] = await tx
-        .select({
-          id: formasPagamento.id,
-          nome: formasPagamento.nome,
-          tipo: formasPagamento.tipo,
-          taxaPercentual: formasPagamento.taxaPercentual,
-          prazoDias: formasPagamento.prazoDias,
-          contaId: formasPagamento.contaId,
-        })
-        .from(formasPagamento)
-        .where(and(eq(formasPagamento.id, dados.formaId), eq(formasPagamento.ativo, true)))
-        .limit(1)
-
-      if (!forma) return { campos: { formaId: 'Forma de pagamento não encontrada' }, tentativa }
 
       const aPrazo = forma.tipo === 'a_prazo'
 
@@ -554,14 +554,6 @@ export async function fecharVenda(
       const troco =
         forma.tipo === 'dinheiro' && recebido > total ? deCentavos(recebido - total) : null
 
-      // CNPJ/CPF e telefone da distribuidora, para o cabeçalho do cupom — o
-      // cliente confere quem vendeu, não só quem comprou.
-      const [dadosEmpresa] = await tx
-        .select({ documento: companies.documento, telefone: companies.telefone })
-        .from(companies)
-        .where(eq(companies.id, sessao.companyId))
-        .limit(1)
-
       revalidarTudo()
 
       return {
@@ -618,6 +610,9 @@ export async function fecharVenda(
  * Venda cancelada não muda. Não é rigor: o desempenho por entregador ignora
  * venda cancelada, e deixar alguém remarcar o entregador de uma venda desfeita
  * seria oferecer uma edição que não muda número nenhum na tela seguinte.
+ *
+ * **Só quem é `dono` edita.** Mesma regra de `cancelarVenda`: `operador` vê a
+ * venda inteira, só não grava em cima dela.
  */
 export async function corrigirEntrega(
   anterior: EstadoEntrega,
@@ -646,7 +641,11 @@ export async function corrigirEntrega(
   const dados = analise.data
 
   try {
-    return await comTenant(async (tx) => {
+    return await comTenant(async (tx, sessao) => {
+      if (sessao.papel !== 'dono') {
+        return { erro: 'Apenas o dono pode editar uma venda.', tentativa }
+      }
+
       const [venda] = await tx
         .select({
           id: vendas.id,
@@ -723,25 +722,18 @@ export interface ResultadoCancelamento {
  * de um jeito que ninguém decidiu — é preciso desfazer a baixa primeiro,
  * na tela de Contas a Receber, para essa decisão ficar explícita.
  *
- * **Exige a senha de exclusão.** Cancelar desfaz estoque, comodato e caixa de
- * uma vez só — não é um clique que se dá por engano. A senha mora em
- * `SENHA_EXCLUSAO_VENDA` (variável de ambiente, nunca no código) e não em
- * `users`: é uma trava operacional, não uma conta de alguém.
+ * **Só quem é `dono` cancela.** `operador` enxerga tudo — é o ponto do papel —
+ * mas não desfaz estoque, comodato e caixa de uma venda de outra pessoa. A
+ * checagem é redundante com a tela, que já esconde o botão: aqui é o que
+ * decide de verdade, porque a tela é só conveniência.
  */
-export async function cancelarVenda(
-  vendaId: string,
-  senha: string,
-): Promise<ResultadoCancelamento> {
-  const senhaEsperada = process.env.SENHA_EXCLUSAO_VENDA
-  if (!senhaEsperada) {
-    return { ok: false, erro: 'Senha de exclusão não configurada. Fale com o suporte.' }
-  }
-  if (senha !== senhaEsperada) {
-    return { ok: false, erro: 'Senha incorreta.' }
-  }
-
+export async function cancelarVenda(vendaId: string): Promise<ResultadoCancelamento> {
   try {
     return await comTenant(async (tx, sessao) => {
+      if (sessao.papel !== 'dono') {
+        return { ok: false, erro: 'Apenas o dono pode cancelar vendas.' }
+      }
+
       const [venda] = await tx.select().from(vendas).where(eq(vendas.id, vendaId)).limit(1)
       if (!venda) return { ok: false, erro: 'Venda não encontrada.' }
       if (venda.status === 'cancelada') return { ok: false, erro: 'Esta venda já foi cancelada.' }

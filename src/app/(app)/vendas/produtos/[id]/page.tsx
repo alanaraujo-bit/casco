@@ -7,6 +7,7 @@ import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { exigirSessao } from '@/lib/dal'
 import { formatarData, formatarDataHora, formatarDataISO, formatarTelefone } from '@/lib/formatos'
 import { cn, moeda } from '@/lib/utils'
 import {
@@ -54,7 +55,7 @@ const quantidade = (valor: string) => Number(valor).toLocaleString('pt-BR')
 export default async function PaginaVenda({ params }: PageProps<'/vendas/produtos/[id]'>) {
   const { id } = await params
 
-  const venda = await acharVenda(id)
+  const [sessao, venda] = await Promise.all([exigirSessao(), acharVenda(id)])
   // A RLS já garante que uma venda de outra distribuidora não é encontrada — o
   // 404 aqui é o mesmo caminho para "não existe" e "não é sua", que é o que
   // evita a tela confirmar a existência de dado alheio.
@@ -375,6 +376,12 @@ export default async function PaginaVenda({ params }: PageProps<'/vendas/produto
         <Card className="p-4 md:p-5">
           <p className="text-sm text-texto-suave">
             Esta venda está cancelada e não aceita mais alteração.
+          </p>
+        </Card>
+      ) : sessao.papel !== 'dono' ? (
+        <Card className="p-4 md:p-5">
+          <p className="text-sm text-texto-suave">
+            Só quem é dono edita esta venda. Sua conta enxerga tudo aqui, mas não grava alteração.
           </p>
         </Card>
       ) : (

@@ -156,6 +156,28 @@ export async function voltarAoPainel() {
   redirect('/admin')
 }
 
+/**
+ * Exclui (desativa) uma distribuidora inteira. `on delete restrict` nas
+ * tabelas de negócio torna o `DELETE` físico impossível assim que existe
+ * qualquer lançamento — ver `admin_definir_ativo_empresa` na migration 0019.
+ *
+ * Empresa desativada não aparece disponível para "Entrar" na portaria
+ * (`entrarNaEmpresa` já recusa via `admin_empresa`), mas continua listada,
+ * com o badge de desativada — reativar é o mesmo botão, sentido oposto.
+ */
+export async function alternarEmpresa(form: FormData) {
+  await exigirAdmin()
+
+  const id = String(form.get('empresaId') ?? '')
+  const ativo = String(form.get('ativo') ?? '') === 'true'
+
+  if (!ehUuid(id)) return
+
+  await db.execute(sql`select admin_definir_ativo_empresa(${id}, ${ativo})`)
+
+  revalidatePath('/admin')
+}
+
 // -------------------------------------------------------- acessos da empresa
 
 /**
@@ -254,6 +276,27 @@ export async function alternarAcesso(form: FormData) {
   if (!ehUuid(companyId) || !ehUuid(usuarioId)) return
 
   await db.execute(sql`select admin_definir_ativo(${usuarioId}, ${companyId}, ${ativo})`)
+
+  revalidatePath(`/admin/empresas/${companyId}`)
+  revalidatePath('/admin')
+}
+
+/**
+ * Exclui um acesso: mesmo efeito de `alternarAcesso(..., false)`, `ativo =
+ * false` via `admin_definir_ativo`. Ação separada porque a tela usa uma
+ * confirmação diferente da de desativar — digitar o nome da pessoa, como no
+ * GitHub — e não faz sentido a mesma action servir aos dois botões com
+ * semânticas de risco diferentes.
+ */
+export async function excluirAcesso(form: FormData) {
+  await exigirAdmin()
+
+  const companyId = String(form.get('companyId') ?? '')
+  const usuarioId = String(form.get('usuarioId') ?? '')
+
+  if (!ehUuid(companyId) || !ehUuid(usuarioId)) return
+
+  await db.execute(sql`select admin_definir_ativo(${usuarioId}, ${companyId}, false)`)
 
   revalidatePath(`/admin/empresas/${companyId}`)
   revalidatePath('/admin')

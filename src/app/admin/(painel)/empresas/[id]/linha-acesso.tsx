@@ -2,13 +2,14 @@
 
 import { useActionState, useState } from 'react'
 import { useFormStatus } from 'react-dom'
-import { CircleCheck, KeyRound, TriangleAlert } from 'lucide-react'
+import { CircleCheck, KeyRound, Trash2, TriangleAlert } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { DialogConfirmarExclusao } from '@/components/ui/dialog-confirmar-exclusao'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { alternarAcesso, redefinirSenhaAcesso } from '@/modules/admin/acoes'
+import { alternarAcesso, excluirAcesso, redefinirSenhaAcesso } from '@/modules/admin/acoes'
 import { DESCRICAO_PAPEL, type EstadoAcesso, type PapelAcesso } from '@/modules/admin/esquema'
 import { formatarData } from '@/lib/formatos'
 import type { AcessoResumo } from '@/modules/admin/consultas'
@@ -91,17 +92,32 @@ export function LinhaAcesso({ acesso, companyId }: { acesso: AcessoResumo; compa
             Redefinir senha
           </Button>
 
-          <form action={alternarAcesso}>
-            <input type="hidden" name="companyId" value={companyId} />
-            <input type="hidden" name="usuarioId" value={acesso.id} />
-            <input type="hidden" name="ativo" value={acesso.ativo ? 'false' : 'true'} />
-            <BotaoEnviar
-              variant={acesso.ativo ? 'secundario' : 'primario'}
-              pendente={acesso.ativo ? 'Desativando…' : 'Reativando…'}
-            >
-              {acesso.ativo ? 'Desativar' : 'Reativar'}
-            </BotaoEnviar>
-          </form>
+          {acesso.ativo ? (
+            <DialogConfirmarExclusao
+              titulo={`Excluir acesso de ${acesso.nome}`}
+              descricao="O login para de funcionar. O histórico de vendas e movimentos continua no nome dela — nada some, só o acesso."
+              nomeConfirmacao={acesso.nome}
+              rotuloConfirmacao="Excluir acesso"
+              rotuloPendente="Excluindo…"
+              action={excluirAcesso}
+              camposOcultos={{ companyId, usuarioId: acesso.id }}
+              trigger={
+                <Button type="button" variant="perigo" size="sm" className="w-full sm:w-auto">
+                  <Trash2 aria-hidden />
+                  Excluir
+                </Button>
+              }
+            />
+          ) : (
+            <form action={alternarAcesso}>
+              <input type="hidden" name="companyId" value={companyId} />
+              <input type="hidden" name="usuarioId" value={acesso.id} />
+              <input type="hidden" name="ativo" value="true" />
+              <BotaoEnviar variant="primario" pendente="Reativando…">
+                Reativar
+              </BotaoEnviar>
+            </form>
+          )}
         </div>
       </div>
 

@@ -37,6 +37,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# fotos-fonte de cédula/moeda: só o PNG processado em public/icones-dinheiro
+# entra no repositório — ver scripts/processar-cedulas.mjs
+/cedulas
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

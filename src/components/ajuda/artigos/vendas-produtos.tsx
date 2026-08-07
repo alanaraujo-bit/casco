@@ -76,11 +76,15 @@ export function ArtigoVendasProdutos() {
 
           <Passo numero={5} titulo="Cancele uma venda lançada errada">
             <p>
-              Na coluna <strong>Ações</strong>, clique no ícone de cancelar, digite a{' '}
-              <strong>senha de exclusão</strong> e confirme. A venda não some da lista — ela ganha
-              o selo <strong>Cancelada</strong> e continua ali como registro. O estoque baixado
-              volta, o comodato entregue é desfeito e o dinheiro que tinha entrado no caixa sai de
-              novo, como um lançamento de estorno.
+              Na coluna <strong>Ações</strong>, clique no ícone de cancelar e confirme. A venda não
+              some da lista — ela ganha o selo <strong>Cancelada</strong> e continua ali como
+              registro. O estoque baixado volta, o comodato entregue é desfeito e o dinheiro que
+              tinha entrado no caixa sai de novo, como um lançamento de estorno.
+            </p>
+            <p>
+              Só quem tem papel de <strong>dono</strong> vê esse botão e consegue editar ou marcar
+              entregador numa venda já fechada. Operador enxerga a listagem e cada venda por
+              inteiro, mas não altera nada aqui.
             </p>
           </Passo>
         </Passos>
@@ -96,9 +100,10 @@ export function ArtigoVendasProdutos() {
           Financeiro. Cancelar uma venda com dinheiro já baixado devolveria ao caixa um valor que
           ninguém decidiu devolver — a tela pede esse passo antes, de propósito.
         </Atencao>
-        <Dica titulo="Não sei a senha de exclusão">
-          É uma segunda trava, separada da conta de cada operadora — fale com quem administra o
-          Casco na distribuidora para conseguir a senha.
+        <Dica titulo="O botão de cancelar não aparece para mim">
+          Só contas com papel de dono cancelam ou editam uma venda. As demais contas veem a
+          listagem e cada venda por inteiro, sem esse botão — fale com quem administra o Casco na
+          distribuidora se precisar cancelar algo.
         </Dica>
       </SecaoArtigo>
 
@@ -120,7 +125,8 @@ export function ArtigoVendasProdutos() {
             Venda errada se refaz. Excluir de vez também não — o que existe é cancelar: a venda
             fica na lista com o selo Cancelada, e tudo que ela gerou (estoque, comodato, caixa,
             título a receber) é desfeito. É assim que estoque e caixa continuam explicáveis pelo
-            histórico que os gerou, em vez de uma linha que simplesmente sumiu.
+            histórico que os gerou, em vez de uma linha que simplesmente sumiu. As duas ações são
+            só para quem tem papel de dono.
           </Faq>
           <Faq pergunta="A coluna Água conta o quê?">
             Os galões de produto retornável daquela venda. Água em copo ou garrafa descartável não
