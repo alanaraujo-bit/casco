@@ -34,6 +34,17 @@ export const users = pgTable(
   (t) => [index('users_company_idx').on(t.companyId)],
 )
 
+/**
+ * Marcador de sincronização — uma linha por empresa, com o instante do
+ * último lançamento. Ver `marcarMudanca` em `src/modules/sincronizacao/servidor.ts`.
+ */
+export const companySync = pgTable('company_sync', {
+  companyId: uuid('company_id')
+    .primaryKey()
+    .references(() => companies.id),
+  atualizadoEm: timestamp('atualizado_em', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export type Company = typeof companies.$inferSelect
 export type User = typeof users.$inferSelect
 export type Papel = User['papel']

@@ -17,6 +17,7 @@ import {
 import { comTenant } from '@/lib/dal'
 import { descreverFalha, type Falha } from '@/lib/erros'
 import { autorDoLancamento } from '@/lib/sessao'
+import { marcarMudanca } from '@/modules/sincronizacao/servidor'
 import { dataNaLoja } from '@/lib/formatos'
 import { centavos, deCentavos } from '@/modules/vendas/esquema'
 import {
@@ -200,6 +201,7 @@ export async function receberTitulo(
         usuarioId: autorDoLancamento(sessao),
       })
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarTudo()
 
       return {
@@ -281,6 +283,7 @@ export async function desfazerBaixa(tituloId: string): Promise<ResultadoDesfazer
         .set({ pagoEm: null, valorPago: null, taxas: '0' })
         .where(and(eq(contasReceber.id, titulo.id), isNotNull(contasReceber.pagoEm)))
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarTudo()
       return { ok: true }
     })
@@ -387,6 +390,7 @@ export async function lancarContaPagar(
         })),
       )
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarPagar()
 
       return {
@@ -504,6 +508,7 @@ export async function pagarConta(anterior: EstadoQuitar, form: FormData): Promis
         usuarioId: autorDoLancamento(sessao),
       })
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarPagar()
 
       return {
@@ -564,6 +569,7 @@ export async function desfazerPagamento(contaPagarId: string): Promise<Resultado
         .set({ pagoEm: null, valorPago: null })
         .where(and(eq(contasPagar.id, conta.id), isNotNull(contasPagar.pagoEm)))
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarPagar()
       return { ok: true }
     })
@@ -630,6 +636,7 @@ export async function abrirCaixa(
         usuarioId: autorDoLancamento(sessao),
       })
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarAbertura()
 
       return {
@@ -724,6 +731,7 @@ export async function salvarConta(anterior: EstadoConta, form: FormData): Promis
           .values({ id: uuidv7(), companyId: sessao.companyId, ...linha })
       }
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarMeios()
       return { tentativa, sucesso: { nome: dados.nome, novo: !id } }
     })
@@ -810,6 +818,7 @@ export async function salvarForma(anterior: EstadoForma, form: FormData): Promis
           .values({ id: uuidv7(), companyId: sessao.companyId, ...linha })
       }
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarMeios()
       return { tentativa, sucesso: { nome: dados.nome, novo: !id } }
     })
@@ -828,7 +837,7 @@ export async function salvarForma(anterior: EstadoForma, form: FormData): Promis
  */
 export async function alternarConta(id: string): Promise<ResultadoDesfazer> {
   try {
-    return await comTenant(async (tx) => {
+    return await comTenant(async (tx, sessao) => {
       const [conta] = await tx
         .select({ ativo: contasBancarias.ativo })
         .from(contasBancarias)
@@ -854,6 +863,7 @@ export async function alternarConta(id: string): Promise<ResultadoDesfazer> {
         .set({ ativo: !conta.ativo, atualizadoEm: new Date() })
         .where(eq(contasBancarias.id, id))
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarMeios()
       return { ok: true }
     })
@@ -865,7 +875,7 @@ export async function alternarConta(id: string): Promise<ResultadoDesfazer> {
 /** Ativa ou desativa uma forma de pagamento. Mesma regra da última ativa. */
 export async function alternarForma(id: string): Promise<ResultadoDesfazer> {
   try {
-    return await comTenant(async (tx) => {
+    return await comTenant(async (tx, sessao) => {
       const [forma] = await tx
         .select({ ativo: formasPagamento.ativo })
         .from(formasPagamento)
@@ -891,6 +901,7 @@ export async function alternarForma(id: string): Promise<ResultadoDesfazer> {
         .set({ ativo: !forma.ativo, atualizadoEm: new Date() })
         .where(eq(formasPagamento.id, id))
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarMeios()
       return { ok: true }
     })

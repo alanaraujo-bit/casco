@@ -15,6 +15,7 @@ import { comTenant } from '@/lib/dal'
 import { descreverFalha, type Falha } from '@/lib/erros'
 import { autorDoLancamento } from '@/lib/sessao'
 import { formatarDataHora } from '@/lib/formatos'
+import { marcarMudanca } from '@/modules/sincronizacao/servidor'
 import {
   CAMPOS_MOVIMENTO,
   REGRA,
@@ -138,6 +139,7 @@ export async function lancarMovimento(
         saldoCliente = saldo?.quantidade ?? 0
       }
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarTudo()
 
       return {
@@ -204,6 +206,7 @@ export async function estornarMovimento(id: string): Promise<ResultadoEstorno> {
         estornoDe: original.id,
       })
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarTudo()
       return { ok: true }
     })

@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { dataNaLoja } from '@/lib/formatos'
 
 export type AtalhoFiltro = 'vencido' | 'a_vencer' | 'pago' | 'vence_hoje' | 'vence_7dias'
 
@@ -16,8 +17,19 @@ function paraData(br: string): Date | null {
   return new Date(Number(a), Number(m) - 1, Number(d))
 }
 
-function inicioDoDia(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+/**
+ * `YYYY-MM-DD` → `Date`, à meia-noite local.
+ *
+ * "Hoje" não pode vir de `new Date()` puro: isso pega o fuso do dispositivo
+ * de quem está com a tela aberta, não o da loja. Um celular configurado em
+ * outro fuso (ou com fuso automático desligado) classificaria "Vence Hoje"
+ * de forma diferente do que o resto do sistema considera hoje. `dataNaLoja`
+ * já resolve isso via `America/Belem`; aqui só convertemos a data de volta
+ * em componentes ano/mês/dia locais para comparar com `paraData`.
+ */
+function inicioDoDia(iso: string) {
+  const [ano, mes, dia] = iso.split('-').map(Number)
+  return new Date(ano, mes - 1, dia)
 }
 
 /**
@@ -35,9 +47,8 @@ export function filtrarPorAtalho<T extends LinhaComVencimento>(
 ): T[] {
   if (!atalho) return linhas
 
-  const hoje = inicioDoDia(new Date())
-  const em7Dias = new Date(hoje)
-  em7Dias.setDate(em7Dias.getDate() + 7)
+  const hoje = inicioDoDia(dataNaLoja())
+  const em7Dias = inicioDoDia(dataNaLoja(7))
 
   return linhas.filter((l) => {
     if (atalho === 'pago') return l.situacao === rotuloPago

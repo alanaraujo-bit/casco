@@ -24,6 +24,7 @@ import {
 } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
 import { descreverFalha, type Falha } from '@/lib/erros'
+import { marcarMudanca } from '@/modules/sincronizacao/servidor'
 import { autorDoLancamento } from '@/lib/sessao'
 import {
   dataNaLoja,
@@ -85,6 +86,8 @@ function revalidarTudo() {
   revalidatePath('/vendas/pdv')
   revalidatePath('/vendas/produtos')
   revalidatePath('/financeiro/receber')
+  revalidatePath('/financeiro/caixa')
+  revalidatePath('/estoque/entradas')
   revalidatePath('/vasilhame/saldos')
   revalidatePath('/vasilhame/movimentos')
   revalidatePath('/painel')
@@ -554,6 +557,7 @@ export async function fecharVenda(
       const troco =
         forma.tipo === 'dinheiro' && recebido > total ? deCentavos(recebido - total) : null
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarTudo()
 
       return {
@@ -685,6 +689,7 @@ export async function corrigirEntrega(
         })
         .where(eq(vendas.id, venda.id))
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidatePath('/vendas/produtos')
       revalidatePath(`/vendas/produtos/${venda.id}`)
       revalidatePath('/relatorios/entregadores')
@@ -821,6 +826,7 @@ export async function cancelarVenda(vendaId: string): Promise<ResultadoCancelame
         .set({ status: 'cancelada', atualizadoEm: new Date() })
         .where(eq(vendas.id, vendaId))
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarTudo()
       return { ok: true }
     })

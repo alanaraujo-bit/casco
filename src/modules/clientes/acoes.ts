@@ -8,6 +8,7 @@ import { uuidv7 } from 'uuidv7'
 import { clientes } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
 import { descreverFalha } from '@/lib/erros'
+import { marcarMudanca } from '@/modules/sincronizacao/servidor'
 import { acharPorDocumento } from './consultas'
 import {
   CAMPOS_CLIENTE,
@@ -105,14 +106,15 @@ export async function criarCliente(
   const id = uuidv7()
 
   try {
-    await comTenant((tx, sessao) =>
-      tx.insert(clientes).values({
+    await comTenant(async (tx, sessao) => {
+      await tx.insert(clientes).values({
         id,
         companyId: sessao.companyId,
         ...dados,
         limiteCredito: String(dados.limiteCredito),
-      }),
-    )
+      })
+      await marcarMudanca(tx, sessao.companyId)
+    })
   } catch (err) {
     if (ehDocumentoDuplicado(err)) {
       return {
@@ -147,13 +149,15 @@ export async function atualizarCliente(
   if (conflito) return conflito
 
   try {
-    const alteradas = await comTenant((tx) =>
-      tx
+    const alteradas = await comTenant(async (tx, sessao) => {
+      const linhas = await tx
         .update(clientes)
         .set({ ...dados, limiteCredito: String(dados.limiteCredito) })
         .where(eq(clientes.id, id))
-        .returning({ id: clientes.id }),
-    )
+        .returning({ id: clientes.id })
+      if (linhas.length > 0) await marcarMudanca(tx, sessao.companyId)
+      return linhas
+    })
 
     // Zero linhas com id existente significa cliente de outro tenant: a RLS
     // filtrou e o `update` não achou nada. Mensagem igual à de não existir —
@@ -189,9 +193,10 @@ export async function atualizarCliente(
  * também recusa, por `on delete restrict`; aqui a interface nem oferece.
  */
 export async function alternarAtivoCliente(id: string, ativo: boolean) {
-  await comTenant((tx) =>
-    tx.update(clientes).set({ ativo }).where(eq(clientes.id, id)),
-  )
+  await comTenant(async (tx, sessao) => {
+    await tx.update(clientes).set({ ativo }).where(eq(clientes.id, id))
+    await marcarMudanca(tx, sessao.companyId)
+  })
   // `'layout'` e não o padrão `'page'`: o botão vive na ficha
   // (`/cadastro/clientes/[id]`), não na lista. Revalidando só a lista, quem
   // clicasse em "Inativar" ficaria olhando um botão que não muda, com a

@@ -3,8 +3,6 @@ import { CalendarDays, CreditCard, Receipt, TrendingUp } from 'lucide-react'
 import { CabecalhoPagina } from '@/components/layout/cabecalho-pagina'
 import { Chip } from '@/components/painel/pecas'
 import { Card } from '@/components/ui/card'
-import { SincronizarAoVivo } from '@/components/sincronizar-ao-vivo'
-import { exigirSessao } from '@/lib/dal'
 import { moeda } from '@/lib/utils'
 import { listarVendas, metricasVendas } from '@/modules/vendas/consultas'
 import { TabelaVendas } from './tabela-vendas'
@@ -12,11 +10,7 @@ import { TabelaVendas } from './tabela-vendas'
 export const metadata: Metadata = { title: 'Vendas de Produtos' }
 
 export default async function PaginaVendas() {
-  const [sessao, linhas, m] = await Promise.all([
-    exigirSessao(),
-    listarVendas(),
-    metricasVendas(),
-  ])
+  const [linhas, m] = await Promise.all([listarVendas(), metricasVendas()])
 
   const cartoes = [
     {
@@ -53,10 +47,6 @@ export default async function PaginaVendas() {
 
   return (
     <div className="space-y-5">
-      {/* Sem tela nenhuma: só liga a atualização automática quando o PDV, em
-          outra aba, fecha uma venda — ver `sincronizar-ao-vivo.tsx`. */}
-      <SincronizarAoVivo companyId={sessao.companyId} evento="vendas" />
-
       <CabecalhoPagina
         titulo="Vendas de Produtos"
         descricao="Tudo que foi vendido — o que entrou no caixa e o que ficou a receber"

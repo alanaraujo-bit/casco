@@ -1,3 +1,4 @@
+import { SincronizarAoVivo } from '@/components/sincronizar-ao-vivo'
 import { exigirSessao } from '@/lib/dal'
 
 /**
@@ -13,5 +14,10 @@ import { exigirSessao } from '@/lib/dal'
  */
 export default async function LayoutPdv({ children }: { children: React.ReactNode }) {
   await exigirSessao()
-  return <div className="min-h-dvh bg-fundo">{children}</div>
+  return (
+    <div className="min-h-dvh bg-fundo">
+      <SincronizarAoVivo />
+      {children}
+    </div>
+  )
 }

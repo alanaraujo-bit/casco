@@ -8,6 +8,7 @@ import { uuidv7 } from 'uuidv7'
 import { entregadores } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
 import { descreverFalha } from '@/lib/erros'
+import { marcarMudanca } from '@/modules/sincronizacao/servidor'
 import {
   CAMPOS_ENTREGADOR,
   esquemaEntregador,
@@ -48,13 +49,14 @@ export async function criarEntregador(
   const id = uuidv7()
 
   try {
-    await comTenant((tx, sessao) =>
-      tx.insert(entregadores).values({
+    await comTenant(async (tx, sessao) => {
+      await tx.insert(entregadores).values({
         id,
         companyId: sessao.companyId,
         ...dados,
-      }),
-    )
+      })
+      await marcarMudanca(tx, sessao.companyId)
+    })
   } catch (err) {
     return { erro: descreverFalha(err), valores, tentativa }
   }
@@ -76,13 +78,15 @@ export async function atualizarEntregador(
   const dados = analise.data
 
   try {
-    const alteradas = await comTenant((tx) =>
-      tx
+    const alteradas = await comTenant(async (tx, sessao) => {
+      const linhas = await tx
         .update(entregadores)
         .set(dados)
         .where(eq(entregadores.id, id))
-        .returning({ id: entregadores.id }),
-    )
+        .returning({ id: entregadores.id })
+      if (linhas.length > 0) await marcarMudanca(tx, sessao.companyId)
+      return linhas
+    })
 
     if (alteradas.length === 0) {
       return { erro: 'Entregador não encontrado.', valores, tentativa }
@@ -96,6 +100,9 @@ export async function atualizarEntregador(
 }
 
 export async function alternarAtivoEntregador(id: string, ativo: boolean) {
-  await comTenant((tx) => tx.update(entregadores).set({ ativo }).where(eq(entregadores.id, id)))
+  await comTenant(async (tx, sessao) => {
+    await tx.update(entregadores).set({ ativo }).where(eq(entregadores.id, id))
+    await marcarMudanca(tx, sessao.companyId)
+  })
   revalidatePath('/cadastro/entregadores', 'layout')
 }

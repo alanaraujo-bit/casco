@@ -27,7 +27,6 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { cn, moeda } from '@/lib/utils'
-import { avisarMudanca } from '@/lib/sincronizar'
 import { centavos, deCentavos, paraNumero, type EstadoVenda } from '@/modules/vendas/esquema'
 import { caminhoIconeProduto } from '@/modules/produtos/icones'
 import { caminhoIconeDinheiro } from '@/modules/financeiro/icones-dinheiro'
@@ -487,20 +486,10 @@ export function Pdv({
     localStorage.removeItem(chaveRascunho)
   }
 
-  const avisadoRef = useRef(0)
   useEffect(() => {
     if (!estado.recibo) return
     buscaRef.current?.focus()
-    // Guardado por `tentativa`, e não só por `estado.recibo` existir: sem
-    // isto, o StrictMode do React (que roda todo efeito duas vezes em
-    // desenvolvimento) avisaria a mesma venda duas vezes — inofensivo aqui
-    // (a outra aba só busca de novo um dado que já busca de novo mesmo), mas
-    // sem necessidade.
-    if (avisadoRef.current !== estado.tentativa) {
-      avisadoRef.current = estado.tentativa ?? 0
-      avisarMudanca(companyId, 'vendas')
-    }
-  }, [estado, companyId])
+  }, [estado])
 
   const filtrados = useMemo(() => {
     const termo = busca.trim().toLowerCase()

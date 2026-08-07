@@ -1,4 +1,5 @@
 import { AppShell } from '@/components/layout/app-shell'
+import { SincronizarAoVivo } from '@/components/sincronizar-ao-vivo'
 import { exigirSessao } from '@/lib/dal'
 import { contarPatchNotesNaoLidos } from '@/modules/patch-notes/consultas'
 
@@ -29,6 +30,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       }}
       naoLidosAtualizacoes={naoLidosAtualizacoes}
     >
+      <SincronizarAoVivo />
       {children}
     </AppShell>
   )

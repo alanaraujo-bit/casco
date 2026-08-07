@@ -8,6 +8,7 @@ import { uuidv7 } from 'uuidv7'
 import { fornecedores } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
 import { descreverFalha } from '@/lib/erros'
+import { marcarMudanca } from '@/modules/sincronizacao/servidor'
 import { acharFornecedorPorDocumento } from './consultas'
 import {
   CAMPOS_FORNECEDOR,
@@ -79,13 +80,14 @@ export async function criarFornecedor(
   const id = uuidv7()
 
   try {
-    await comTenant((tx, sessao) =>
-      tx.insert(fornecedores).values({
+    await comTenant(async (tx, sessao) => {
+      await tx.insert(fornecedores).values({
         id,
         companyId: sessao.companyId,
         ...dados,
-      }),
-    )
+      })
+      await marcarMudanca(tx, sessao.companyId)
+    })
   } catch (err) {
     if (ehDocumentoDuplicado(err)) {
       return {
@@ -120,13 +122,15 @@ export async function atualizarFornecedor(
   if (conflito) return conflito
 
   try {
-    const alteradas = await comTenant((tx) =>
-      tx
+    const alteradas = await comTenant(async (tx, sessao) => {
+      const linhas = await tx
         .update(fornecedores)
         .set(dados)
         .where(eq(fornecedores.id, id))
-        .returning({ id: fornecedores.id }),
-    )
+        .returning({ id: fornecedores.id })
+      if (linhas.length > 0) await marcarMudanca(tx, sessao.companyId)
+      return linhas
+    })
 
     if (alteradas.length === 0) {
       return { erro: 'Fornecedor não encontrado.', valores, tentativa }
@@ -151,8 +155,9 @@ export async function atualizarFornecedor(
 }
 
 export async function alternarAtivoFornecedor(id: string, ativo: boolean) {
-  await comTenant((tx) =>
-    tx.update(fornecedores).set({ ativo }).where(eq(fornecedores.id, id)),
-  )
+  await comTenant(async (tx, sessao) => {
+    await tx.update(fornecedores).set({ ativo }).where(eq(fornecedores.id, id))
+    await marcarMudanca(tx, sessao.companyId)
+  })
   revalidatePath('/cadastro/fornecedores', 'layout')
 }

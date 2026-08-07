@@ -8,6 +8,7 @@ import { uuidv7 } from 'uuidv7'
 import { tabelasPreco, precos } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
 import { descreverFalha } from '@/lib/erros'
+import { marcarMudanca } from '@/modules/sincronizacao/servidor'
 import {
   CAMPOS_TABELA,
   esquemaTabela,
@@ -62,6 +63,7 @@ export async function criarTabela(
         nome: dados.nome,
         padrao: dados.padrao,
       })
+      await marcarMudanca(tx, sessao.companyId)
     })
   } catch (err) {
     return { erro: descreverFalha(err), valores, tentativa }
@@ -85,7 +87,7 @@ export async function atualizarTabela(
 
   let alteradas: { id: string }[]
   try {
-    alteradas = await comTenant(async (tx) => {
+    alteradas = await comTenant(async (tx, sessao) => {
       if (dados.padrao) {
         await tx
           .update(tabelasPreco)
@@ -93,11 +95,13 @@ export async function atualizarTabela(
           .where(eq(tabelasPreco.padrao, true))
       }
 
-      return tx
+      const linhas = await tx
         .update(tabelasPreco)
         .set({ nome: dados.nome, padrao: dados.padrao })
         .where(eq(tabelasPreco.id, id))
         .returning({ id: tabelasPreco.id })
+      if (linhas.length > 0) await marcarMudanca(tx, sessao.companyId)
+      return linhas
     })
   } catch (err) {
     return { erro: descreverFalha(err), valores, tentativa }
@@ -112,9 +116,10 @@ export async function atualizarTabela(
 }
 
 export async function alternarAtivoTabela(id: string, ativo: boolean) {
-  await comTenant((tx) =>
-    tx.update(tabelasPreco).set({ ativo }).where(eq(tabelasPreco.id, id)),
-  )
+  await comTenant(async (tx, sessao) => {
+    await tx.update(tabelasPreco).set({ ativo }).where(eq(tabelasPreco.id, id))
+    await marcarMudanca(tx, sessao.companyId)
+  })
   revalidatePath('/cadastro/tabelas-preco', 'layout')
 }
 
@@ -144,6 +149,8 @@ export async function salvarPrecos(tabelaId: string, form: FormData) {
         })),
       )
     }
+
+    await marcarMudanca(tx, sessao.companyId)
   })
 
   revalidatePath('/cadastro/tabelas-preco', 'layout')

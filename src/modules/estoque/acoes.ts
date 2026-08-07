@@ -15,6 +15,7 @@ import {
 import { comTenant } from '@/lib/dal'
 import { descreverFalha, type Falha } from '@/lib/erros'
 import { autorDoLancamento } from '@/lib/sessao'
+import { marcarMudanca } from '@/modules/sincronizacao/servidor'
 import { dataNaLoja, formatarDataHora } from '@/lib/formatos'
 import { centavos, deCentavos } from '@/modules/vendas/esquema'
 import {
@@ -176,6 +177,7 @@ export async function lancarMovimento(
         .where(eq(estoqueSaldos.produtoId, dados.produtoId))
         .limit(1)
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarTudo()
 
       return {
@@ -257,6 +259,7 @@ export async function estornarMovimento(id: string): Promise<ResultadoEstorno> {
         estornoDe: original.id,
       })
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarTudo()
       return { ok: true }
     })
@@ -316,6 +319,7 @@ export async function excluirMovimento(id: string): Promise<ResultadoExclusao> {
         })
         .where(eq(estoqueMovimentos.id, id))
 
+      await marcarMudanca(tx, sessao.companyId)
       revalidarTudo()
       return { ok: true }
     })

@@ -9,6 +9,7 @@ import { estoqueMovimentos, produtos } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
 import { descreverFalha } from '@/lib/erros'
 import { autorDoLancamento } from '@/lib/sessao'
+import { marcarMudanca } from '@/modules/sincronizacao/servidor'
 import {
   CAMPOS_PRODUTO,
   esquemaProduto,
@@ -93,6 +94,8 @@ export async function criarProduto(
           observacao: 'Estoque inicial, lançado no cadastro do produto',
         })
       }
+
+      await marcarMudanca(tx, sessao.companyId)
     })
   } catch (err) {
     // Sem isto, SKU repetido ou NCM inválido — as duas regras que só o banco
@@ -103,6 +106,7 @@ export async function criarProduto(
 
   revalidatePath('/cadastro/produtos')
   revalidatePath('/estoque/saldo')
+  revalidatePath('/estoque/entradas')
   redirect(`/cadastro/produtos?novo=${id}`)
 }
 
@@ -120,8 +124,8 @@ export async function atualizarProduto(
 
   let alteradas: { id: string }[]
   try {
-    alteradas = await comTenant((tx) =>
-      tx
+    alteradas = await comTenant(async (tx, sessao) => {
+      const linhas = await tx
         .update(produtos)
         .set({
           nome: dados.nome,
@@ -139,8 +143,11 @@ export async function atualizarProduto(
           ncm: dados.ncm,
         })
         .where(eq(produtos.id, id))
-        .returning({ id: produtos.id }),
-    )
+        .returning({ id: produtos.id })
+
+      if (linhas.length > 0) await marcarMudanca(tx, sessao.companyId)
+      return linhas
+    })
   } catch (err) {
     return { erro: descreverFalha(err), valores, tentativa }
   }
@@ -154,8 +161,9 @@ export async function atualizarProduto(
 }
 
 export async function alternarAtivoProduto(id: string, ativo: boolean) {
-  await comTenant((tx) =>
-    tx.update(produtos).set({ ativo }).where(eq(produtos.id, id)),
-  )
+  await comTenant(async (tx, sessao) => {
+    await tx.update(produtos).set({ ativo }).where(eq(produtos.id, id))
+    await marcarMudanca(tx, sessao.companyId)
+  })
   revalidatePath('/cadastro/produtos', 'layout')
 }
