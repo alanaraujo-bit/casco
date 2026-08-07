@@ -190,3 +190,48 @@ export interface EstadoVenda {
   tentativa?: number
   recibo?: ReciboVenda
 }
+
+/* ------------------------------------------------------- corrigir uma venda */
+
+/**
+ * O que uma venda fechada aceita mudar depois — e por que só isto.
+ *
+ * Item, preço, desconto e forma de pagamento **não** entram aqui, e a ausência é
+ * a decisão. Cada um deles já virou saída de estoque, entrada de caixa, título
+ * a receber e saldo de comodato no momento em que a venda fechou; editar o
+ * número na venda sem refazer as outras cinco tabelas deixa o sistema
+ * concordando consigo mesmo em cada tela isoladamente e errado no total — que é
+ * a classe de defeito mais cara de descobrir, porque nada acusa.
+ *
+ * O que sobra é o que não tem contrapartida contábil nenhuma: **quem entregou** e
+ * **a observação**. Não é pouco — entregador em branco ou trocado é o erro real
+ * do balcão cheio, e é exatamente o dado de que o desempenho por entregador
+ * depende para significar alguma coisa.
+ */
+export const CAMPOS_ENTREGA = ['vendaId', 'entregadorId', 'observacao'] as const
+export type CampoEntrega = (typeof CAMPOS_ENTREGA)[number]
+
+export const esquemaEntrega = z.object({
+  vendaId: uuid,
+
+  /** Vazio = tirar a marcação. Nem toda venda tem entrega. */
+  entregadorId: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || z.string().uuid().safeParse(v).success, 'Entregador inválido')
+    .transform((v) => v || null),
+
+  observacao: z
+    .string()
+    .trim()
+    .max(300, 'Máximo de 300 caracteres')
+    .transform((v) => v || null),
+})
+
+export interface EstadoEntrega {
+  erro?: Falha | string
+  campos?: Partial<Record<CampoEntrega, string>>
+  tentativa?: number
+  /** Some sozinho na próxima edição — é confirmação, não estado da venda. */
+  salvo?: boolean
+}

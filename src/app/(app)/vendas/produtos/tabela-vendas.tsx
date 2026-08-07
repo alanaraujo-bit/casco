@@ -12,8 +12,14 @@ import type { VendaLista } from '@/modules/vendas/consultas'
 
 /**
  * A listagem de vendas, na ordem de colunas consagrada:
- * Operação · Código · Data · Cliente · Vendedor · Comissão · Tipo Venda ·
- * Parcelas · Valor · Recebido · Taxas · A Receber.
+ * Operação · Código · Data · Cliente · Entregador · Água · Vendedor · Comissão ·
+ * Tipo Venda · Parcelas · Valor · Recebido · Taxas · A Receber.
+ *
+ * **Entregador e Água entram logo depois de Cliente**, e a posição é a decisão:
+ * as três colunas respondem juntas a pergunta que a operadora faz olhando a
+ * lista — quem comprou, quanto de água levou e quem foi levar. Jogadas para o
+ * fim, depois de sete colunas de dinheiro, elas exigiriam rolagem horizontal
+ * justamente no dado que ela veio conferir.
  *
  * Comissão e Vendedor nascem ocultas: a JM não tem vendedor comissionado hoje,
  * e coluna que mostra zero em toda linha só ocupa a largura que falta para as
@@ -58,6 +64,47 @@ const colunas: Coluna<VendaLista>[] = [
     cabecalho: 'Cliente',
     texto: (v) => v.cliente,
     larguraMin: '14rem',
+  },
+  {
+    chave: 'entregador',
+    cabecalho: 'Entregador',
+    // Venda sem entregador não é dado faltando — muita venda é levada pelo
+    // próprio cliente no balcão. Mas "—" some no meio da tabela, e quem quer
+    // marcar depois precisa achar as linhas. O selo dá a elas um contorno.
+    texto: (v) => v.entregador ?? 'Não marcado',
+    celula: (v) =>
+      v.entregador ?? <span className="text-texto-fraco">Não marcado</span>,
+    larguraMin: '11rem',
+    papelMobile: 'campo',
+  },
+  {
+    chave: 'agua',
+    cabecalho: 'Água',
+    // A unidade fica na célula e não no cabeçalho: "Água (gal)" espreme a
+    // coluna, e um número solto sob "Água" não diz de que se está falando.
+    texto: (v) => (v.agua > 0 ? `${v.agua.toLocaleString('pt-BR')} gal` : '—'),
+    valor: (v) => v.agua,
+    numerica: true,
+    celula: (v) =>
+      v.agua > 0 ? (
+        <span className="tabular-nums text-texto">
+          {v.agua.toLocaleString('pt-BR')}
+          <span className="ml-1 text-2xs text-texto-fraco">gal</span>
+        </span>
+      ) : (
+        <span className="text-texto-fraco">—</span>
+      ),
+    larguraMin: '6.5rem',
+    papelMobile: 'campo',
+  },
+  {
+    chave: 'devolvido',
+    cabecalho: 'Vasilhame recolhido',
+    texto: (v) => (v.devolvido > 0 ? String(v.devolvido) : '—'),
+    valor: (v) => v.devolvido,
+    numerica: true,
+    ocultaPorPadrao: true,
+    papelMobile: 'oculto',
   },
   {
     chave: 'vendedor',
@@ -160,7 +207,10 @@ export function TabelaVendas({ linhas }: { linhas: VendaLista[] }) {
       colunas={colunas}
       linhas={linhas}
       chaveLinha={(v) => v.id}
-      buscaPlaceholder="Buscar por cliente, código ou forma de pagamento…"
+      // A linha inteira abre a venda — a âncora de verdade mora na coluna
+      // "Código", que é a marcada como título. Ver `TabelaDados`.
+      linkDaLinha={(v) => `/vendas/produtos/${v.id}`}
+      buscaPlaceholder="Buscar por cliente, entregador, código ou forma de pagamento…"
       nomeExportacao="vendas"
       densidadePadrao="compacta"
       acoesTopo={

@@ -3,13 +3,17 @@ import 'server-only'
 import { and, asc, desc, eq, sql } from 'drizzle-orm'
 import {
   clientes,
+  contasBancarias,
   contasReceber,
   entregadores,
   estoqueSaldos,
+  formasPagamento,
+  pagamentos,
   precos,
   produtos,
   tabelasPreco,
   users,
+  vasilhameMovimentos,
   vendaItens,
   vendas,
 } from '@/db/schema'
@@ -161,13 +165,19 @@ export function acharTabelaPadrao() {
 
 /**
  * Colunas na ordem consagrada: Operação · Código · Data ·
- * Cliente · Vendedor · Comissão · Tipo Venda · Parcelas · Valor · Recebido ·
- * Taxas · A Receber.
+ * Cliente · Entregador · Água · Vendedor · Comissão · Tipo Venda · Parcelas ·
+ * Valor · Recebido · Taxas · A Receber.
  *
  * "Recebido" e "A Receber" são **derivados**, não campos: recebido é o que
  * entrou em `pagamentos`, a receber é o que sobrou em aberto em
  * `contas_receber`. Gravadas na venda, as duas colunas param de bater no dia
  * em que alguém baixa um título por fora.
+ *
+ * "Água" segue a mesma regra e é a soma das quantidades dos itens de produto
+ * **retornável** — que é o que o cadastro chama de galão que gera comodato. Não
+ * é uma coluna de `vendas`, e não deve ser: água vendida é a soma dos itens, e
+ * congelá-la na venda faria a listagem discordar do item no dia em que um item
+ * for corrigido.
  */
 export interface VendaLista {
   id: string
@@ -175,6 +185,11 @@ export interface VendaLista {
   codigo: number | null
   criadoEm: Date
   cliente: string
+  entregador: string | null
+  /** Galões de produto retornável nesta venda. Ver a nota acima. */
+  agua: number
+  /** Vasilhames vazios que o cliente entregou junto, somados. */
+  devolvido: number
   vendedor: string | null
   comissao: string
   tipoVenda: string
@@ -213,6 +228,18 @@ export function listarVendas(limite = 500) {
     select count(*)::int from ${vendaItens} where ${vendaItens.vendaId} = ${vendas.id}
   ), 0)`
 
+  const agua = sql<number>`coalesce((
+    select sum(vi.quantidade)::float8
+      from venda_itens vi
+      join produtos p on p.id = vi.produto_id
+     where vi.venda_id = ${vendas.id} and p.retornavel
+  ), 0)`
+
+  const devolvido = sql<number>`coalesce((
+    select sum(${vendaItens.vasilhameDevolvido})::int
+      from ${vendaItens} where ${vendaItens.vendaId} = ${vendas.id}
+  ), 0)`
+
   return comTenant(async (tx) =>
     tx
       .select({
@@ -223,6 +250,9 @@ export function listarVendas(limite = 500) {
         // Venda avulsa não tem cliente, e isso não é dado faltando — é o caso
         // mais comum do balcão. A coluna diz o que aconteceu.
         cliente: sql<string>`coalesce(${clientes.nome}, 'Consumidor no balcão')`,
+        entregador: entregadores.nome,
+        agua,
+        devolvido,
         vendedor: users.nome,
         comissao: vendas.comissao,
         tipoVenda,
@@ -237,6 +267,7 @@ export function listarVendas(limite = 500) {
       .from(vendas)
       .leftJoin(clientes, eq(clientes.id, vendas.clienteId))
       .leftJoin(users, eq(users.id, vendas.vendedorId))
+      .leftJoin(entregadores, eq(entregadores.id, vendas.entregadorId))
       .orderBy(desc(vendas.criadoEm))
       .limit(limite),
   ) as Promise<VendaLista[]>
@@ -281,7 +312,13 @@ export function metricasVendas() {
 /* ------------------------------------------------------------- o comprovante */
 
 export interface ItemDaVenda {
+  id: string
+  produtoId: string
   produto: string
+  codigo: number | null
+  unidade: string
+  icone: string | null
+  retornavel: boolean
   quantidade: string
   precoUnitario: string
   total: string
@@ -292,7 +329,13 @@ export function itensDaVenda(vendaId: string) {
   return comTenant(async (tx) =>
     tx
       .select({
+        id: vendaItens.id,
+        produtoId: vendaItens.produtoId,
         produto: produtos.nome,
+        codigo: produtos.codigo,
+        unidade: produtos.unidade,
+        icone: produtos.icone,
+        retornavel: produtos.retornavel,
         quantidade: vendaItens.quantidade,
         precoUnitario: vendaItens.precoUnitario,
         total: vendaItens.total,
@@ -300,6 +343,172 @@ export function itensDaVenda(vendaId: string) {
       })
       .from(vendaItens)
       .innerJoin(produtos, eq(produtos.id, vendaItens.produtoId))
-      .where(eq(vendaItens.vendaId, vendaId)),
+      .where(eq(vendaItens.vendaId, vendaId))
+      .orderBy(asc(produtos.nome)),
   ) as Promise<ItemDaVenda[]>
+}
+
+/* ------------------------------------------------------------- o detalhe */
+
+/**
+ * Uma venda inteira, para a tela que se abre ao clicar na linha.
+ *
+ * A listagem responde "o que aconteceu hoje"; esta consulta responde "o que
+ * aconteceu **nesta** venda" — que é a pergunta de quem foi conferir um número
+ * que não bateu. Por isso ela traz os ids junto dos nomes: a tela precisa
+ * apontar de volta para o cliente, para o título e para o produto, e um detalhe
+ * que só mostra texto obriga a operadora a procurar tudo de novo no menu.
+ */
+export interface VendaDetalhe {
+  id: string
+  codigo: number | null
+  operacao: string
+  status: string
+  criadoEm: Date
+  clienteId: string | null
+  cliente: string | null
+  clienteTelefone: string | null
+  vendedor: string | null
+  entregadorId: string | null
+  entregador: string | null
+  /** `false` quando o entregador foi desativado depois da venda. */
+  entregadorAtivo: boolean | null
+  observacao: string | null
+  subtotal: string
+  desconto: string
+  total: string
+  taxas: string
+  comissao: string
+  parcelas: number
+}
+
+export function acharVenda(id: string) {
+  return comTenant(async (tx) => {
+    const [linha] = await tx
+      .select({
+        id: vendas.id,
+        codigo: vendas.codigo,
+        operacao: vendas.origem,
+        status: vendas.status,
+        criadoEm: vendas.criadoEm,
+        clienteId: vendas.clienteId,
+        cliente: clientes.nome,
+        clienteTelefone: clientes.telefone,
+        vendedor: users.nome,
+        entregadorId: vendas.entregadorId,
+        entregador: entregadores.nome,
+        entregadorAtivo: entregadores.ativo,
+        observacao: vendas.observacao,
+        subtotal: vendas.subtotal,
+        desconto: vendas.desconto,
+        total: vendas.total,
+        taxas: vendas.taxas,
+        comissao: vendas.comissao,
+        parcelas: vendas.parcelas,
+      })
+      .from(vendas)
+      .leftJoin(clientes, eq(clientes.id, vendas.clienteId))
+      .leftJoin(users, eq(users.id, vendas.vendedorId))
+      .leftJoin(entregadores, eq(entregadores.id, vendas.entregadorId))
+      .where(eq(vendas.id, id))
+      .limit(1)
+
+    // A RLS já garante que uma venda de outra distribuidora não é encontrada —
+    // `null` aqui é o mesmo caminho para "não existe" e "não é sua".
+    return (linha ?? null) as VendaDetalhe | null
+  })
+}
+
+export interface PagamentoDaVenda {
+  id: string
+  forma: string | null
+  conta: string | null
+  valor: string
+  taxa: string
+  recebidoEm: Date
+}
+
+export function pagamentosDaVenda(vendaId: string) {
+  return comTenant(async (tx) =>
+    tx
+      .select({
+        id: pagamentos.id,
+        forma: formasPagamento.nome,
+        conta: contasBancarias.nome,
+        valor: pagamentos.valor,
+        taxa: pagamentos.taxa,
+        recebidoEm: pagamentos.recebidoEm,
+      })
+      .from(pagamentos)
+      .leftJoin(formasPagamento, eq(formasPagamento.id, pagamentos.formaId))
+      .leftJoin(contasBancarias, eq(contasBancarias.id, pagamentos.contaId))
+      .where(eq(pagamentos.vendaId, vendaId))
+      .orderBy(asc(pagamentos.recebidoEm)),
+  ) as Promise<PagamentoDaVenda[]>
+}
+
+export interface TituloDaVenda {
+  id: string
+  codigo: number | null
+  parcelaNumero: number
+  parcelaTotal: number
+  valorParcela: string
+  vencimento: string
+  pagoEm: string | null
+  valorPago: string | null
+}
+
+export function titulosDaVenda(vendaId: string) {
+  return comTenant(async (tx) =>
+    tx
+      .select({
+        id: contasReceber.id,
+        codigo: contasReceber.codigo,
+        parcelaNumero: contasReceber.parcelaNumero,
+        parcelaTotal: contasReceber.parcelaTotal,
+        valorParcela: contasReceber.valorParcela,
+        vencimento: contasReceber.vencimento,
+        pagoEm: contasReceber.pagoEm,
+        valorPago: contasReceber.valorPago,
+      })
+      .from(contasReceber)
+      .where(eq(contasReceber.vendaId, vendaId))
+      .orderBy(asc(contasReceber.parcelaNumero)),
+  ) as Promise<TituloDaVenda[]>
+}
+
+export interface VasilhameDaVenda {
+  id: string
+  produto: string
+  motivo: string
+  quantidade: number
+}
+
+/**
+ * O comodato que esta venda movimentou.
+ *
+ * Fica na tela da venda por um motivo prático: quando o saldo de galões de um
+ * cliente não bate, a conferência começa na venda que ele questiona — e ter que
+ * abrir Movimentos e filtrar por data para descobrir o que ela gerou é o passo
+ * em que a operadora desiste e liga para alguém.
+ */
+export function vasilhameDaVenda(vendaId: string) {
+  return comTenant(async (tx) =>
+    tx
+      .select({
+        id: vasilhameMovimentos.id,
+        produto: produtos.nome,
+        motivo: vasilhameMovimentos.motivo,
+        quantidade: vasilhameMovimentos.quantidade,
+      })
+      .from(vasilhameMovimentos)
+      .innerJoin(produtos, eq(produtos.id, vasilhameMovimentos.produtoId))
+      .where(
+        and(
+          eq(vasilhameMovimentos.origem, 'venda'),
+          eq(vasilhameMovimentos.origemId, vendaId),
+        ),
+      )
+      .orderBy(asc(vasilhameMovimentos.criadoEm)),
+  ) as Promise<VasilhameDaVenda[]>
 }

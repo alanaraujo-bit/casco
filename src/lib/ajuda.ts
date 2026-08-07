@@ -9,6 +9,7 @@ import { ArtigoAberturaCaixa } from '@/components/ajuda/artigos/abertura-caixa'
 import { ArtigoVendasProdutos } from '@/components/ajuda/artigos/vendas-produtos'
 import { ArtigoAtualizacoes } from '@/components/ajuda/artigos/atualizacoes'
 import { ArtigoCadastroProdutos } from '@/components/ajuda/artigos/cadastro-produtos'
+import { ArtigoDesempenhoEntregadores } from '@/components/ajuda/artigos/desempenho-entregadores'
 
 /**
  * O índice da Central de Ajuda — espelha o papel de `NAVEGACAO` em
@@ -103,6 +104,14 @@ export const ARTIGOS_AJUDA: ArtigoAjuda[] = [
     resumo: 'Nome, preço, custo, estoque, ícone e vasilhame de cada produto que a distribuidora vende',
     palavrasChave: ['produto', 'sku', 'código', 'categoria', 'ícone', 'preço', 'custo', 'estoque mínimo', 'estoque máximo', 'estoque inicial', 'retornável', 'vasilhame', 'ncm'],
     Componente: ArtigoCadastroProdutos,
+  },
+  {
+    slug: 'desempenho-entregadores',
+    grupoSlug: 'relatorios',
+    titulo: 'Desempenho dos Entregadores',
+    resumo: 'Quem entregou mais na semana, quanta água saiu e quanto vasilhame voltou junto',
+    palavrasChave: ['entregador', 'entrega', 'ranking', 'desempenho', 'rota', 'semana', 'ticket médio', 'produtividade', 'quem entregou'],
+    Componente: ArtigoDesempenhoEntregadores,
   },
   {
     slug: 'baixa-vasilhame',

@@ -138,6 +138,9 @@ export const NAVEGACAO: GrupoNav[] = [
       { rotulo: 'DRE', href: '/relatorios/dre' },
       { rotulo: 'Fluxo de Caixa Diário', href: '/relatorios/caixa-diario' },
       { rotulo: 'Fluxo de Caixa Mensal', href: '/relatorios/caixa-mensal' },
+      // Depois dos três de dinheiro, de propósito: é o relatório de rotina da
+      // semana, não o que fecha o mês.
+      { rotulo: 'Desempenho dos Entregadores', href: '/relatorios/entregadores' },
     ],
   },
   {
@@ -213,6 +216,7 @@ export const ICONES_ITEM: Record<string, LucideIcon> = {
   '/relatorios/dre': FileBarChart,
   '/relatorios/caixa-diario': CalendarDays,
   '/relatorios/caixa-mensal': CalendarRange,
+  '/relatorios/entregadores': Truck,
 }
 
 /**

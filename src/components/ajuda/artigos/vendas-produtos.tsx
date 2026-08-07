@@ -41,14 +41,33 @@ export function ArtigoVendasProdutos() {
 
           <Passo numero={2} titulo="Use a busca para achar uma venda">
             <p>
-              Busque por cliente, código ou forma de pagamento. Cada linha mostra o valor da
-              venda, o quanto já foi recebido, a taxa descontada e o que ainda está a receber —
-              as três últimas colunas nunca se sobrepõem: uma venda à vista soma tudo em Recebido,
-              uma a prazo soma tudo em A Receber.
+              Busque por cliente, entregador, código ou forma de pagamento. Cada linha mostra o
+              valor da venda, o quanto já foi recebido, a taxa descontada e o que ainda está a
+              receber — as três últimas colunas nunca se sobrepõem: uma venda à vista soma tudo em
+              Recebido, uma a prazo soma tudo em A Receber. Logo depois do cliente vêm{' '}
+              <strong>Entregador</strong> e <strong>Água</strong>: quem foi levar e quantos galões
+              saíram naquela venda.
             </p>
           </Passo>
 
-          <Passo numero={3} titulo="Abra uma nova venda quando precisar">
+          <Passo numero={3} titulo="Clique na linha para abrir a venda inteira">
+            <p>
+              A tela da venda reúne o que antes exigia abrir três telas: os itens vendidos, como
+              foi pago, as parcelas em Contas a Receber e o vasilhame que saiu ou voltou. É onde se
+              confere <em>por que</em> um número ficou daquele jeito.
+            </p>
+            <p>
+              Ali também dá para <strong>marcar quem entregou</strong> e escrever uma observação,
+              mesmo com a venda já fechada — é o caso comum do balcão cheio, que fecha a venda
+              primeiro e resolve a rota depois. Assim que você salva, a venda entra no{' '}
+              <Link href="/ajuda/relatorios/desempenho-entregadores">
+                Desempenho dos Entregadores
+              </Link>
+              .
+            </p>
+          </Passo>
+
+          <Passo numero={4} titulo="Abra uma nova venda quando precisar">
             <p>
               O botão <strong>Nova venda</strong>, no topo da tabela, leva direto ao{' '}
               <Link href="/ajuda/vendas/pdv">PDV</Link>.
@@ -75,7 +94,15 @@ export function ArtigoVendasProdutos() {
             correspondente está em Contas a Receber, no menu Financeiro.
           </Faq>
           <Faq pergunta="Dá para editar ou excluir uma venda daqui?">
-            Não. A listagem é só para consulta — uma venda fechada não é editada nem removida.
+            Abrindo a venda, dá para mudar duas coisas: <strong>quem entregou</strong> e a{' '}
+            <strong>observação</strong>. Item, quantidade, preço e forma de pagamento não — cada um
+            deles já virou saída de estoque, entrada de caixa, título a receber e saldo de
+            vasilhame, e mudar só a venda deixaria as outras telas discordando dela em silêncio.
+            Venda errada se refaz. Excluir, nunca.
+          </Faq>
+          <Faq pergunta="A coluna Água conta o quê?">
+            Os galões de produto retornável daquela venda. Água em copo ou garrafa descartável não
+            entra, porque não gera vasilhame para voltar.
           </Faq>
         </ListaFaq>
       </SecaoArtigo>

@@ -34,11 +34,15 @@ import {
   formatarTelefone,
 } from '@/lib/formatos'
 import {
+  CAMPOS_ENTREGA,
   CAMPOS_VENDA,
   centavos,
   deCentavos,
+  esquemaEntrega,
   esquemaVenda,
+  type CampoEntrega,
   type CampoVenda,
+  type EstadoEntrega,
   type EstadoVenda,
 } from './esquema'
 
@@ -594,6 +598,99 @@ export async function fecharVenda(
           saldoVasilhame,
         },
       }
+    })
+  } catch (err) {
+    return { erro: descreverFalha(err), tentativa }
+  }
+}
+
+/* ------------------------------------------------------- corrigir uma venda */
+
+/**
+ * Troca o entregador e a observação de uma venda já fechada.
+ *
+ * O que esta action **não** faz está documentado em `esquemaEntrega`, no
+ * `esquema.ts`, e é a parte que importa: nenhum dos dois campos tem
+ * contrapartida em estoque, caixa, comodato ou Contas a Receber, então gravá-los
+ * é um `update` de uma linha só — e é justamente por isso que são os dois que a
+ * tela deixa corrigir.
+ *
+ * Venda cancelada não muda. Não é rigor: o desempenho por entregador ignora
+ * venda cancelada, e deixar alguém remarcar o entregador de uma venda desfeita
+ * seria oferecer uma edição que não muda número nenhum na tela seguinte.
+ */
+export async function corrigirEntrega(
+  anterior: EstadoEntrega,
+  form: FormData,
+): Promise<EstadoEntrega> {
+  const tentativa = (anterior.tentativa ?? 0) + 1
+
+  const bruto = Object.fromEntries(
+    CAMPOS_ENTREGA.map((campo) => [campo, String(form.get(campo) ?? '')]),
+  )
+  const analise = esquemaEntrega.safeParse(bruto)
+  if (!analise.success) {
+    const porCampo = z.flattenError(analise.error).fieldErrors as Record<
+      string,
+      string[] | undefined
+    >
+    const campos: Partial<Record<CampoEntrega, string>> = {}
+    for (const campo of CAMPOS_ENTREGA) {
+      const msg = porCampo[campo]?.[0]
+      if (msg) campos[campo] = msg
+    }
+    const geral = z.flattenError(analise.error).formErrors[0]
+    return { campos, tentativa, erro: Object.keys(campos).length ? undefined : geral }
+  }
+
+  const dados = analise.data
+
+  try {
+    return await comTenant(async (tx) => {
+      const [venda] = await tx
+        .select({
+          id: vendas.id,
+          status: vendas.status,
+          entregadorId: vendas.entregadorId,
+        })
+        .from(vendas)
+        .where(eq(vendas.id, dados.vendaId))
+        .limit(1)
+
+      if (!venda) return { erro: 'Venda não encontrada.', tentativa }
+      if (venda.status === 'cancelada') {
+        return { erro: 'Esta venda está cancelada e não aceita mais alteração.', tentativa }
+      }
+
+      // Não se **marca** uma venda para quem saiu do quadro: o ranking passaria
+      // a listar gente que não trabalha mais aqui, sem nada na tela dizendo
+      // isso. Manter quem já estava, esse sim: a venda de junho foi entregue
+      // por quem foi, e desligar alguém em agosto não reescreve junho.
+      if (dados.entregadorId && dados.entregadorId !== venda.entregadorId) {
+        const [entregador] = await tx
+          .select({ id: entregadores.id })
+          .from(entregadores)
+          .where(and(eq(entregadores.id, dados.entregadorId), eq(entregadores.ativo, true)))
+          .limit(1)
+        if (!entregador) {
+          return { campos: { entregadorId: 'Entregador não encontrado' }, tentativa }
+        }
+      }
+
+      await tx
+        .update(vendas)
+        .set({
+          entregadorId: dados.entregadorId,
+          observacao: dados.observacao,
+          atualizadoEm: new Date(),
+        })
+        .where(eq(vendas.id, venda.id))
+
+      revalidatePath('/vendas/produtos')
+      revalidatePath(`/vendas/produtos/${venda.id}`)
+      revalidatePath('/relatorios/entregadores')
+
+      return { salvo: true, tentativa }
     })
   } catch (err) {
     return { erro: descreverFalha(err), tentativa }
