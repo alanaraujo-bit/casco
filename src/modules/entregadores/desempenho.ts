@@ -134,7 +134,7 @@ export interface LinhaDesempenho {
   nome: string
   ativo: boolean
   entregas: number
-  /** Galões de produto retornável — a mesma definição da listagem de vendas. */
+  /** Galões de produto de categoria água — a mesma definição da listagem de vendas. */
   agua: number
   /** Vasilhames vazios que voltaram junto com a entrega. */
   devolvido: number
@@ -157,11 +157,15 @@ export interface LinhaDesempenho {
  * período, e escondê-la deixaria a diferença sem explicação nenhuma na tela.
  */
 export function rankingEntregadores(de: string, ate: string) {
+  // Mesma classificação por substring da listagem de vendas: água é
+  // categoria, não `retornavel` — galão retornável e garrafa descartável são
+  // os dois água, e os dois devem contar aqui.
   const agua = sql<number>`coalesce(sum((
     select coalesce(sum(vi.quantidade), 0)
       from venda_itens vi
       join produtos p on p.id = vi.produto_id
-     where vi.venda_id = ${vendas.id} and p.retornavel
+     where vi.venda_id = ${vendas.id}
+       and (lower(p.categoria) like '%água%' or lower(p.categoria) like '%agua%')
   )), 0)::float8`
 
   const devolvido = sql<number>`coalesce(sum((

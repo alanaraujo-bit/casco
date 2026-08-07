@@ -129,8 +129,9 @@ export function ArtigoVendasProdutos() {
             só para quem tem papel de dono.
           </Faq>
           <Faq pergunta="A coluna Água conta o quê?">
-            Os galões de produto retornável daquela venda. Água em copo ou garrafa descartável não
-            entra, porque não gera vasilhame para voltar.
+            Tudo que é produto de categoria água naquela venda — galão retornável ou garrafa
+            descartável, os dois entram. Quanto vasilhame ficou de comodato é outra pergunta,
+            respondida no bloco "Vasilhame movimentado" dentro da venda.
           </Faq>
           <Faq pergunta="Cancelar uma venda cancelada de novo funciona?">
             Não é preciso — e a tela nem oferece o botão. Uma venda já cancelada mostra só o selo,

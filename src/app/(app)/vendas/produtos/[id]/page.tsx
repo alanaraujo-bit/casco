@@ -72,7 +72,13 @@ export default async function PaginaVenda({ params }: PageProps<'/vendas/produto
   const cancelada = venda.status === 'cancelada'
   const codigo = venda.codigo ? String(venda.codigo).padStart(4, '0') : '—'
 
-  const agua = itens.filter((i) => i.retornavel).reduce((s, i) => s + Number(i.quantidade), 0)
+  // Categoria "água", não `retornavel`: galão retornável e garrafa descartável
+  // são os dois água, e os dois devem contar aqui — mesma regra da listagem.
+  const ehAgua = (categoria: string | null) => {
+    const c = (categoria ?? '').toLowerCase()
+    return c.includes('água') || c.includes('agua')
+  }
+  const agua = itens.filter((i) => ehAgua(i.categoria)).reduce((s, i) => s + Number(i.quantidade), 0)
   const devolvido = itens.reduce((s, i) => s + i.vasilhameDevolvido, 0)
   const recebido = pagamentos.reduce((s, p) => s + Number(p.valor), 0)
   const emAberto = titulos

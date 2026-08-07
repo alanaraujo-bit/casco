@@ -173,9 +173,11 @@ export function acharTabelaPadrao() {
  * `contas_receber`. Gravadas na venda, as duas colunas param de bater no dia
  * em que alguém baixa um título por fora.
  *
- * "Água" segue a mesma regra e é a soma das quantidades dos itens de produto
- * **retornável** — que é o que o cadastro chama de galão que gera comodato. Não
- * é uma coluna de `vendas`, e não deve ser: água vendida é a soma dos itens, e
+ * "Água" segue a mesma regra e é a soma das quantidades dos itens cujo produto
+ * tem categoria "água" — retornável ou não, porque a coluna responde "quanto
+ * de água saiu nesta venda", não "quanto vasilhame ficou de comodato" (isso é
+ * assunto do módulo de Vasilhame, que já rastreia por `retornavel`). Não é uma
+ * coluna de `vendas`, e não deve ser: água vendida é a soma dos itens, e
  * congelá-la na venda faria a listagem discordar do item no dia em que um item
  * for corrigido.
  */
@@ -186,7 +188,7 @@ export interface VendaLista {
   criadoEm: Date
   cliente: string
   entregador: string | null
-  /** Galões de produto retornável nesta venda. Ver a nota acima. */
+  /** Galões de produto de categoria água nesta venda. Ver a nota acima. */
   agua: number
   /** Vasilhames vazios que o cliente entregou junto, somados. */
   devolvido: number
@@ -228,11 +230,15 @@ export function listarVendas(limite = 500) {
     select count(*)::int from ${vendaItens} where ${vendaItens.vendaId} = ${vendas.id}
   ), 0)`
 
+  // Mesma classificação por substring de `metricasEstoquePorTipo()` — água é
+  // categoria, não `retornavel`: galão retornável e garrafa descartável são
+  // os dois água, e os dois devem contar aqui.
   const agua = sql<number>`coalesce((
     select sum(vi.quantidade)::float8
       from venda_itens vi
       join produtos p on p.id = vi.produto_id
-     where vi.venda_id = ${vendas.id} and p.retornavel
+     where vi.venda_id = ${vendas.id}
+       and (lower(p.categoria) like '%água%' or lower(p.categoria) like '%agua%')
   ), 0)`
 
   const devolvido = sql<number>`coalesce((
@@ -319,6 +325,8 @@ export interface ItemDaVenda {
   unidade: string
   icone: string | null
   retornavel: boolean
+  /** Categoria do cadastro do produto — usada para somar "água" na tela da venda. */
+  categoria: string | null
   quantidade: string
   precoUnitario: string
   total: string
@@ -336,6 +344,7 @@ export function itensDaVenda(vendaId: string) {
         unidade: produtos.unidade,
         icone: produtos.icone,
         retornavel: produtos.retornavel,
+        categoria: produtos.categoria,
         quantidade: vendaItens.quantidade,
         precoUnitario: vendaItens.precoUnitario,
         total: vendaItens.total,
