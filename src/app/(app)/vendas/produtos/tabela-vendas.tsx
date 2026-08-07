@@ -9,6 +9,7 @@ import type { Coluna } from '@/components/ui/tabela/tipos'
 import { formatarDataHora } from '@/lib/formatos'
 import { moeda } from '@/lib/utils'
 import type { VendaLista } from '@/modules/vendas/consultas'
+import { BotaoCancelar } from './botao-cancelar'
 
 /**
  * A listagem de vendas, na ordem de colunas consagrada:
@@ -196,6 +197,34 @@ const colunas: Coluna<VendaLista>[] = [
     numerica: true,
     ocultaPorPadrao: true,
     papelMobile: 'oculto',
+  },
+  {
+    chave: 'status',
+    cabecalho: 'Situação',
+    texto: (v) => (v.status === 'cancelada' ? 'Cancelada' : 'Confirmada'),
+    celula: (v) =>
+      v.status === 'cancelada' ? (
+        <Badge variant="perigo">Cancelada</Badge>
+      ) : (
+        <Badge variant="sucesso">Confirmada</Badge>
+      ),
+    larguraMin: '8rem',
+  },
+  {
+    chave: 'acoes',
+    cabecalho: 'Ações',
+    texto: () => '',
+    celula: (v) =>
+      v.status === 'cancelada' ? (
+        <span className="text-xs text-texto-fraco">—</span>
+      ) : (
+        <span className="flex items-center justify-end gap-1">
+          <BotaoCancelar id={v.id} />
+        </span>
+      ),
+    ordenavel: false,
+    alinhamento: 'direita',
+    larguraMin: '8rem',
   },
 ]
 

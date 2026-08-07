@@ -23,7 +23,7 @@ import {
   vendas,
 } from '@/db/schema'
 import { comTenant } from '@/lib/dal'
-import { descreverFalha } from '@/lib/erros'
+import { descreverFalha, type Falha } from '@/lib/erros'
 import { autorDoLancamento } from '@/lib/sessao'
 import {
   dataNaLoja,
@@ -694,5 +694,145 @@ export async function corrigirEntrega(
     })
   } catch (err) {
     return { erro: descreverFalha(err), tentativa }
+  }
+}
+
+export interface ResultadoCancelamento {
+  ok: boolean
+  erro?: Falha | string
+}
+
+/**
+ * Desfaz uma venda inteira — a única forma de "excluir" uma venda que existe.
+ *
+ * Não é DELETE em `vendas`: a linha fica, com `status: 'cancelada'`, porque
+ * estoque, vasilhame e caixa já referenciam esta venda por `origem_id`, e uma
+ * venda que sumisse do banco deixaria esses três extratos apontando para nada.
+ * `estoque_movimentos` e `vasilhame_movimentos` nem aceitam DELETE — o banco
+ * recusa por trigger (ver `estoque/acoes.ts`) — então o caminho é o mesmo dos
+ * dois módulos: um lançamento de estorno para cada baixa que a venda gerou.
+ *
+ * `pagamentos` e `contas_receber` não têm essa trava, e aqui são removidos de
+ * verdade: são o recibo de uma venda que deixou de existir, não um lançamento
+ * contábil que precisa do rastro do estorno. O dinheiro em si é desfeito por
+ * um lançamento reverso em `caixa_movimentos` — esse sim é o razão que não se
+ * apaga.
+ *
+ * **Parcela já recebida trava o cancelamento.** Cancelar uma venda com dinheiro
+ * já baixado devolveria ao caixa um valor que a operadora já contou como seu
+ * de um jeito que ninguém decidiu — é preciso desfazer a baixa primeiro,
+ * na tela de Contas a Receber, para essa decisão ficar explícita.
+ *
+ * **Exige a senha de exclusão.** Cancelar desfaz estoque, comodato e caixa de
+ * uma vez só — não é um clique que se dá por engano. A senha mora em
+ * `SENHA_EXCLUSAO_VENDA` (variável de ambiente, nunca no código) e não em
+ * `users`: é uma trava operacional, não uma conta de alguém.
+ */
+export async function cancelarVenda(
+  vendaId: string,
+  senha: string,
+): Promise<ResultadoCancelamento> {
+  const senhaEsperada = process.env.SENHA_EXCLUSAO_VENDA
+  if (!senhaEsperada) {
+    return { ok: false, erro: 'Senha de exclusão não configurada. Fale com o suporte.' }
+  }
+  if (senha !== senhaEsperada) {
+    return { ok: false, erro: 'Senha incorreta.' }
+  }
+
+  try {
+    return await comTenant(async (tx, sessao) => {
+      const [venda] = await tx.select().from(vendas).where(eq(vendas.id, vendaId)).limit(1)
+      if (!venda) return { ok: false, erro: 'Venda não encontrada.' }
+      if (venda.status === 'cancelada') return { ok: false, erro: 'Esta venda já foi cancelada.' }
+
+      const parcelas = await tx
+        .select({ pagoEm: contasReceber.pagoEm })
+        .from(contasReceber)
+        .where(eq(contasReceber.vendaId, vendaId))
+      if (parcelas.some((p) => p.pagoEm)) {
+        return {
+          ok: false,
+          erro: 'Esta venda tem parcela já recebida. Desfaça a baixa em Contas a Receber antes de cancelar.',
+        }
+      }
+
+      const rotulo = `cancelamento da venda ${venda.codigo ? `#${venda.codigo}` : ''}`.trim()
+
+      const movsEstoque = await tx
+        .select()
+        .from(estoqueMovimentos)
+        .where(and(eq(estoqueMovimentos.origem, 'venda'), eq(estoqueMovimentos.origemId, vendaId)))
+      for (const m of movsEstoque) {
+        await tx.insert(estoqueMovimentos).values({
+          id: uuidv7(),
+          companyId: sessao.companyId,
+          produtoId: m.produtoId,
+          quantidade: String(-Number(m.quantidade)),
+          tipo: m.tipo,
+          custoUnitario: m.custoUnitario,
+          origem: 'ajuste',
+          origemId: m.id,
+          usuarioId: autorDoLancamento(sessao),
+          adminId: sessao.adminId ?? null,
+          observacao: `Estorno por ${rotulo}.`,
+          estornoDe: m.id,
+        })
+      }
+
+      const movsVasilhame = await tx
+        .select()
+        .from(vasilhameMovimentos)
+        .where(and(eq(vasilhameMovimentos.origem, 'venda'), eq(vasilhameMovimentos.origemId, vendaId)))
+      for (const m of movsVasilhame) {
+        await tx.insert(vasilhameMovimentos).values({
+          id: uuidv7(),
+          companyId: sessao.companyId,
+          clienteId: m.clienteId,
+          produtoId: m.produtoId,
+          quantidade: -m.quantidade,
+          motivo: m.motivo,
+          origem: 'ajuste',
+          origemId: m.id,
+          custoUnitario: m.custoUnitario,
+          usuarioId: autorDoLancamento(sessao),
+          observacao: `Estorno por ${rotulo}.`,
+          estornoDe: m.id,
+        })
+      }
+
+      const movsCaixa = await tx
+        .select()
+        .from(caixaMovimentos)
+        .where(and(eq(caixaMovimentos.origem, 'venda'), eq(caixaMovimentos.origemId, vendaId)))
+      for (const c of movsCaixa) {
+        await tx.insert(caixaMovimentos).values({
+          id: uuidv7(),
+          companyId: sessao.companyId,
+          contaId: c.contaId,
+          data: dataNaLoja(),
+          sentido: c.sentido === 'entrada' ? 'saida' : 'entrada',
+          valor: c.valor,
+          categoria: 'Estorno de venda',
+          descricao: `Cancelamento da venda ${venda.codigo ?? ''}`.trim(),
+          origem: 'venda',
+          origemId: vendaId,
+          usuarioId: autorDoLancamento(sessao),
+        })
+      }
+
+      await tx.delete(pagamentos).where(eq(pagamentos.vendaId, vendaId))
+      await tx.delete(contasReceber).where(eq(contasReceber.vendaId, vendaId))
+
+      await tx
+        .update(vendas)
+        .set({ status: 'cancelada', atualizadoEm: new Date() })
+        .where(eq(vendas.id, vendaId))
+
+      revalidarTudo()
+      return { ok: true }
+    })
+  } catch (err) {
+    return { ok: false, erro: descreverFalha(err) }
   }
 }

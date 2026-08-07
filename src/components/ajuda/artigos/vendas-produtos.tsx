@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { SecaoArtigo } from '@/components/ajuda/artigo-layout'
 import { Passo, Passos } from '@/components/ajuda/passo'
 import { Video } from '@/components/ajuda/video'
-import { Dica } from '@/components/ajuda/callouts'
+import { Atencao, Dica } from '@/components/ajuda/callouts'
 import { Faq, ListaFaq } from '@/components/ajuda/faq'
 
 export function ArtigoVendasProdutos() {
@@ -73,6 +73,16 @@ export function ArtigoVendasProdutos() {
               <Link href="/ajuda/vendas/pdv">PDV</Link>.
             </p>
           </Passo>
+
+          <Passo numero={5} titulo="Cancele uma venda lançada errada">
+            <p>
+              Na coluna <strong>Ações</strong>, clique no ícone de cancelar, digite a{' '}
+              <strong>senha de exclusão</strong> e confirme. A venda não some da lista — ela ganha
+              o selo <strong>Cancelada</strong> e continua ali como registro. O estoque baixado
+              volta, o comodato entregue é desfeito e o dinheiro que tinha entrado no caixa sai de
+              novo, como um lançamento de estorno.
+            </p>
+          </Passo>
         </Passos>
       </SecaoArtigo>
 
@@ -80,6 +90,15 @@ export function ArtigoVendasProdutos() {
         <Dica titulo="Por que uma venda no cartão mostra menos em 'Recebido' do que o valor da venda?">
           A diferença é a taxa da maquininha, na coluna <strong>Taxas</strong> — ela nunca chega a
           entrar no caixa. Somando Recebido e Taxas você volta ao valor cheio da venda.
+        </Dica>
+        <Atencao titulo="Venda a prazo com parcela já recebida não cancela direto">
+          Primeiro desfaça a baixa da parcela em <strong>Contas a Receber</strong>, no menu
+          Financeiro. Cancelar uma venda com dinheiro já baixado devolveria ao caixa um valor que
+          ninguém decidiu devolver — a tela pede esse passo antes, de propósito.
+        </Atencao>
+        <Dica titulo="Não sei a senha de exclusão">
+          É uma segunda trava, separada da conta de cada operadora — fale com quem administra o
+          Casco na distribuidora para conseguir a senha.
         </Dica>
       </SecaoArtigo>
 
@@ -98,11 +117,18 @@ export function ArtigoVendasProdutos() {
             <strong>observação</strong>. Item, quantidade, preço e forma de pagamento não — cada um
             deles já virou saída de estoque, entrada de caixa, título a receber e saldo de
             vasilhame, e mudar só a venda deixaria as outras telas discordando dela em silêncio.
-            Venda errada se refaz. Excluir, nunca.
+            Venda errada se refaz. Excluir de vez também não — o que existe é cancelar: a venda
+            fica na lista com o selo Cancelada, e tudo que ela gerou (estoque, comodato, caixa,
+            título a receber) é desfeito. É assim que estoque e caixa continuam explicáveis pelo
+            histórico que os gerou, em vez de uma linha que simplesmente sumiu.
           </Faq>
           <Faq pergunta="A coluna Água conta o quê?">
             Os galões de produto retornável daquela venda. Água em copo ou garrafa descartável não
             entra, porque não gera vasilhame para voltar.
+          </Faq>
+          <Faq pergunta="Cancelar uma venda cancelada de novo funciona?">
+            Não é preciso — e a tela nem oferece o botão. Uma venda já cancelada mostra só o selo,
+            sem ação ao lado.
           </Faq>
         </ListaFaq>
       </SecaoArtigo>
