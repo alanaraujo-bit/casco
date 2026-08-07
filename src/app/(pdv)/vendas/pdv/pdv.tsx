@@ -422,7 +422,13 @@ export function Pdv({
   const total = Math.max(0, subtotal - descontoCent)
   const taxa = aPrazo || !forma ? 0 : Math.round((total * Number(forma.taxaPercentual)) / 100)
   const recebidoCent = centavos(paraNumero(valorRecebido) || 0)
-  const troco = forma?.tipo === 'dinheiro' && recebidoCent > total ? recebidoCent - total : 0
+  // Com o carrinho vazio o total é zero, e "recebido > 0" bateria como troco
+  // sem venda nenhuma por trás — a quebra em cédulas só faz sentido depois de
+  // haver o que vender e quanto o cliente passou para pagar.
+  const troco =
+    carrinho.length > 0 && forma?.tipo === 'dinheiro' && recebidoCent > total
+      ? recebidoCent - total
+      : 0
 
   const vasilhamesNaVenda = carrinho.reduce(
     (soma, l) => (porId.get(l.produtoId)?.retornavel ? soma + l.quantidade : soma),
